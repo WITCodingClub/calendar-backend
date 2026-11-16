@@ -99,11 +99,14 @@ class OauthCredential < ApplicationRecord
   # Flags a grant that the provider will not take again, so the dashboard
   # asks the person to sign in again.
   def mark_revoked!(reason)
-    update!(metadata: (metadata || {}).merge(
-      "token_revoked"     => true,
-      "token_revoked_at"  => Time.current.iso8601,
-      "revocation_reason" => reason
-    ))
+    update!(metadata: revoked_metadata(reason))
+  end
+
+  # Deletes the refresh token and flags the grant, for a token that Google
+  # says it revoked (RISC token-revoked). It skips validations and callbacks,
+  # so an older row that no longer passes a validation is still revoked.
+  def revoke_refresh_token!(reason)
+    update_columns(refresh_token: nil, metadata: revoked_metadata(reason), updated_at: Time.current)
   end
 
   # Refreshes the access token with the provider and saves it.
@@ -136,6 +139,14 @@ class OauthCredential < ApplicationRecord
   end
 
   private
+
+  def revoked_metadata(reason)
+    (metadata || {}).merge(
+      "token_revoked"     => true,
+      "token_revoked_at"  => Time.current.iso8601,
+      "revocation_reason" => reason
+    )
+  end
 
   def release_calendar
     calendar_provider.release_calendar(self)

@@ -5,6 +5,8 @@ module Risc
     # A credential could not be revoked. The event stays unprocessed, so the job
     # retries it and does not skip it as already seen.
     class RevocationFailed < StandardError; end
+    # A token prefix matched more than one credential. Reported, never raised.
+    class TokenAmbiguous < StandardError; end
 
     # A database failure that a later attempt can clear. These reach the job, so
     # `retry_on` runs and the revoke event is not dropped.
@@ -132,56 +134,53 @@ module Risc
     # Revokes only the credential whose refresh token the event names. With a
     # subject, the token can only belong to the credential of that Google
     # account. Without one, every Google credential is a candidate.
+    #
+    # The event row is written before the match, so a failure in the match
+    # leaves an unprocessed row, and a transient error raises for a retry.
     def handle_token_revoked
       identifier = event_data[:token_identifier] || {}
       subject    = event_data[:google_subject]
+      @security_event = create_security_event(find_user_by_google_subject(subject), google_subject: subject || UNKNOWN_SUBJECT)
 
       unless identifier[:token_type] == REFRESH_TOKEN && TokenMatcher.supported?(identifier[:algorithm])
-        @security_event = create_security_event(find_user_by_google_subject(subject), google_subject: subject || UNKNOWN_SUBJECT)
         Rails.logger.warn("RISC: token_revoked with unsupported token type #{identifier[:token_type].inspect} " \
                           "or identifier #{identifier[:algorithm].inspect}, event #{@security_event.id}")
         return { action: "token_identifier_unsupported" }
       end
 
-      candidates  = subject ? OauthCredential.google.where(uid: subject) : OauthCredential.google
-      ids         = TokenMatcher.new(algorithm: identifier[:algorithm], token: identifier[:token]).matching_ids(candidates)
-      credentials = OauthCredential.where(id: ids).order(:id).to_a
-      credential  = credentials.first
+      candidates = subject ? OauthCredential.google.where(uid: subject) : OauthCredential.google
+      ids        = TokenMatcher.new(algorithm: identifier[:algorithm], token: identifier[:token]).matching_ids(candidates).sort
 
-      @security_event = create_security_event(
-        credential&.user || find_user_by_google_subject(subject),
-        oauth_credential: credential,
-        google_subject: subject || credential&.uid || UNKNOWN_SUBJECT
-      )
-
-      if credentials.empty?
+      if ids.empty?
         Rails.logger.info("RISC: token_revoked matched no credential, event #{@security_event.id}")
         return { action: "token_not_found" }
       end
 
-      revoke_refresh_tokens(credentials)
-      { action: "token_revoked", oauth_credentials_revoked: true, oauth_credential_ids: credentials.map(&:id) }
+      # Only a 16-character prefix can match more than one token. Revoking a
+      # token that Google did not name would cut off a working connection.
+      if ids.many?
+        Rails.error.report(TokenAmbiguous.new("token_revoked matched #{ids.size} credentials"),
+                           handled: true, context: { security_event_id: @security_event.id, oauth_credential_ids: ids })
+        return { action: "token_ambiguous", oauth_credential_ids: ids }
+      end
+
+      credential = OauthCredential.find(ids.first)
+      @security_event.update!(user: credential.user, oauth_credential: credential, google_subject: subject || credential.uid)
+      revoke_refresh_token(credential)
+      { action: "token_revoked", oauth_credentials_revoked: true, oauth_credential_ids: ids }
     end
 
     # Google asks to delete the refresh token and to ask the person to consent
-    # again. The credential stays, like a grant that Google refused
-    # (invalid_grant): mark_revoked! sets the flag that the dashboard reads, and
-    # the next sign-in stores a new token and clears it.
-    def revoke_refresh_tokens(credentials)
-      failures = []
-
-      credentials.each do |credential|
-        credential.refresh_token = nil
-        credential.mark_revoked!(TOKEN_REVOKED_REASON)
-        Rails.logger.info("RISC: revoked refresh token of OAuth credential #{credential.id} for user #{credential.user_id}")
-      rescue *TRANSIENT_ERRORS
-        raise
-      rescue => e
-        Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
-        failures << "credential #{credential.id}: #{e.class}"
-      end
-
-      raise RevocationFailed, "Could not revoke #{failures.join('; ')}" if failures.any?
+    # again. Only the refresh token goes: the credential row, its calendar and
+    # the person's sessions stay, as for a grant that Google refused
+    # (invalid_grant). The next sign-in stores a new token and clears the flag.
+    def revoke_refresh_token(credential)
+      credential.revoke_refresh_token!(TOKEN_REVOKED_REASON)
+      Rails.logger.info("RISC: revoked refresh token of OAuth credential #{credential.id} for user #{credential.user_id}")
+    rescue *TRANSIENT_ERRORS
+      raise
+    rescue => e
+      raise RevocationFailed, "Could not revoke credential #{credential.id}: #{e.class}"
     end
 
     def handle_verification_event

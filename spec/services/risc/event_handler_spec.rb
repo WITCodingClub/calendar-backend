@@ -155,14 +155,57 @@ RSpec.describe Risc::EventHandler do
       expect(SecurityEvent.last).to have_attributes(processed: true, user: user, google_subject: named.uid)
     end
 
-    it "matches the first 16 characters for the prefix identifier" do
-      result = token_revoked(token: revoked_token.first(16), algorithm: "prefix")
+    it "revokes the one credential that a 16-character prefix matches" do
+      unique = create(:oauth_credential, user: user, email: "unique@example.test", refresh_token: "1//unique-prefix-0123456789")
+
+      expect(token_revoked(token: "1//unique-prefix", algorithm: "prefix")).to include(action: "token_revoked", oauth_credential_ids: [ unique.id ])
+      expect(unique.reload.refresh_token).to be_nil
+    end
+
+    it "revokes nothing and reports when a prefix matches more than one credential" do
+      allow(Rails.error).to receive(:report)
 
       # Both synthetic tokens share their first 16 characters.
-      expect(result).to include(action: "token_revoked", oauth_credential_ids: [ named.id, other.id ])
+      result = token_revoked(token: revoked_token.first(16), algorithm: "prefix")
 
-      unique = create(:oauth_credential, user: user, email: "unique@example.test", refresh_token: "1//unique-prefix-0123456789")
-      expect(token_revoked(token: "1//unique-prefix", algorithm: "prefix")).to include(oauth_credential_ids: [ unique.id ])
+      expect(result).to eq(success: true, action: "token_ambiguous", oauth_credential_ids: [ named.id, other.id ].sort)
+      expect(named.reload.refresh_token).to eq(revoked_token)
+      expect(other.reload.refresh_token).to eq(kept_token)
+      expect(SecurityEvent.last).to have_attributes(processed: true, oauth_credential: nil)
+      expect(Rails.error).to have_received(:report)
+        .with(an_instance_of(described_class::TokenAmbiguous), handled: true, context: hash_including(oauth_credential_ids: [ named.id, other.id ].sort))
+    end
+
+    it "skips and reports a candidate whose refresh token does not decrypt" do
+      broken = create(:oauth_credential, user: user, email: "broken@example.test")
+      # A value encrypted with a key the app no longer has. Raw SQL, because
+      # update_column would encrypt it.
+      broken_value = { p: "c3ludGhldGlj", h: { iv: "c3ludGhldGlj", at: "c3ludGhldGlj" } }.to_json
+      OauthCredential.connection.exec_update(
+        "UPDATE oauth_credentials SET refresh_token = $1 WHERE id = $2", "SQL", [ broken_value, broken.id ]
+      )
+      allow(Rails.error).to receive(:report)
+
+      result = token_revoked(token: double_sha512(revoked_token))
+
+      expect(result).to include(action: "token_revoked", oauth_credential_ids: [ named.id ])
+      expect(Rails.error).to have_received(:report)
+        .with(a_kind_of(ActiveRecord::Encryption::Errors::Base), handled: true, context: { oauth_credential_id: broken.id })
+    end
+
+    it "revokes a credential that no longer passes its validations" do
+      named.update_column(:email, "not-an-email")
+
+      expect(token_revoked(token: double_sha512(revoked_token))).to include(action: "token_revoked")
+      expect(named.reload).to have_attributes(refresh_token: nil, token_revoked?: true)
+    end
+
+    it "leaves an unprocessed event row when the match fails for a moment" do
+      allow_any_instance_of(Risc::TokenMatcher).to receive(:matching_ids).and_raise(ActiveRecord::StatementTimeout) # rubocop:disable RSpec/AnyInstance
+
+      expect { token_revoked(token: double_sha512(revoked_token)) }.to raise_error(ActiveRecord::StatementTimeout)
+      expect(SecurityEvent.last).to have_attributes(event_type: SecurityEvent::TOKEN_REVOKED, processed: false)
+      expect(named.reload.refresh_token).to eq(revoked_token)
     end
 
     it "does not look past the credential of the subject" do

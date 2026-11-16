@@ -48,6 +48,10 @@ module Risc
       ids = []
       scope.where.not(refresh_token: nil).select(:id, :refresh_token).find_each(batch_size: BATCH_SIZE) do |credential|
         ids << credential.id if match?(credential.refresh_token.to_s)
+      rescue ActiveRecord::Encryption::Errors::Base => e
+        # One row that does not decrypt (a rotated key, a damaged value) must
+        # not stop the match for the rest.
+        Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
       end
       ids
     end
