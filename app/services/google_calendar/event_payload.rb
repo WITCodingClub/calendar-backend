@@ -9,7 +9,6 @@ module GoogleCalendar
   # eventLabelId only when the request asks for label version 1, so pass
   # request_options(event) to insert_event and update_event.
   class EventPayload
-    REMINDER_METHODS = %w[email popup notification].freeze
 
     def self.build(event_data, labels = nil)
       new(event_data, labels).to_event
@@ -83,38 +82,17 @@ module GoogleCalendar
     end
 
     def apply_reminders(google_event)
-      return unless data[:reminder_settings].is_a?(Array)
-
-      valid_reminders = data[:reminder_settings].select { |reminder| valid_reminder?(reminder) }
+      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      return if reminders.nil?
 
       # An empty list means "no reminders". It must still send use_default: false,
       # otherwise Google applies the calendar default reminders.
       google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
         use_default: false,
-        overrides:   valid_reminders.map do |reminder|
-          method  = reminder["method"] == "notification" ? "popup" : reminder["method"]
-          minutes = minutes_for(reminder["time"], reminder["type"])
-          Google::Apis::CalendarV3::EventReminder.new(reminder_method: method, minutes: minutes)
+        overrides:   reminders.map do |reminder|
+          Google::Apis::CalendarV3::EventReminder.new(reminder_method: reminder.delivery, minutes: reminder.minutes)
         end
       )
-    end
-
-    def valid_reminder?(reminder)
-      reminder.is_a?(Hash) &&
-        reminder["method"].present? &&
-        reminder["time"].present? &&
-        reminder["type"].present? &&
-        REMINDER_METHODS.include?(reminder["method"])
-    end
-
-    def minutes_for(time, type)
-      time_value = time.to_f
-
-      case type
-      when "hours" then (time_value * 60).to_i
-      when "days"  then (time_value * 1440).to_i
-      else time_value.to_i
-      end
     end
   end
 end

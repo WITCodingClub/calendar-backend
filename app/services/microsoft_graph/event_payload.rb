@@ -25,7 +25,6 @@ module MicrosoftGraph
     # The ordinal in a monthly BYDAY, for example 2 in 2WE, as a Graph index.
     WEEK_INDEXES = { "1" => "first", "2" => "second", "3" => "third", "4" => "fourth", "-1" => "last" }.freeze
 
-    REMINDER_METHODS = %w[email popup notification].freeze
     SENSITIVITY      = { "private" => "private", "confidential" => "confidential" }.freeze
 
     def self.build(event_data)
@@ -139,29 +138,11 @@ module MicrosoftGraph
     end
 
     def reminder_payload
-      settings = data[:reminder_settings]
-      return {} unless settings.is_a?(Array)
+      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      return {} if reminders.nil?
+      return { isReminderOn: false } if reminders.empty?
 
-      minutes = settings.filter_map do |reminder|
-        next unless reminder.is_a?(Hash) && REMINDER_METHODS.include?(reminder["method"])
-        next if reminder["time"].blank? || reminder["type"].blank?
-
-        to_minutes(reminder["time"], reminder["type"])
-      end
-
-      return { isReminderOn: false } if minutes.empty?
-
-      { isReminderOn: true, reminderMinutesBeforeStart: minutes.min }
-    end
-
-    def to_minutes(time, type)
-      value = time.to_f
-
-      case type
-      when "hours" then (value * 60).to_i
-      when "days"  then (value * 1440).to_i
-      else value.to_i
-      end
+      { isReminderOn: true, reminderMinutesBeforeStart: reminders.map(&:minutes).min }
     end
   end
 end
