@@ -92,14 +92,7 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
   scope :past,          -> { where(start_time: ...Time.current) }
   scope :holidays,      -> { where(category: "holiday") }
-  scope :term_dates,    -> { where(category: "term_dates") }
-  scope :registration,  -> { where(category: "registration") }
-  scope :deadlines,     -> { where(category: "deadline") }
-  scope :study_days,    -> { where(category: "study_day") }
   scope :finals,        -> { where(category: "finals") }
-  scope :graduation,    -> { where(category: "graduation") }
-  scope :academic,      -> { where(category: "academic") }
-  scope :campus_events, -> { where(category: "campus_event") }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
@@ -109,10 +102,6 @@ class UniversityCalendarEvent < ApplicationRecord
 
   def self.holidays_between(start_date, end_date)
     holidays.in_date_range(start_date, end_date).order(:start_time)
-  end
-
-  def self.no_class_days_between(start_date, end_date)
-    where(category: NO_CLASS_CATEGORIES).in_date_range(start_date, end_date).order(:start_time)
   end
 
   # The no-class spans that overlap the range, earliest first. They come from
@@ -196,7 +185,6 @@ class UniversityCalendarEvent < ApplicationRecord
     end
   end
 
-  def term_boundary_event? = category == "term_dates"
   def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
 
   def formatted_date

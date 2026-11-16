@@ -86,11 +86,7 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       create(:university_calendar_event, category: category, **attrs)
     end
 
-    {
-      holidays: "holiday", term_dates: "term_dates", registration: "registration", deadlines: "deadline",
-      study_days: "study_day", finals: "finals", graduation: "graduation", academic: "academic",
-      campus_events: "campus_event"
-    }.each do |scope_name, category|
+    { holidays: "holiday", finals: "finals" }.each do |scope_name, category|
       it ".#{scope_name} returns only #{category} events" do
         match = event_in(category)
         event_in("other")
@@ -170,27 +166,16 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.holidays_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))).to eq([ earlier, later ])
     end
 
-    it ".no_class_days_between returns holidays, study days and finals only" do
-      holiday = event_in("holiday", start_time: Time.zone.local(2026, 11, 10, 9, 0), end_time: Time.zone.local(2026, 11, 10, 10, 0))
+    it ".no_class_spans_between returns holidays, study days and finals only, earliest first" do
+      finals = event_in("finals", start_time: Time.zone.local(2026, 11, 12, 9, 0), end_time: Time.zone.local(2026, 11, 12, 10, 0))
       study = event_in("study_day", start_time: Time.zone.local(2026, 11, 11, 9, 0), end_time: Time.zone.local(2026, 11, 11, 10, 0))
-      finals = event_in("finals", start_time: Time.zone.local(2026, 11, 12, 9, 0), end_time: Time.zone.local(2026, 11, 12, 10, 0))
-      event_in("deadline", start_time: Time.zone.local(2026, 11, 13, 9, 0), end_time: Time.zone.local(2026, 11, 13, 10, 0))
-
-      expect(described_class.no_class_days_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))).to eq([ holiday, study, finals ])
-    end
-
-    it ".no_class_spans_between matches the events of no_class_days_between, earliest first" do
-      finals = event_in("finals", start_time: Time.zone.local(2026, 11, 12, 9, 0), end_time: Time.zone.local(2026, 11, 12, 10, 0))
       break_week = event_in("holiday", start_time: Time.zone.local(2026, 10, 28), end_time: Time.zone.local(2026, 11, 2, 23, 59))
       event_in("deadline", start_time: Time.zone.local(2026, 11, 13, 9, 0), end_time: Time.zone.local(2026, 11, 13, 10, 0))
       event_in("holiday", start_time: Time.zone.local(2026, 12, 1), end_time: Time.zone.local(2026, 12, 1, 23, 59))
 
       spans = described_class.no_class_spans_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))
 
-      expect(spans).to eq(described_class.no_class_days_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30)).map do |event|
-        UniversityCalendarEvent::NoClassSpan.new(start_time: event.start_time, end_time: event.end_time, updated_at: event.updated_at)
-      end)
-      expect(spans.map(&:start_time)).to eq([ break_week.start_time, finals.start_time ])
+      expect(spans.map(&:start_time)).to eq([ break_week, study, finals ].map(&:start_time))
     end
   end
 
@@ -287,11 +272,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
   end
 
   describe "instance helpers" do
-    it "#term_boundary_event? is true for term_dates only" do
-      expect(build(:university_calendar_event, category: "term_dates").term_boundary_event?).to be(true)
-      expect(build(:university_calendar_event, category: "holiday").term_boundary_event?).to be(false)
-    end
-
     it "#excludes_classes? is true for holiday, study_day and finals" do
       expect(%w[holiday study_day finals].map { |c| build(:university_calendar_event, category: c).excludes_classes? }).to all(be(true))
       expect(build(:university_calendar_event, category: "deadline").excludes_classes?).to be(false)

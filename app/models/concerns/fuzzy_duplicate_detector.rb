@@ -24,31 +24,6 @@ module FuzzyDuplicateDetector
   SIMILARITY_THRESHOLD = 0.4
 
   class_methods do
-    # Find fuzzy duplicates for a given event
-    # @param summary [String] Event summary to match
-    # @param start_time [Time] Event start time
-    # @param end_time [Time] Event end time
-    # @param category [String] Event category
-    # @param exclude_uid [String, nil] UID to exclude from results
-    # @return [Array<UniversityCalendarEvent>] Matching events
-    def find_fuzzy_duplicates(summary:, start_time:, end_time:, category:, exclude_uid: nil)
-      # Find events on the same day with the same category
-      # Use date range comparison instead of DATE() SQL function for better timezone handling
-      start_date = start_time.to_date
-      end_date = end_time.to_date
-
-      candidates = where(category: category)
-                   .where(start_time: start_date.beginning_of_day...(start_date.end_of_day + 1.second))
-                   .where(end_time: end_date.beginning_of_day...(end_date.end_of_day + 1.second))
-
-      candidates = candidates.where.not(ics_uid: exclude_uid) if exclude_uid
-
-      # Filter by similarity threshold
-      candidates.select do |event|
-        similarity(summary, event.summary) >= SIMILARITY_THRESHOLD
-      end
-    end
-
     # Calculate string similarity using token-based matching and Levenshtein distance
     # This works better for event names which may have different word orders or additions
     # Returns a value between 0.0 (completely different) and 1.0 (identical)

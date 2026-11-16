@@ -417,37 +417,4 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
       end
     end
   end
-
-  describe "private helpers without a preloaded cache" do
-    subject(:importer) { described_class.new }
-
-    let(:attrs) do
-      { ics_uid: "new@example.test", summary: "Campus Fair 2026", category: "campus_event",
-        start_time: at(2026, 10, 1, 9), end_time: at(2026, 10, 1, 10) }
-    end
-
-    it "finds an exact content match in the database" do
-      match = create(:university_calendar_event, summary: "Campus Fair 2026", category: "campus_event",
-                                                 start_time: attrs[:start_time], end_time: attrs[:end_time])
-
-      expect(importer.send(:find_duplicate_by_content, attrs)).to eq(match)
-    end
-
-    it "finds a fuzzy match in the database" do
-      match = create(:university_calendar_event, summary: "Campus Fair", category: "campus_event",
-                                                 start_time: attrs[:start_time], end_time: attrs[:end_time])
-
-      expect(importer.send(:find_duplicate_by_content, attrs)).to eq(match)
-    end
-
-    it "returns nil when nothing resembles the entry" do
-      expect(importer.send(:find_duplicate_by_content, attrs)).to be_nil
-    end
-
-    it "ignores the content cache when none was loaded" do
-      event = build(:university_calendar_event)
-
-      expect(importer.send(:add_event_to_content_cache, event)).to be_nil
-    end
-  end
 end
