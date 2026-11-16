@@ -28,6 +28,7 @@
 #
 class UserExtensionConfig < ApplicationRecord
   include EncodedIds::HashidIdentifiable
+  include ResyncsCalendar
 
   set_public_id_prefix :uec
 
@@ -39,8 +40,6 @@ class UserExtensionConfig < ApplicationRecord
   normalizes :default_color_lecture, :default_color_lab, with: Preferences::Colors.method(:normalize_attribute)
   validates :default_color_lecture, :default_color_lab, format: { with: Preferences::Colors::HEX_FORMAT }
 
-  after_update_commit :sync_calendar_if_settings_changed
-
   # The selected categories that still sync, without holidays, which every user gets.
   # A category that no longer syncs can stay stored from before, so filter it out here.
   def synced_university_event_categories
@@ -49,10 +48,8 @@ class UserExtensionConfig < ApplicationRecord
 
   private
 
-  def sync_calendar_if_settings_changed
-    return unless saved_change_to_default_color_lecture? || saved_change_to_default_color_lab? ||
-                  saved_change_to_sync_university_events? || saved_change_to_university_event_categories?
-
-    CourseCalendars::SyncJob.perform_later(user, force: true)
+  def calendar_changed?
+    saved_change_to_default_color_lecture? || saved_change_to_default_color_lab? ||
+      saved_change_to_sync_university_events? || saved_change_to_university_event_categories?
   end
 end

@@ -27,7 +27,7 @@ module MicrosoftGraph
       return unless service.credential
 
       service.change_placement(placement)
-      CourseCalendars::SyncJob.perform_later(user, force: true)
+      CourseCalendars.resync(user, force: true)
     end
   end
 end

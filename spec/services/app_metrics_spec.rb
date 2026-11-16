@@ -15,6 +15,17 @@ RSpec.describe AppMetrics do
       expect(Yabeda.calendar.active_sessions.get).to eq(1)
     end
 
+    it "sets the calendar gauge for each provider" do
+      create(:course_calendar)
+      create(:course_calendar, :microsoft)
+
+      described_class.collect
+
+      expect(Yabeda.calendar.course_calendars.get(provider: "google")).to eq(1)
+      expect(Yabeda.calendar.course_calendars.get(provider: "microsoft")).to eq(1)
+      expect(Yabeda.calendar.google_calendars.get).to eq(1)
+    end
+
     it "sets the job gauges by state" do
       allow(SolidQueue::FailedExecution).to receive(:count).and_return(4)
 

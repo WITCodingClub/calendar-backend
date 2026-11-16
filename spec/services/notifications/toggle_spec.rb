@@ -6,7 +6,7 @@ RSpec.describe Notifications::Toggle do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
 
   it "turns the reminders off until they are turned on again" do
     described_class.call(user, disabled: true)

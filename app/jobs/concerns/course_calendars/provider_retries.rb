@@ -13,19 +13,16 @@ module CourseCalendars
 
     RETRY = { wait: :polynomially_longer, attempts: 5 }.freeze
 
-    # The google-apis gem raises RateLimitError for a 429 and for a 403 with
-    # the reason rateLimitExceeded, userRateLimitExceeded or
-    # sharingRateLimitExceeded. A sync raises CourseCalendars::RateLimitError
-    # for any provider.
-    RATE_LIMIT_ERRORS = [ CourseCalendars::RateLimitError, Google::Apis::RateLimitError ].freeze
+    # A sync raises CourseCalendars::RateLimitError for any provider. A job
+    # that calls a provider directly can get the provider's own error.
+    RATE_LIMIT_ERRORS = [ CourseCalendars::RateLimitError, *CourseCalendars::Providers.rate_limit_errors ].freeze
 
     # Failures that can pass: a rate limit, a server error, or a Graph failure.
-    TRANSIENT_ERRORS = [ *RATE_LIMIT_ERRORS, Google::Apis::ServerError, MicrosoftGraph::Error ].freeze
+    TRANSIENT_ERRORS = [ *RATE_LIMIT_ERRORS, *CourseCalendars::Providers.transient_errors ].uniq.freeze
 
     # The provider refused the person's token. A retry cannot help until the
-    # person connects the account again. Signet::AuthorizationError covers a
-    # refused refresh token.
-    AUTH_ERRORS = [ MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, Signet::AuthorizationError ].freeze
+    # person connects the account again.
+    AUTH_ERRORS = CourseCalendars::Providers.auth_errors.freeze
 
     class_methods do
       def retry_on_rate_limits

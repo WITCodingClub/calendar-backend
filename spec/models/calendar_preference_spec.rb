@@ -29,9 +29,7 @@ require "rails_helper"
 #  fk_rails_...  (user_id => users.id)
 #
 RSpec.describe CalendarPreference, type: :model do
-  let(:user) { create(:user) }
-
-  before { allow(CourseCalendars::SyncJob).to receive(:perform_later) }
+  let(:user) { create(:user, :with_calendar) }
 
   describe "associations and validations" do
     subject { create(:calendar_preference) }
@@ -100,12 +98,28 @@ RSpec.describe CalendarPreference, type: :model do
   end
 
   describe "syncing after a change" do
+    let!(:preference) { create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: []) }
+
     it "enqueues a forced sync when the reminders change" do
-      preference = create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
+      expect { preference.update!(reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ]) }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+    end
 
-      preference.update!(reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ])
+    it "enqueues a forced sync for a new preference and for a deleted one" do
+      expect { create(:calendar_preference, user: user, color_id: "#1a2b3c") }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+      expect { preference.destroy! }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+    end
 
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
+    it "enqueues nothing for a save that changes no field" do
+      expect { preference.update!(reminder_settings: []) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+    end
+
+    it "enqueues nothing for a user whose sync reaches no provider" do
+      other = create(:calendar_preference, :uni_cal_global, user: create(:user), reminder_settings: [])
+
+      expect { other.update!(reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ]) }
+        .not_to have_enqueued_job(CourseCalendars::SyncJob)
     end
   end
 
@@ -174,22 +188,20 @@ RSpec.describe CalendarPreference, type: :model do
     let(:reminders) { [ { "time" => "1", "type" => "days", "method" => "popup" } ] }
 
     it "does not enqueue the sync before the transaction commits" do
-      ActiveRecord::Base.transaction(requires_new: true) do
-        preference.update!(reminder_settings: reminders)
-
-        expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
-      end
-
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          expect { preference.update!(reminder_settings: reminders) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+        end
+      end.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
     end
 
     it "does not enqueue the sync when the transaction rolls back" do
-      ActiveRecord::Base.transaction(requires_new: true) do
-        preference.update!(reminder_settings: reminders)
-        raise ActiveRecord::Rollback
-      end
-
-      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          preference.update!(reminder_settings: reminders)
+          raise ActiveRecord::Rollback
+        end
+      end.not_to have_enqueued_job(CourseCalendars::SyncJob)
     end
   end
 end

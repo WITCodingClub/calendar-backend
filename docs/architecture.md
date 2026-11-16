@@ -22,12 +22,12 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Courses` | A user's course list: enrollments, processed events |
 | `AcademicProfiles` | A student's level, class standing, and programs from LeopardWeb (`docs/academic-profile.md`) |
 | `CourseOutcomes` | The outcome of each finished course, without the letter grade (`docs/academic-profile.md`) |
-| `CourseCalendars` | Calendar sync for every provider: the provider base class with the sync loop, the provider registry, the per-user lock and retry rules of the jobs, sync markers, the ICS feed (`docs/ics-feed.md`) |
-| `GoogleCalendar` | Google Calendar: the remote calls of the provider, event labels, rate limits, calendar jobs |
+| `CourseCalendars` | Calendar sync for every provider: the provider base class with the sync loop, the provider registry, `CourseCalendars.resync`, the per-user lock and retry rules of the jobs, sync markers, the ICS feed (`docs/ics-feed.md`) |
+| `GoogleCalendar` | Google Calendar: the OAuth client settings (`GoogleCalendar.config`, `.client_ids`), the remote calls of the provider, event labels, rate limits, calendar jobs |
 | `MicrosoftGraph` | Microsoft Graph: the HTTP client, the remote calls of the provider, calendar jobs |
-| `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |
+| `GoogleSignIn` | Google sign-in: token checks, code exchange, OAuth state, the grant revoke job |
 | `MicrosoftSignIn` | Sign-in with a WIT Microsoft account |
-| `OauthCredentials` | Token refresh and revoke jobs for every provider, and the signed OAuth state. `OauthCredential#refresh!` and `#mark_revoked!` hold the token rules |
+| `OauthCredentials` | Account linking for every provider (`AccountLink`), token refresh and revoke jobs, the signed OAuth state, and the HTTP connection of the token calls (`Http`). `OauthCredential#refresh!` and `#mark_revoked!` hold the token rules |
 | `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
 | `McpTools` | The MCP server, its tools, prompts, and apps (`docs/mcp.md`) |
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
@@ -48,15 +48,20 @@ Code with no domain stays at the root of its folder, for example `ApplicationSer
 
 ## Calendar providers
 
-`CourseCalendars::Provider` owns everything that does not depend on the provider: the sync loop, the "edits in the calendar win" merge (`CourseCalendars::EventEdits`), the tracking rows, the duplicate race, and the "event is gone, make it again" step. `GoogleCalendar::Provider` and `MicrosoftGraph::CalendarProvider` subclass it and make only the remote calls. Models and jobs reach a provider through `CourseCalendars::Providers.for(name)`, never by a test of the provider name. A new provider is a new subclass and a new entry in `CourseCalendars::Providers::CLASSES`.
+`CourseCalendars::Provider` owns everything that does not depend on the provider: the sync loop, the "edits in the calendar win" merge (`CourseCalendars::EventEdits`), the tracking rows, the duplicate race, the "event is gone, make it again" step, and the first sync of a new calendar (`#ensure_course_calendar`). `GoogleCalendar::Provider` and `MicrosoftGraph::CalendarProvider` subclass it and make only the remote calls. Each subclass also answers its own facts: who it syncs for, its OAuth start path, its auth, rate limit and transient errors, and a refused grant. Models, jobs and controllers reach a provider through `CourseCalendars::Providers`, never by a test of the provider name. A new provider is a new subclass and a new entry in `CourseCalendars::Providers::CLASSES`; the model provider lists, the job retry lists and the metrics read that list.
+
+Every calendar connection ends in `OauthCredentials::AccountLink#connect!`: it saves the tokens, makes the course calendar, and starts one sync. Every other change that shapes a person's events starts its sync with `CourseCalendars.resync(user, force:)`, which queues nothing when no provider syncs for the person. The preference models (`CalendarPreference`, `EventPreference`, `UserExtensionConfig`) call it from one commit callback (`ResyncsCalendar`), so the API, the dashboard and the MCP tools never queue a sync for a preference. That covers a preference on any synced event, a university event or a final included. A row that a parent's destroy takes along does not sync. Changes that reach many users queue one bulk batch over `CourseCalendars::ResyncAudience`, which starts from `User.with_course_calendar`.
 
 ```mermaid
 flowchart TD
   Syncer[CourseCalendars::ScheduleSyncer] --> Base[CourseCalendars::Provider: sync loop, edits, rows]
   Base --> Google[GoogleCalendar::Provider: Google API calls]
   Base --> Microsoft[MicrosoftGraph::CalendarProvider: Graph calls]
-  Models[CalendarEvent, CourseCalendar, OauthCredential] --> Registry[CourseCalendars::Providers.for]
-  Jobs[OauthCredentials::RefreshTokensJob] --> Registry
+  Models[CalendarEvent, CourseCalendar, OauthCredential] --> Registry[CourseCalendars::Providers]
+  Jobs[OauthCredentials::RefreshTokensJob, ProviderRetries] --> Registry
+  Link[OauthCredentials::AccountLink] --> Registry
+  Prefs[Preference models] --> Resync[CourseCalendars.resync]
+  Resync --> SyncJob[CourseCalendars::SyncJob]
   Registry --> Google
   Registry --> Microsoft
 ```

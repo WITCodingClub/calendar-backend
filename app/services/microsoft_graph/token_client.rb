@@ -4,9 +4,7 @@ module MicrosoftGraph
   # Talks to the Microsoft identity platform for the calendar connection: the
   # authorize URL, the authorization code exchange, and token refresh.
   class TokenClient
-    AUTHORITY    = "https://login.microsoftonline.com"
-    OPEN_TIMEOUT = 5
-    READ_TIMEOUT = 10
+    AUTHORITY = "https://login.microsoftonline.com"
 
     Token = Struct.new(:access_token, :refresh_token, :expires_at, :claims, keyword_init: true)
 
@@ -71,7 +69,7 @@ module MicrosoftGraph
         token
       end
     rescue AuthError => e
-      credential.mark_revoked!("invalid_grant") if OauthCredential.invalid_grant?(e)
+      credential.mark_revoked!("invalid_grant") if CalendarProvider.invalid_grant?(e)
       raise
     end
 
@@ -84,18 +82,13 @@ module MicrosoftGraph
     end
 
     def request_token(**params)
-      response = connection.post("#{authority_url}/token") do |req|
-        req.headers["Content-Type"] = "application/x-www-form-urlencoded"
-        req.body = URI.encode_www_form(
-          params.merge(
-            client_id:     settings[:client_id],
-            client_secret: settings[:client_secret],
-            scope:         SCOPES.join(" ")
-          )
-        )
-      end
+      response = OauthCredentials::Http.post_form("#{authority_url}/token", params.merge(
+        client_id:     settings[:client_id],
+        client_secret: settings[:client_secret],
+        scope:         SCOPES.join(" ")
+      ))
 
-      body = parse(response.body)
+      body = OauthCredentials::Http.parse(response.body)
 
       unless response.success?
         # The error code names the problem. The description can echo request
@@ -121,18 +114,6 @@ module MicrosoftGraph
       JWT.decode(id_token, nil, false).first
     rescue JWT::DecodeError
       {}
-    end
-
-    def parse(body)
-      return {} if body.blank?
-
-      body.is_a?(String) ? JSON.parse(body) : body
-    rescue JSON::ParserError
-      {}
-    end
-
-    def connection
-      @connection ||= Faraday.new(request: { open_timeout: OPEN_TIMEOUT, timeout: READ_TIMEOUT })
     end
   end
 end

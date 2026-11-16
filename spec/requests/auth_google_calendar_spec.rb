@@ -6,8 +6,8 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   let(:user)         { create(:user) }
   let(:chosen_email) { "other.account@example.com" }
   let(:uid)          { "google-uid-add-account" }
-  let(:service)      { instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-123") }
-  let(:success_url)  { "/oauth/success?email=#{CGI.escape(chosen_email)}&calendar_id=cal-123" }
+  let(:service)      { instance_double(GoogleCalendar::Provider, ensure_course_calendar: "cal-123") }
+  let(:success_url)  { "/oauth/success?calendar_id=cal-123&email=#{CGI.escape(chosen_email)}" }
 
   # The test environment uses a null cache store. The state nonce and the
   # pending link live in Rails.cache, so these examples need a real store.
@@ -15,7 +15,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
 
   before do
     allow(Rails).to receive(:cache).and_return(cache)
-    allow(GoogleCalendar::Provider).to receive(:new).with(user).and_return(service)
+    allow(GoogleCalendar::Provider).to receive(:new).with(user, credential: an_instance_of(OauthCredential)).and_return(service)
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
       provider:    "google_oauth2",
@@ -36,7 +36,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   end
 
   context "when the browser is signed in as the same user (dashboard)" do
-    let(:state) { GoogleSignIn::OauthState.generate_state(user_id: user.id) }
+    let(:state) { GoogleSignIn::OauthState.generate(user_id: user.id) }
 
     before { sign_in user }
 
@@ -69,7 +69,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     end
 
     it "shows a generic message and reports an unexpected error" do
-      allow_any_instance_of(GoogleSignIn::AccountLink).to receive(:connect!).and_raise(StandardError, "PG::Error secret detail") # rubocop:disable RSpec/AnyInstance
+      allow_any_instance_of(OauthCredentials::AccountLink).to receive(:connect!).and_raise(StandardError, "PG::Error secret detail") # rubocop:disable RSpec/AnyInstance
       allow(Rails.error).to receive(:report)
 
       get "/auth/google_oauth2/callback", params: { state: state }
@@ -95,7 +95,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   context "when the browser is signed in as a different user" do
     it "links nothing" do
       sign_in create(:user)
-      state = GoogleSignIn::OauthState.generate_state(user_id: user.id)
+      state = GoogleSignIn::OauthState.generate(user_id: user.id)
 
       get "/auth/google_oauth2/callback", params: { state: state }
 
@@ -106,7 +106,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   end
 
   context "when the browser has no session (extension)" do
-    let(:state) { GoogleSignIn::OauthState.generate_state(user_id: user.id) }
+    let(:state) { GoogleSignIn::OauthState.generate(user_id: user.id) }
 
     it "asks the person to confirm before it saves tokens" do
       get "/auth/google_oauth2/callback", params: { state: state }
@@ -174,7 +174,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     before { sign_in user }
 
     it "works only once" do
-      state = GoogleSignIn::OauthState.generate_state(user_id: user.id)
+      state = GoogleSignIn::OauthState.generate(user_id: user.id)
       get "/auth/google_oauth2/callback", params: { state: state }
       user.oauth_credentials.destroy_all
 
@@ -197,7 +197,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     before { sign_in user }
 
     it "links the account when the picked account matches" do
-      state = GoogleSignIn::OauthState.generate_state(user_id: user.id, email: chosen_email)
+      state = GoogleSignIn::OauthState.generate(user_id: user.id, email: chosen_email)
 
       get "/auth/google_oauth2/callback", params: { state: state }
 
@@ -206,7 +206,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     end
 
     it "rejects a different account" do
-      state = GoogleSignIn::OauthState.generate_state(user_id: user.id, email: "expected@example.com")
+      state = GoogleSignIn::OauthState.generate(user_id: user.id, email: "expected@example.com")
 
       get "/auth/google_oauth2/callback", params: { state: state }
 

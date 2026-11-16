@@ -13,10 +13,7 @@ module FriendMeetings
   # and a meeting that comes back later comes back without attendees, so the
   # friends get no second invitation.
   class Publisher
-    # The provider refused the person's token. A retry cannot help until the
-    # person connects the account again. Signet::AuthorizationError covers a
-    # refused refresh token, which Google::Auth::AuthorizationError subclasses.
-    AUTH_ERRORS = [ MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, Signet::AuthorizationError ].freeze
+    AUTH_ERRORS = CourseCalendars::Providers.auth_errors.freeze
 
     attr_reader :user
 

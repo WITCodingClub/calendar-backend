@@ -29,7 +29,7 @@
 require "rails_helper"
 
 RSpec.describe UserExtensionConfig, type: :model do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
 
   # The user model creates a UserExtensionConfig on create; reuse it.
   let(:config) { user.user_extension_config }
@@ -87,7 +87,7 @@ RSpec.describe UserExtensionConfig, type: :model do
     end
   end
 
-  describe "sync_calendar_if_settings_changed" do
+  describe "syncing after a settings change" do
     it "enqueues a forced calendar sync when sync_university_events changes" do
       config.update!(sync_university_events: true)
 

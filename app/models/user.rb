@@ -62,8 +62,9 @@ class User < ApplicationRecord
   end
 
   # Finds or creates the account for a @wit.edu address that a sign-in provider
-  # has verified. The Google and Microsoft dashboard sign-ins both call this, so
-  # both follow one rule. The caller checks the domain and the verification.
+  # has verified. The Google and Microsoft dashboard sign-ins and the extension
+  # onboarding all call this, so all follow one rule. The caller checks the
+  # domain and the verification.
   def self.find_or_provision_for_sign_in!(email:, first_name:, last_name:)
     # Devise stores emails in lower case, so a mixed-case address from a
     # provider must find the same account.
@@ -155,15 +156,14 @@ class User < ApplicationRecord
     owner: 3
   }, default: :user, null: false
 
-  # The nightly sync skips users with no course calendar, so the flag alone
-  # does not mean a sync is waiting. See #calendar_sync_pending?.
-  scope :needs_sync, -> {
-    where(calendar_needs_sync: true).where(id: OauthCredential.joins(:course_calendar).select(:user_id))
-  }
+  # The users with a course calendar on any provider: the only ones a sync
+  # changes. CourseCalendars::ResyncAudience and the nightly sync start from it.
+  scope :with_course_calendar, -> { where(id: OauthCredential.joins(:course_calendar).select(:user_id)) }
 
-  # True when the next nightly sync will push changes for this user. Many
-  # writers set calendar_needs_sync without checking for a connected
-  # calendar, so check for one here.
+  # calendar_needs_sync is set for users with no course calendar too, so the
+  # flag alone does not mean a sync is waiting.
+  scope :needs_sync, -> { with_course_calendar.where(calendar_needs_sync: true) }
+
   def calendar_sync_pending?
     calendar_needs_sync && course_calendars.any?
   end

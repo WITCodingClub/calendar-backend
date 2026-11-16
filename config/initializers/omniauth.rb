@@ -3,22 +3,18 @@
 Rails.application.config.middleware.use OmniAuth::Builder do
   redirect_uri = ("https://#{Rails.configuration.x.application_host}/auth/google_oauth2/callback" if Rails.env.production?)
 
+  # The setup phase reads the client and the scopes from GoogleCalendar per
+  # request, the same way the Microsoft strategy below does.
   provider(
     :google_oauth2,
-    Rails.application.credentials.dig(:google, :client_id),
-    Rails.application.credentials.dig(:google, :client_secret),
+    nil,
+    nil,
     {
-      scope: [
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/calendar.calendars",
-        "https://www.googleapis.com/auth/calendar.app.created"
-      ].join(" "),
-      access_type: "offline",
-      prompt: "consent",
+      access_type:            "offline",
+      prompt:                 "consent",
       include_granted_scopes: true,
-      redirect_uri: redirect_uri
+      redirect_uri:           redirect_uri,
+      setup:                  ->(env) { GoogleCalendar.configure_strategy(env["omniauth.strategy"]) }
     }.compact
   )
 
@@ -30,7 +26,7 @@ Rails.application.config.middleware.use OmniAuth::Builder do
   #
   # The strings match MicrosoftSignIn::PROVIDER, SCOPE and CALLBACK_PATH. They
   # are literals because this block runs at boot, before app code may autoload.
-  # The lambdas run per request, so they can call MicrosoftSignIn.
+  # The lambdas run per request, so they can call app code.
   provider(
     :entra_id,
     {

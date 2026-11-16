@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe "Api::Notifications", type: :request do
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:user)    { create(:user) }
+  let(:user)    { create(:user, :with_calendar) }
   let(:headers) { auth_headers_for(user) }
 
   describe "GET /api/user/notifications" do

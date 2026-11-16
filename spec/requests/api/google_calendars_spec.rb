@@ -5,13 +5,13 @@ require "rails_helper"
 RSpec.describe "Api::GoogleCalendars", type: :request do
   let(:user)    { create(:user) }
   let(:headers) { auth_headers_for(user) }
-  let(:service) { instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-1") }
+  let(:service) { instance_double(GoogleCalendar::Provider, ensure_course_calendar: "cal-1") }
   let(:manager) { instance_double(GoogleCalendar::CalendarManager, remove_from_calendar_list: nil, unshare_with_email: nil) }
 
   def json = response.parsed_body
 
   def state_from(oauth_url)
-    GoogleSignIn::OauthState.verify_state(Rack::Utils.parse_query(URI(oauth_url).query)["state"])
+    GoogleSignIn::OauthState.verify(Rack::Utils.parse_query(URI(oauth_url).query)["state"])
   end
 
   before do
@@ -22,7 +22,7 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
   describe "POST /api/user/google_calendar" do
     it "answers INTERNAL_ERROR and reports the error when the calendar service fails" do
       create(:oauth_credential, user: user, email: "linked@example.com")
-      allow(service).to receive(:create_or_get_course_calendar).and_raise(StandardError, "boom")
+      allow(service).to receive(:ensure_course_calendar).and_raise(StandardError, "boom")
       allow(Rails.error).to receive(:report)
 
       post "/api/user/google_calendar", params: { email: "linked@example.com" }, headers: headers
@@ -73,7 +73,7 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
 
     it "answers INTERNAL_ERROR and reports the error when the calendar service fails" do
       create(:oauth_credential, user: user, email: "first@example.com")
-      allow(service).to receive(:create_or_get_course_calendar).and_raise(StandardError, "boom")
+      allow(service).to receive(:ensure_course_calendar).and_raise(StandardError, "boom")
       allow(Rails.error).to receive(:report)
 
       post "/api/user/google_calendar/emails", params: { email: "first@example.com" }, headers: headers, as: :json

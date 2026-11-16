@@ -8,7 +8,7 @@ RSpec.describe "POST /api/user/google_calendar", type: :request do
 
   def state_from(oauth_url)
     state = Rack::Utils.parse_query(URI(oauth_url).query)["state"]
-    GoogleSignIn::OauthState.verify_state(state)
+    GoogleSignIn::OauthState.verify(state)
   end
 
   it "starts the flow without an email, so the person picks any account" do
@@ -31,7 +31,7 @@ RSpec.describe "POST /api/user/google_calendar", type: :request do
 
   it "reports an email that is already connected" do
     credential = create(:oauth_credential, user: user, email: "linked@example.com")
-    service    = instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-1")
+    service    = instance_double(GoogleCalendar::Provider, ensure_course_calendar: "cal-1")
     allow(GoogleCalendar::Provider).to receive(:new).with(user).and_return(service)
 
     post "/api/user/google_calendar", params: { email: credential.email }, headers: headers

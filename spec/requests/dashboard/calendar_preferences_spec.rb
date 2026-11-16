@@ -3,9 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard::CalendarPreferences", type: :request do
-  let(:user) do
-    User.create!(email: "dash@wit.edu", password: "password123", confirmed_at: Time.current)
-  end
+  let(:user) { create(:user, :with_calendar) }
   let(:config) { user.user_extension_config.reload }
 
   before do

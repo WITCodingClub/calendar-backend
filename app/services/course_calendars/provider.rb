@@ -11,6 +11,7 @@ module CourseCalendars
   # A subclass implements:
   #
   #   #course_calendar                                  -> CourseCalendar or nil
+  #   #create_or_get_course_calendar(**options)         -> the calendar id; makes the calendar when it is missing
   #   #insert_event(calendar, data)                     -> the row's external id columns
   #   #fetch_event(row)                                 -> CourseCalendars::RemoteEvent, or nil when gone
   #   #patch_event(row, event_id, data, remote:, force:) -> the event id, or nil when gone
@@ -51,10 +52,33 @@ module CourseCalendars
       "#{SYNCABLES[id_key].first}_#{event[id_key]}" if id_key
     end
 
+    # The name that CourseCalendar#provider and OauthCredential#provider store.
+    def self.provider_name
+      Providers::CLASSES.key(name)
+    end
+
     attr_reader :user
 
-    def initialize(user)
-      @user = user
+    # credential: the account to use, when the person has more than one.
+    def initialize(user, credential: nil)
+      @user       = user
+      @credential = credential
+    end
+
+    # Makes the course calendar when the person has none, and then starts its
+    # first sync, forced so the past events are filled in too. With
+    # always_sync: true, an existing calendar gets a sync too, forced when the
+    # provider says a reconnect needs it (FORCE_SYNC_ON_RECONNECT). Returns
+    # the calendar id.
+    def ensure_course_calendar(always_sync: false, **options)
+      before      = course_calendar&.external_calendar_id
+      calendar_id = create_or_get_course_calendar(**options)
+      created     = calendar_id != before
+
+      if created || always_sync
+        CourseCalendars.resync(user, force: created || self.class::FORCE_SYNC_ON_RECONNECT)
+      end
+      calendar_id
     end
 
     # Makes each event the person has, updates each one that changed, and

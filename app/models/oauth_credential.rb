@@ -56,9 +56,7 @@ class OauthCredential < ApplicationRecord
   # wait for the provider.
   after_destroy_commit :revoke_grant
 
-  PROVIDERS = CourseCalendars::Providers::CLASSES.keys.freeze
-
-  GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
+  PROVIDERS = CourseCalendars::Providers::NAMES
 
   # A token that ends within this time counts as expired, so it is refreshed
   # before a call and does not end in the middle of one.
@@ -86,18 +84,6 @@ class OauthCredential < ApplicationRecord
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
   scope :needs_refresh, -> { where(updated_at: ...REFRESH_AFTER.ago).where.not(refresh_token: nil) }
 
-  # True when the provider refused the grant: the person revoked it or the
-  # refresh token expired, so the provider will not take it again. Other token
-  # errors, such as invalid_client after a secret rotation, say nothing about
-  # the person.
-  def self.invalid_grant?(error)
-    case error
-    when Signet::AuthorizationError then error.message.match?(/"error"\s*:\s*"invalid_grant"/)
-    when MicrosoftGraph::AuthError  then error.body.is_a?(Hash) && error.body["error"] == "invalid_grant"
-    else false
-    end
-  end
-
   def token_expired?
     token_expires_at.nil? || token_expires_at <= EXPIRY_MARGIN.from_now
   end
@@ -123,30 +109,6 @@ class OauthCredential < ApplicationRecord
   # Refreshes the access token with the provider and saves it.
   def refresh!
     calendar_provider.refresh_token!(self)
-  end
-
-  # The Google authorization for this credential. An expired token (or any
-  # token, with refresh: true) is refreshed and saved first. A refused grant
-  # (.invalid_grant?) marks the credential revoked.
-  def google_authorization(refresh: false)
-    authorization = Google::Auth::UserRefreshCredentials.new(
-      client_id:     Rails.application.credentials.dig(:google, :client_id),
-      client_secret: Rails.application.credentials.dig(:google, :client_secret),
-      scope:         [ GOOGLE_CALENDAR_SCOPE ],
-      access_token:  access_token,
-      refresh_token: refresh_token,
-      expires_at:    token_expires_at
-    )
-    return authorization unless refresh || token_expired?
-
-    begin
-      authorization.refresh!
-    rescue Signet::AuthorizationError => e
-      mark_revoked!(e.message) if self.class.invalid_grant?(e)
-      raise
-    end
-    update!(access_token: authorization.access_token, token_expires_at: Time.zone.at(authorization.expires_at))
-    authorization
   end
 
   # Whether the person can disconnect this credential.

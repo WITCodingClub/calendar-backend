@@ -39,12 +39,11 @@ RSpec.describe GoogleSignIn::RevokeTokenJob do
 
   it "sets an open and a read timeout on the request" do
     stub_revoke(status: 200)
-    allow(Net::HTTP).to receive(:start).and_call_original
+    allow(OauthCredentials::Http).to receive(:post_form).and_call_original
 
     described_class.perform_now("synthetic-refresh-token")
 
-    expect(Net::HTTP).to have_received(:start)
-      .with("oauth2.googleapis.com", 443, hash_including(open_timeout: described_class::OPEN_TIMEOUT, read_timeout: described_class::READ_TIMEOUT))
+    expect(OauthCredentials::Http).to have_received(:post_form).with(described_class::REVOKE_URL, { token: "synthetic-refresh-token" })
   end
 
   it "does nothing without a token" do

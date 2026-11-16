@@ -207,12 +207,5 @@ module McpTools
         { "time" => reminder["time"].to_s, "type" => reminder["type"].to_s, "method" => reminder["method"].to_s }
       end
     end
-
-    # Only a user with a synced calendar needs a sync.
-    def sync_calendar
-      return unless CourseCalendars::Providers.syncs?(user)
-
-      CourseCalendars::SyncJob.perform_later(user, force: true)
-    end
   end
 end

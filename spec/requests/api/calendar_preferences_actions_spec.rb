@@ -3,12 +3,10 @@
 require "rails_helper"
 
 RSpec.describe "Api::CalendarPreferences actions", type: :request do
-  let(:user)    { create(:user) }
+  let(:user)    { create(:user, :with_calendar) }
   let(:headers) { auth_headers_for(user) }
 
   def json = response.parsed_body
-
-  before { allow(CourseCalendars::SyncJob).to receive(:perform_later) }
 
   describe "GET /api/calendar_preferences" do
     it "groups every preference of the user by scope" do
@@ -66,24 +64,26 @@ RSpec.describe "Api::CalendarPreferences actions", type: :request do
   end
 
   describe "PATCH /api/calendar_preferences/:id" do
-    it "creates the preference of an event type and queues a forced sync" do
-      patch "/api/calendar_preferences/lecture",
-            params: { calendar_preference: { title_template: "{{course_code}}", visibility: "private" } },
-            headers: headers, as: :json
+    it "creates the preference of an event type and queues one forced sync" do
+      expect do
+        patch "/api/calendar_preferences/lecture",
+              params: { calendar_preference: { title_template: "{{course_code}}", visibility: "private" } },
+              headers: headers, as: :json
+      end.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
 
       expect(response).to have_http_status(:ok)
       expect(user.calendar_preferences.find_by(scope: :event_type, event_type: "lecture").title_template).to eq("{{course_code}}")
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "answers UNPROCESSABLE_CONTENT with the messages for an invalid color" do
-      patch "/api/calendar_preferences/global",
-            params: { calendar_preference: { color_id: "not-a-color" } }, headers: headers, as: :json
+      expect do
+        patch "/api/calendar_preferences/global",
+              params: { calendar_preference: { color_id: "not-a-color" } }, headers: headers, as: :json
+      end.not_to have_enqueued_job(CourseCalendars::SyncJob)
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(json["code"]).to eq("VALIDATION_FAILED")
       expect(json["errors"]).to be_an(Array).and be_present
-      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
     end
 
     it "answers VALIDATION_FAILED for a template with a disallowed variable" do
@@ -121,14 +121,14 @@ RSpec.describe "Api::CalendarPreferences actions", type: :request do
   end
 
   describe "DELETE /api/calendar_preferences/:id" do
-    it "deletes the preference and queues a forced sync" do
+    it "deletes the preference and queues one forced sync" do
       pref = create(:calendar_preference, :for_event_type, user: user, event_type: "lecture")
 
-      delete "/api/calendar_preferences/lecture", headers: headers
+      expect { delete "/api/calendar_preferences/lecture", headers: headers }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
 
       expect(response).to have_http_status(:no_content)
       expect(CalendarPreference.exists?(pref.id)).to be(false)
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "keeps the preference of another user" do

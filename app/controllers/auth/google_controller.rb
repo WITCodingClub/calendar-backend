@@ -22,7 +22,7 @@ module Auth
       Rails.error.report(e, handled: true, context: { user_id: current_user&.id })
 
       if calendar_oauth_flow?
-        redirect_to "/oauth/failure?error=#{CGI.escape(failure_message_for(e))}"
+        redirect_to oauth_failure_path(error: failure_message_for(e))
       else
         redirect_to new_user_session_path, alert: "Failed to connect with Google. Please try again."
       end
@@ -34,7 +34,7 @@ module Auth
     # error can hold internals, so it gets the generic message.
     def failure_message_for(error)
       case error
-      when UserFacingError, GoogleSignIn::AccountLink::Conflict then error.message
+      when UserFacingError, OauthCredentials::AccountLink::Conflict then error.message
       else CALENDAR_FAILURE_MESSAGE
       end
     end
@@ -42,7 +42,7 @@ module Auth
     def calendar_oauth_flow?
       return false if params[:state].blank?
 
-      GoogleSignIn::OauthState.verify_state(params[:state]).present?
+      GoogleSignIn::OauthState.verify(params[:state]).present?
     rescue StandardError => e
       Rails.error.report(e, handled: true)
       false
@@ -52,14 +52,14 @@ module Auth
     # proves that the browser at the callback belongs to that user: the state
     # URL can be opened anywhere. So:
     #
-    # - The state works once (GoogleSignIn::OauthState.consume_state).
+    # - The state works once (GoogleSignIn::OauthState.consume).
     # - A browser signed in as that user (the dashboard) links at once.
     # - A browser signed in as another user links nothing.
     # - A browser with no session (the extension tab) gets a confirm page that
     #   names both accounts. Only a CSRF-protected POST from that page saves the
     #   tokens (Auth::OauthResultsController#link).
     def handle_calendar_oauth(auth)
-      state_data = GoogleSignIn::OauthState.consume_state(params[:state])
+      state_data = GoogleSignIn::OauthState.consume(params[:state])
       raise UserFacingError, "Invalid or expired state parameter" unless state_data
 
       user         = User.find(state_data["user_id"])
@@ -76,7 +76,7 @@ module Auth
         raise UserFacingError, "You are signed in as a different user. Sign out, then try again."
       end
 
-      linker = GoogleSignIn::AccountLink.new(user)
+      linker = OauthCredentials::AccountLink.new(user, GoogleCalendar::Provider.provider_name)
       tokens = {
         uid:           auth.uid,
         email:         chosen_email,
@@ -87,11 +87,11 @@ module Auth
 
       if current_user
         calendar_id = linker.connect!(**tokens)
-        redirect_to "/oauth/success?email=#{CGI.escape(chosen_email)}&calendar_id=#{calendar_id}"
+        redirect_to oauth_success_path(email: chosen_email, calendar_id: calendar_id)
       else
         linker.check!(uid: auth.uid, email: chosen_email)
-        GoogleSignIn::AccountLink.discard_pending(session[:pending_google_link])
-        session[:pending_google_link] = GoogleSignIn::AccountLink.store_pending(tokens.merge(user_id: user.id))
+        OauthCredentials::AccountLink.discard_pending(session[:pending_google_link])
+        session[:pending_google_link] = OauthCredentials::AccountLink.store_pending(tokens.merge(user_id: user.id))
         redirect_to oauth_confirm_path
       end
     end
@@ -110,19 +110,21 @@ module Auth
         last_name:  auth.info.last_name
       )
 
-      # Only persist the Google credential when calendar scopes were granted
-      # (minimal-scope logins omit refresh_token and have no calendar scope).
+      # Only keep the Google credential when the person granted any calendar
+      # scope (a minimal-scope sign-in has no refresh token and no calendar
+      # scope). Google lets a person grant each scope of GoogleCalendar::SCOPES
+      # on its own.
       granted_scopes = auth.credentials&.token && auth.extra&.raw_info&.fetch("granted_scopes", "")
       if granted_scopes.to_s.include?("calendar")
         begin
-          GoogleSignIn::AccountLink.new(user).link!(
+          OauthCredentials::AccountLink.new(user, GoogleCalendar::Provider.provider_name).link!(
             uid:           auth.uid,
             email:         email,
             access_token:  auth.credentials.token,
             refresh_token: auth.credentials.refresh_token,
             expires_at:    auth.credentials.expires_at
           )
-        rescue GoogleSignIn::AccountLink::Conflict => e
+        rescue OauthCredentials::AccountLink::Conflict => e
           # Signing in needs only the verified WIT email. A credential that
           # cannot be saved must not block it.
           Rails.logger.warn("Google sign-in for user #{user.id} did not save calendar access: #{e.message}")

@@ -155,7 +155,7 @@ module Courses
 
             link_orphan_exam(orphan_exam_cache, course, term)
 
-            # Upsert in place so meeting time IDs stay stable — destroying them
+            # Upsert in place so meeting time IDs stay stable: destroying them
             # cascades to calendar_events tracking rows, which strands the
             # real events in Google Calendar and duplicates them on the next sync.
             # Only rows absent from the upload are removed, after the loop; their
@@ -254,9 +254,7 @@ module Courses
       # /api/user/processed_events/status never reports a half-enrolled term.
       enrolled_terms.each { |term| TermProcessingStatus.record!(user, term, :processed) }
 
-      if CourseCalendar.for_user(user).exists?
-        CourseCalendars::SyncJob.perform_later(user, force: false)
-      end
+      CourseCalendars.resync(user, force: false)
 
       stale_ids = Catalog::StaleSections.queue(catalog_courses.values.select { |course| Catalog::StaleSections.refresh_due?(course) }.map(&:id))
 
@@ -350,7 +348,7 @@ module Courses
       raise Courses::InvalidPayloadError, "A request can have at most #{MAX_SECTIONS} sections, got #{sections}"
     end
 
-    # Prefer structured meeting times from getFacultyMeetingTimes — correct room/time data
+    # Prefer structured meeting times from getFacultyMeetingTimes: correct room/time data
     # with no timezone ambiguity. Fall back to parsing raw Banner calendar timestamps only
     # if structured data is unavailable.
     def meeting_times_for(course_meetings, detailed_course_info)

@@ -6,13 +6,11 @@ module Api
 
     before_action :require_microsoft_graph
 
-    # Returns the URL that starts the Microsoft sign-in for calendar sync.
     # Answers 404 while the Microsoft Graph provider is off for this person.
     # `placement` ("separate" or "primary") says where a first connection puts
     # the course events. The default is "separate".
     def create
-      state     = MicrosoftGraph::OauthState.generate(user_id: current_user.id, placement: params[:placement])
-      oauth_url = "#{request.base_url}/auth/microsoft_graph?state=#{CGI.escape(state)}"
+      oauth_url = request.base_url + MicrosoftGraph::CalendarProvider.connect_path(current_user, placement: params[:placement])
 
       render json: { message: "OAuth required", oauth_url: oauth_url }, status: :ok
     end

@@ -64,7 +64,6 @@ module Api
       authorize preference
 
       if preference.update(event_preference_params)
-        sync_updated_event
         render json: preference_payload(Preferences::Resolver.new(current_user), @preferenceable)
       else
         render_error preference.errors.full_messages.join(", "), status: :unprocessable_content,
@@ -79,7 +78,6 @@ module Api
       if preference
         authorize preference
         preference.destroy
-        sync_updated_event
         head :no_content
       else
         head :not_found
@@ -140,18 +138,6 @@ module Api
       else
         render_error "Preferenceable not specified", status: :bad_request
       end
-    end
-
-    def sync_updated_event
-      meeting_time = case @preferenceable
-      when Course::MeetingTime   then @preferenceable
-      when CalendarEvent   then @preferenceable.meeting_time
-      end
-
-      return unless meeting_time
-      return unless CourseCalendars::Providers.syncs?(current_user)
-
-      CourseCalendars::SyncJob.perform_later(current_user, force: true)
     end
 
     # calendar_event_id comes from /calendar_events/:id.

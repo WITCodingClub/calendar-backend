@@ -135,12 +135,11 @@ module Admin
     def force_calendar_sync
       authorize @user, :force_calendar_sync?
 
-      unless CourseCalendar.for_user(@user).exists?
-        redirect_to admin_user_path(@user), alert: "User does not have a Google Calendar set up."
+      unless CourseCalendars.resync(@user, force: true)
+        redirect_to admin_user_path(@user), alert: "User has no calendar that syncs."
         return
       end
 
-      CourseCalendars::SyncJob.perform_later(@user, force: true)
       redirect_to admin_user_path(@user), notice: "Calendar sync queued for #{@user.email}."
     rescue => e
       Rails.error.report(e, handled: true, context: { user_id: @user.id })

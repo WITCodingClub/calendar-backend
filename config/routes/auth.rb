@@ -27,8 +27,8 @@ get "/auth/failure", to: "users/microsoft_sessions#failure",
                      constraints: ->(request) { request.params[:strategy] == MicrosoftSignIn::PROVIDER }
 
 # OAuth result pages (opened by Chrome extension)
-get "/oauth/success", to: "auth/oauth_results#success"
-get "/oauth/failure", to: "auth/oauth_results#failure"
+get "/oauth/success", to: "auth/oauth_results#success", as: :oauth_success
+get "/oauth/failure", to: "auth/oauth_results#failure", as: :oauth_failure
 
 # A Google account linked from a browser with no session waits here for the
 # person to confirm it.

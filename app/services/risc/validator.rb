@@ -49,7 +49,7 @@ module Risc
           iss: @risc_config["issuer"],
           verify_iss: true,
           verify_aud: true,
-          aud: valid_audiences,
+          aud: GoogleCalendar.client_ids,
           verify_expiration: false
         }
       )
@@ -156,27 +156,6 @@ module Risc
 
       jwk = JWT::JWK.import(key_data)
       jwk.public_key
-    end
-
-    def valid_audiences
-      @valid_audiences ||= begin
-        client_ids = []
-
-        if ENV["GOOGLE_OAUTH_CLIENT_IDS"].present?
-          client_ids += ENV["GOOGLE_OAUTH_CLIENT_IDS"].split(",").map(&:strip)
-        end
-
-        if Rails.application.credentials.dig(:google, :client_id).present?
-          client_ids << Rails.application.credentials.dig(:google, :client_id)
-        end
-
-        if client_ids.empty?
-          Rails.logger.warn("No Google OAuth client IDs configured for RISC validation")
-          client_ids << "development-client-id"
-        end
-
-        client_ids.uniq
-      end
     end
   end
 end

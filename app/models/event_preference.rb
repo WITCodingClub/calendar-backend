@@ -29,6 +29,7 @@
 class EventPreference < ApplicationRecord
   include PreferenceFields
   include EncodedIds::HashidIdentifiable
+  include ResyncsCalendar
 
   set_public_id_prefix :epf, min_hash_length: 12
 
@@ -40,6 +41,10 @@ class EventPreference < ApplicationRecord
   scope :for_meeting_times, -> { where(preferenceable_type: "Course::MeetingTime") }
 
   private
+
+  def calendar_changed?
+    previously_new_record? || preference_fields_changed?
+  end
 
   def at_least_one_preference_set
     errors.add(:base, "At least one preference must be set") unless any_preference_set?

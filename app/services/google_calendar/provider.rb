@@ -17,11 +17,35 @@ module GoogleCalendar
     # Gone for an event that was already deleted.
     GONE_STATUSES = [ 404, 410 ].freeze
 
+    # Signet::AuthorizationError is a refused refresh token, which
+    # Google::Auth::AuthorizationError subclasses.
+    AUTH_ERRORS = [ Google::Apis::AuthorizationError, Signet::AuthorizationError ].freeze
+    # The google-apis gem raises RateLimitError for a 429 and for a 403 with
+    # the reason rateLimitExceeded, userRateLimitExceeded or
+    # sharingRateLimitExceeded.
+    RATE_LIMIT_ERRORS = [ Google::Apis::RateLimitError ].freeze
+    TRANSIENT_ERRORS  = [ *RATE_LIMIT_ERRORS, Google::Apis::ServerError ].freeze
+
+    # A second Google account only shares the calendar, so the person's edits
+    # stay.
+    FORCE_SYNC_ON_RECONNECT = false
+
+    # OmniAuth serves this path, so it has no route.
+    CONNECT_PATH = "/auth/google_oauth2"
+
     def self.gone?(error)
       error.is_a?(Google::Apis::ClientError) && GONE_STATUSES.include?(error.status_code)
     end
 
-    # The answers that CourseCalendars::Providers gives for Google.
+    # A linked Google account without a course calendar has nothing to sync.
+    def self.syncs_for?(user)
+      CourseCalendar.google.for_user(user).exists?
+    end
+
+    # With an email, the callback accepts only that account.
+    def self.connect_path(user, email: nil)
+      "#{CONNECT_PATH}?#{{ state: GoogleSignIn::OauthState.generate(user_id: user.id, email: email) }.to_query}"
+    end
 
     def self.delete_event_later(ref)
       GoogleCalendar::EventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
@@ -36,7 +60,11 @@ module GoogleCalendar
     end
 
     def self.refresh_token!(credential)
-      credential.google_authorization(refresh: true)
+      GoogleCalendar::CalendarServices.authorization(credential, refresh: true)
+    end
+
+    def self.invalid_grant?(error)
+      error.is_a?(Signet::AuthorizationError) && error.message.match?(/"error"\s*:\s*"invalid_grant"/)
     end
 
     # The course calendar belongs to one credential, but it is shared with every
@@ -77,11 +105,10 @@ module GoogleCalendar
       CourseCalendar.google.for_user(user).first
     end
 
-    def create_or_get_course_calendar
+    def create_or_get_course_calendar(**)
       calendar = course_calendar
-      newly_created = calendar.blank?
 
-      if newly_created
+      if calendar.blank?
         google_api_calendar = calendar_manager.create_calendar
         credential = user.google_credential
         raise "No Google OAuth credentials found for user" unless credential
@@ -96,8 +123,6 @@ module GoogleCalendar
 
       calendar_manager.share_with_user(calendar.external_calendar_id)
       calendar_manager.add_to_all_calendar_lists(calendar.external_calendar_id)
-
-      CourseCalendars::SyncJob.perform_later(user, force: true) if newly_created && user.enrollments.any?
 
       calendar.external_calendar_id
     end
@@ -131,7 +156,7 @@ module GoogleCalendar
     end
 
     def rate_limited?(error)
-      error.is_a?(Google::Apis::RateLimitError)
+      RATE_LIMIT_ERRORS.any? { |klass| error.is_a?(klass) }
     end
 
     def each_paced(rows, &)
