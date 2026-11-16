@@ -6,7 +6,7 @@ module Api
   # one by hand. DegreeProgress counts each one as a done course.
   class TransferCreditsController < BaseController
     authenticate_with_token
-    include Api::DegreePlanningFlag
+    include DegreePlanningFlag
 
     # GET /api/user/transfer_credits
     def index
