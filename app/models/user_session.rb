@@ -58,7 +58,6 @@ class UserSession < ApplicationRecord
   validates :expires_at, presence: true
 
   scope :active,  -> { where(revoked_at: nil).where(expires_at: Time.current..) }
-  scope :revoked, -> { where.not(revoked_at: nil) }
   scope :recent_first, -> { order(Arel.sql("last_seen_at DESC NULLS LAST"), created_at: :desc) }
 
   def active?

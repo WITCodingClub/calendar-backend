@@ -160,16 +160,6 @@ RSpec.describe Friendship, type: :model do
     end
   end
 
-  describe "#involves?" do
-    it "is true only for the two users in the friendship" do
-      friendship = create(:friendship, requester: requester, addressee: addressee)
-
-      expect(friendship.involves?(requester.id)).to be(true)
-      expect(friendship.involves?(addressee.id)).to be(true)
-      expect(friendship.involves?(create(:user).id)).to be(false)
-    end
-  end
-
   describe "removal" do
     it "removes the friendship's group memberships, also on a delete that skips callbacks" do
       membership = create(:friend_group_membership)

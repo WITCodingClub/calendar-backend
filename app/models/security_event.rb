@@ -62,8 +62,6 @@ class SecurityEvent < ApplicationRecord
 
   scope :unprocessed,   -> { where(processed: false) }
   scope :processed,     -> { where(processed: true) }
-  scope :by_event_type, ->(type) { where(event_type: type) }
-  scope :for_user,      ->(user) { where(user: user) }
   scope :expired,       -> { where(expires_at: ...Time.current) }
   scope :recent,        -> { order(created_at: :desc) }
 
@@ -73,16 +71,8 @@ class SecurityEvent < ApplicationRecord
     update!(processed: true, processed_at: Time.current, processing_error: error)
   end
 
-  def requires_immediate_action?
-    event_type.in?([ SESSIONS_REVOKED, ACCOUNT_DISABLED ]) && reason == "hijacking"
-  end
-
   def event_type_name
     event_type.split("/").last
-  end
-
-  def verification_event?
-    event_type == VERIFICATION
   end
 
   private

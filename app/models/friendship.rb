@@ -104,8 +104,6 @@ class Friendship < ApplicationRecord
     requester_id == user.id ? addressee_id : requester_id
   end
 
-  def involves?(user_id) = requester_id == user_id || addressee_id == user_id
-
   def requester?(user) = requester_id == user.id
   def addressee?(user) = addressee_id == user.id
 
