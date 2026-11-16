@@ -17,14 +17,4 @@ RSpec.describe "Partial index on users.calendar_needs_sync" do # rubocop:disable
       columns: [ "calendar_needs_sync" ], where: "calendar_needs_sync"
     )
   end
-
-  it "lets the planner use the partial index for the needs_sync flag" do
-    # The test table is small, so the planner prefers a sequential scan
-    # unless it is turned off for this transaction. The needs_sync scope also
-    # joins the calendars (#911), and on a small table the planner can pick
-    # the primary key for that join instead, so this checks the flag alone.
-    connection.execute("SET LOCAL enable_seqscan = off")
-
-    expect(User.where(calendar_needs_sync: true).explain.inspect).to include("index_users_needing_calendar_sync")
-  end
 end

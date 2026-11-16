@@ -5,12 +5,21 @@ require "rails_helper"
 RSpec.describe Concurrently do
   describe ".map" do
     it "returns the results in the order of the items, not the order they finish" do
-      results = described_class.map([ 0.03, 0.0, 0.015 ]) do |delay|
-        sleep delay
-        delay
+      fast_done = Concurrent::Event.new
+      finish_order = Concurrent::Array.new
+
+      results = described_class.map(%i[slow fast]) do |item|
+        if item == :slow
+          raise "the items ran one at a time" unless fast_done.wait(5)
+        else
+          fast_done.set
+        end
+        finish_order << item
+        item
       end
 
-      expect(results).to eq([ 0.03, 0.0, 0.015 ])
+      expect(finish_order).to eq(%i[fast slow])
+      expect(results).to eq(%i[slow fast])
     end
 
     it "runs the items of a batch at the same time" do
@@ -27,11 +36,20 @@ RSpec.describe Concurrently do
     it "never runs more than the limit at once" do
       running = Concurrent::AtomicFixnum.new(0)
       peak = Concurrent::AtomicFixnum.new(0)
+      first_two = Concurrent::CountDownLatch.new(2)
+      over_limit = Concurrent::Event.new
 
-      described_class.map((1..7).to_a, limit: 2) do
+      described_class.map((1..7).to_a, limit: 2) do |item|
         now = running.increment
         peak.update { |current| [ current, now ].max }
-        sleep 0.01
+        over_limit.set if now > 2
+        if item <= 2
+          # Hold the first two items together, and give a third thread time to
+          # start if the limit does not hold.
+          first_two.count_down
+          first_two.wait(5)
+          over_limit.wait(0.1)
+        end
         running.decrement
       end
 
@@ -39,12 +57,22 @@ RSpec.describe Concurrently do
     end
 
     it "raises the error of the first item that failed, after the others finish" do
+      all_started = Concurrent::CountDownLatch.new(3)
+      third_failed = Concurrent::Event.new
       finished = Concurrent::Array.new
 
       expect {
         described_class.map([ 1, 2, 3 ]) do |item|
-          sleep 0.02 if item == 3
-          raise ArgumentError, "item #{item}" if item >= 2
+          all_started.count_down
+          all_started.wait(5)
+
+          if item == 3
+            third_failed.set
+            raise ArgumentError, "item 3"
+          end
+
+          third_failed.wait(5)
+          raise ArgumentError, "item 2" if item == 2
 
           finished << item
         end
@@ -54,14 +82,25 @@ RSpec.describe Concurrently do
     end
 
     it "starts no new item after a failure" do
+      both_started = Concurrent::CountDownLatch.new(2)
+      failing_thread = Concurrent::AtomicReference.new
       started = Concurrent::Array.new
 
       expect {
         described_class.map([ 1, 2, 3, 4 ], limit: 2) do |item|
           started << item
-          raise "boom" if item == 1
+          next unless item <= 2
 
-          sleep 0.05
+          both_started.count_down
+          both_started.wait(5)
+          if item == 1
+            failing_thread.set(Thread.current)
+            raise "boom"
+          end
+
+          # The failing thread ends only after it marks the failure.
+          Thread.pass until failing_thread.get
+          failing_thread.get.join(5)
         end
       }.to raise_error("boom")
 

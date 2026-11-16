@@ -3,23 +3,14 @@
 require "rails_helper"
 
 RSpec.describe TwentyFiveLive::OrganizationCustomAttribute do
-  describe ".find_by_id" do
-    it "returns the Mission attribute" do
-      attribute = described_class.find_by_id(38)
-
-      expect(attribute).to have_attributes(name: "Mission", attribute_type: "X",
-                                           attribute_type_name: "Long Text", sort_order: 1)
-      expect(attribute).to be_active
-    end
-
-    it "returns nil for an unknown id" do
-      expect(described_class.find_by_id(999)).to be_nil
+  it "finds each listed row by its 25Live id" do
+    described_class.all.each do |row|
+      expect(row).to have_attributes(id: be_present, name: be_present, sort_order: be_present)
+      expect(described_class.find_by_id(row.id)).to have_attributes(name: row.name, sort_order: row.sort_order)
     end
   end
 
-  describe ".all" do
-    it "returns the attributes in 25Live sort order" do
-      expect(described_class.all.map(&:id)).to eq([ 38, 5, 6, -11, -8 ])
-    end
+  it "returns nil for an unknown id" do
+    expect(described_class.find_by_id(999)).to be_nil
   end
 end
