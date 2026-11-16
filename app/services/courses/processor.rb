@@ -419,9 +419,9 @@ module Courses
             "endDate"             => end_date,
             "beginTime"           => begin_time,
             "endTime"             => end_time,
-            "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
-            "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
-            "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
+            "building"            => meetings.first[:building] || meetings.first["building"] || Building::TBD_ABBREVIATION,
+            "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || Building::TBD_NAME,
+            "room"                => meetings.first[:room] || meetings.first["room"] || Building::TBD_ABBREVIATION
           }.merge(days)
         end
       end

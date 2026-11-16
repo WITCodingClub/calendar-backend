@@ -41,4 +41,17 @@ RSpec.describe Room, type: :model do
       expect(described_class.number_key("000")).to eq("0")
     end
   end
+
+  describe "#tbd?" do
+    it "is true for the room the ingest stores with no room, and for a TBD room" do
+      expect(build(:room, number: "0")).to be_tbd
+      expect(build(:room, number: "000")).to be_tbd
+      expect(build(:room, number: "tbd")).to be_tbd
+    end
+
+    it "is false for a real room, also one that starts with a letter" do
+      expect(build(:room, number: "101")).not_to be_tbd
+      expect(build(:room, number: "A12")).not_to be_tbd
+    end
+  end
 end

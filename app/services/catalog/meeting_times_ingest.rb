@@ -77,10 +77,10 @@ module Catalog
 
     # "112/114" names two rooms. A blank room string means room "0".
     def self.parse_room_numbers(room_str)
-      return [ "0" ] if room_str.blank?
+      return [ Room::TBD_NUMBER ] if room_str.blank?
 
       parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
-      parts.empty? ? [ "0" ] : parts
+      parts.empty? ? [ Room::TBD_NUMBER ] : parts
     end
 
     # Banner's getFacultyMeetingTimes payload uses its own key names. Reshape it
@@ -131,8 +131,8 @@ module Catalog
         desc = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
         next if abbr.blank? && online_course?
 
-        abbr = "TBD" if abbr.blank?
-        desc = "To Be Determined" if abbr == "TBD" && desc.blank?
+        abbr = Building::TBD_ABBREVIATION if abbr.blank?
+        desc = Building::TBD_NAME if abbr == Building::TBD_ABBREVIATION && desc.blank?
         [ abbr, desc, (mt["room"] || mt[:room]).to_s.strip ]
       end
       @locations.load(entries)
@@ -175,8 +175,8 @@ module Catalog
 
       if building_abbr.blank?
         return if online_course?
-        building_abbr = "TBD"
-        building_name = "To Be Determined"
+        building_abbr = Building::TBD_ABBREVIATION
+        building_name = Building::TBD_NAME
       end
 
       building = @locations.buildings[building_abbr] ||= Building.find_or_create_by!(abbreviation: building_abbr) do |b|

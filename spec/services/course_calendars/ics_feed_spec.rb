@@ -84,6 +84,13 @@ RSpec.describe CourseCalendars::IcsFeed do
       expect(class_event.location).to eq("112")
     end
 
+    it "shows TBD for room 0 in a real building" do
+      hall = create(:building, name: "FCT Sample Hall")
+      create(:course_meeting_time_room, meeting_time: meeting_time, room: create(:room, building: hall, number: "0"))
+
+      expect(class_event.location).to eq("TBD")
+    end
+
     it "has no location when the class has no room" do
       expect(class_event.location).to be_nil
     end
@@ -185,10 +192,20 @@ RSpec.describe CourseCalendars::IcsFeed do
       event = parsed.events.find { |e| e.uid == "final-exam-#{final.id}@calendar-util.wit.edu" }
 
       expect(event.summary).to eq("Final Exam: Data Structures II")
-      expect(event.description).to eq("COMP-2000-01")
+      expect(event.description).to eq("COMP-2000-01\nTBA")
       expect(event.location).to eq("Room 112")
+      expect(event.color).to eq(Preferences::Colors::TOMATO)
       expect(event.dtstart).to eq(zone.local(2026, 12, 10, 8))
       expect(event.dtend).to eq(zone.local(2026, 12, 10, 10))
+    end
+
+    it "uses the person's final exam templates" do
+      create(:final_exam, term: term, crn: course.crn, course: course, exam_date: Date.new(2026, 12, 10))
+      create(:calendar_preference, :for_event_type, user: user, event_type: "final_exam", title_template: "Exam {{course_code}}")
+
+      event = parsed.events.find { |e| e.uid.to_s.start_with?("final-exam-") }
+
+      expect(event.summary).to eq("Exam COMP-2000-01")
     end
 
     it "leaves out a final that is in the past" do
@@ -205,7 +222,9 @@ RSpec.describe CourseCalendars::IcsFeed do
 
       event = parsed.events.find { |e| e.uid == "university-holiday-1@calendar-util.wit.edu" }
 
-      expect(event.summary).to eq("🏫 Columbus Day - No Classes")
+      # The default university event title template is {{summary}}, as in
+      # the Google and Outlook sync.
+      expect(event.summary).to eq("Columbus Day")
       expect(event.dtstart).to eq(Date.new(2026, 10, 12))
       expect(event.transp).to eq("TRANSPARENT")
     end
@@ -216,6 +235,16 @@ RSpec.describe CourseCalendars::IcsFeed do
                                          start_time: zone.local(2026, 10, 12), end_time: zone.local(2026, 10, 12, 23, 59))
 
       expect(parsed.events.map { |e| e.uid.to_s }).to include("university-holiday-2@calendar-util.wit.edu")
+    end
+
+    it "moves LAST-MODIFIED when the event's term changes" do
+      create(:university_calendar_event, ics_uid: "holiday-3", term: term, category: "holiday", summary: "Columbus Day",
+                                         start_time: zone.local(2026, 10, 12), end_time: zone.local(2026, 10, 12, 23, 59))
+      term.update!(updated_at: zone.local(2026, 12, 1, 9))
+
+      event = parsed.events.find { |e| e.uid == "university-holiday-3@calendar-util.wit.edu" }
+
+      expect(event.last_modified.to_time).to eq(zone.local(2026, 12, 1, 9))
     end
 
     it "adds the synced categories only when the user turned the sync on" do
@@ -233,7 +262,7 @@ RSpec.describe CourseCalendars::IcsFeed do
 
   it "moves LAST-MODIFIED and SEQUENCE to the last feed code change when every row is older" do
     event = class_event
-    changed_at = described_class::CLASS_EVENT_LOGIC_CHANGED_AT
+    changed_at = described_class::EVENT_LOGIC_CHANGED_AT
 
     expect(event.last_modified.to_time).to eq(changed_at)
     expect(event.sequence).to eq(changed_at.to_i / 60)

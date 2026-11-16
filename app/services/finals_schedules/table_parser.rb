@@ -309,7 +309,7 @@ module FinalsSchedules
         else
           "#{building} #{base}#{part}"
         end
-      end.join(" / ")
+      end.join(Room::LIST_SEPARATOR)
     end
 
     def warn(message)

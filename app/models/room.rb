@@ -34,6 +34,14 @@ class Room < ApplicationRecord
 
   before_save :set_floor
 
+  # The catalog ingest stores a meeting with no room as room "0". Older rows
+  # have "00" or "000". Courses::Processor writes "TBD" when LeopardWeb sends
+  # no room.
+  TBD_NUMBER = "0"
+
+  # Joins the rooms of one location: "112 / 7B", "WENTW 212 / WENTW 214".
+  LIST_SEPARATOR = " / "
+
   # A key that compares room numbers from different sources. The catalog
   # stores "011" and "007B", and the finals PDF prints "11" and "7B".
   def self.number_key(number)
@@ -46,8 +54,6 @@ class Room < ApplicationRecord
   end
 
   def formatted_number
-    # If the room number is purely numeric, pad to 3 digits.
-    # Otherwise, return as is.
     if number.to_s.match?(/\A\d+\z/)
       number.to_s.rjust(3, "0")
     else
@@ -57,6 +63,10 @@ class Room < ApplicationRecord
 
   def to_param
     public_id
+  end
+
+  def tbd?
+    self.class.number_key(number) == TBD_NUMBER || number.to_s.strip.casecmp?(Building::TBD_ABBREVIATION)
   end
 
   private

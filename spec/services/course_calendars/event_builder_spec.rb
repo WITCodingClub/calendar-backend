@@ -47,22 +47,6 @@ RSpec.describe CourseCalendars::EventBuilder do
     end
   end
 
-  describe "#location_for" do
-    it "shows TBD for a placeholder room" do
-      expect(builder.location_for(meeting_time_with_room("0"))).to eq("TBD")
-    end
-
-    it "shows only the room when the building is a placeholder" do
-      tbd_building = create(:building, name: "To Be Determined")
-
-      expect(builder.location_for(meeting_time_with_room("204", room_building: tbd_building))).to eq("204")
-    end
-
-    it "returns nil for a meeting time with no room" do
-      expect(builder.location_for(create(:course_meeting_time, course: course))).to be_nil
-    end
-  end
-
   describe "#course_events" do
     before do
       create(:enrollment, user: user, course: course)
@@ -74,6 +58,34 @@ RSpec.describe CourseCalendars::EventBuilder do
       events = builder.course_events(user.enrollments, prefer_valid_locations: true)
 
       expect(events.pluck(:location)).to eq([ "#{building.name} - 101" ])
+    end
+
+    it "keeps the meeting time with a room over one with no room" do
+      hall  = create(:building)
+      other = create(:course, term: term)
+      create(:enrollment, user: user, course: other)
+      create(:course_meeting_time, course: other, day_of_week: :tuesday)
+      create(:course_meeting_time_room, meeting_time: create(:course_meeting_time, course: other, day_of_week: :tuesday),
+                                        room: create(:room, building: hall, number: "101"))
+
+      events = builder.course_events(Enrollment.where(course: other), prefer_valid_locations: true)
+
+      expect(events.pluck(:location)).to eq([ "#{hall.name} - 101" ])
+    end
+
+    it "keeps the first row when it has a real room next to room 0" do
+      hall  = create(:building)
+      other = create(:course, term: term)
+      create(:enrollment, user: user, course: other)
+      mixed = create(:course_meeting_time, course: other, day_of_week: :tuesday)
+      %w[0 101].each { |n| create(:course_meeting_time_room, meeting_time: mixed, room: create(:room, building: hall, number: n)) }
+      create(:course_meeting_time_room, meeting_time: create(:course_meeting_time, course: other, day_of_week: :tuesday),
+                                        room: create(:room, building: hall, number: "102"))
+
+      events = builder.course_events(Enrollment.where(course: other), prefer_valid_locations: true)
+
+      # Room 0 next to 101 is not all TBD, so the first row stays.
+      expect(events.pluck(:location)).to eq([ "#{hall.name} - 101" ])
     end
 
     it "keeps every meeting time when it does not filter" do
@@ -139,24 +151,29 @@ RSpec.describe CourseCalendars::EventBuilder do
     end
   end
 
-  describe "#tbd_building?" do
-    it "is true for a placeholder name" do
-      expect(builder.tbd_building?(build(:building, name: "TBD Hall"))).to be(true)
-    end
+  describe "with preferences" do
+    subject(:builder) { described_class.new(user, preferences: Preferences::Applier.new(user)) }
 
-    it "is false for a real building or no building" do
-      expect(builder.tbd_building?(build(:building))).to be(false)
-      expect(builder.tbd_building?(nil)).to be(false)
+    it "applies the person's templates and color to each event, as the sync does" do
+      create(:enrollment, user: user, course: course)
+      meeting_time = meeting_time_with_room("101", day_of_week: :monday)
+      create(:event_preference, user: user, preferenceable: meeting_time, title_template: "{{course_code}}", color_id: "#1a2b3c")
+
+      entry = builder.class_entries([ course.reload ]).sole
+
+      expect(entry.source).to eq(meeting_time)
+      expect(entry.event).to include(summary: "COMP-1050-02", color_id: "#1a2b3c", location: "#{building.name} 101")
     end
   end
 
-  describe "#tbd_location?" do
-    it "is true when the room is a placeholder" do
-      expect(builder.tbd_location?(build(:building), build(:room, number: "0"))).to be(true)
-    end
+  describe "#university_event_entries with a date range" do
+    it "gives the events that overlap the dates" do
+      inside  = university_event(category: "holiday", start_time: Time.zone.local(2026, 10, 12))
+      university_event(category: "holiday", start_time: Time.zone.local(2027, 3, 1))
 
-    it "is false for a real room in a real building" do
-      expect(builder.tbd_location?(build(:building), build(:room, number: "101"))).to be(false)
+      entries = builder.university_event_entries(time_scope: Date.new(2026, 9, 1)..Date.new(2026, 12, 20))
+
+      expect(entries.map(&:source)).to eq([ inside ])
     end
   end
 end

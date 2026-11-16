@@ -181,7 +181,7 @@ module TwentyFiveLive
 
         building = buildings_by_abbr[abbrev.upcase]
         next unless building
-        next if LocationHelper.tbd_building?(building)
+        next if building.tbd?
 
         if bldg_25_id&.positive?
           attrs = {}
@@ -192,7 +192,7 @@ module TwentyFiveLive
 
         room = building.rooms.find_by(number: room_number)
         next unless room
-        next if LocationHelper.tbd_room?(room)
+        next if room.tbd?
 
         attrs = {}
         attrs[:twenty_five_live_id] = space_id    if room.twenty_five_live_id.nil?

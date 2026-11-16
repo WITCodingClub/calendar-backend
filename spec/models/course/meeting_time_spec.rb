@@ -48,4 +48,65 @@ RSpec.describe Course::MeetingTime, type: :model do
       .with_values(sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6)
       .backed_by_column_of_type(:integer)
   end
+
+  describe "locations" do
+    let(:hall)         { create(:building, name: "FCT Sample Hall", abbreviation: "FSH") }
+    let(:tbd_building) { create(:building, name: "FCT To Be Determined") }
+
+    def meeting_time_in(*rooms)
+      create(:course_meeting_time).tap do |meeting_time|
+        rooms.each { |room| create(:course_meeting_time_room, meeting_time: meeting_time, room: room) }
+      end
+    end
+
+    it "names the building and every real room" do
+      meeting_time = meeting_time_in(create(:room, building: hall, number: "12"), create(:room, building: hall, number: "7B"))
+
+      expect(meeting_time.location_text).to eq("FCT Sample Hall - 012 / 7B")
+      expect(meeting_time.building_room).to eq("FSH 012 / 7B")
+      expect(meeting_time).not_to be_tbd_location
+    end
+
+    it "shows TBD for room 0 in a real building" do
+      meeting_time = meeting_time_in(create(:room, building: hall, number: "0"))
+
+      expect(meeting_time.location_text).to eq("TBD")
+      expect(meeting_time.building_room).to eq("FSH")
+      expect(meeting_time).to be_tbd_location
+    end
+
+    it "shows TBD for a TBD room in a real building" do
+      meeting_time = meeting_time_in(create(:room, building: hall, number: "TBD"))
+
+      expect(meeting_time.location_text).to eq("TBD")
+    end
+
+    it "shows a room that starts with a letter and hides room 000 in the short location" do
+      expect(meeting_time_in(create(:room, building: hall, number: "A12")).building_room).to eq("FSH A12")
+      expect(meeting_time_in(create(:room, building: hall, number: "000")).building_room).to eq("FSH")
+    end
+
+    it "shows only the room when the building is a placeholder" do
+      meeting_time = meeting_time_in(create(:room, building: tbd_building, number: "204"))
+
+      expect(meeting_time.location_text).to eq("204")
+      expect(meeting_time.building_room).to be_nil
+      expect(meeting_time).to be_tbd_location
+    end
+
+    it "has no location and counts as TBD with no room" do
+      meeting_time = meeting_time_in
+
+      expect(meeting_time.location_text).to be_nil
+      expect(meeting_time.building_room).to be_nil
+      expect(meeting_time).to be_tbd_location
+    end
+  end
+
+  describe "#all_day?" do
+    it "is true only for the 12:01pm to 11:59pm placeholder times" do
+      expect(build(:course_meeting_time, begin_time: 1201, end_time: 2359)).to be_all_day
+      expect(build(:course_meeting_time, begin_time: 1201, end_time: 1300)).not_to be_all_day
+    end
+  end
 end

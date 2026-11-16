@@ -22,9 +22,14 @@
 class Building < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
+  # The catalog ingest files a section that LeopardWeb sends with no building
+  # under this building.
+  TBD_ABBREVIATION = "TBD"
+  TBD_NAME         = "To Be Determined"
+
   # LeopardWeb files a section with no room under one of these. They are not
   # real buildings, and 25Live has no building for them.
-  PLACEHOLDER_ABBREVIATIONS = %w[TBD ONLINE].freeze
+  PLACEHOLDER_ABBREVIATIONS = [ TBD_ABBREVIATION, "ONLINE" ].freeze
 
   # The 25Live sync runs weekly. A check older than this means a sync was missed.
   TWENTY_FIVE_LIVE_CHECK_STALE_AFTER = 8.days
@@ -37,6 +42,15 @@ class Building < ApplicationRecord
 
   def to_param
     public_id
+  end
+
+  # A building that stands for "no location yet". Older imports left the name
+  # or the abbreviation blank, or wrote a variant of "TBD" into the name.
+  def tbd?
+    name.blank? || abbreviation.blank? ||
+      name.downcase.include?(TBD_NAME.downcase) ||
+      name.downcase.include?(TBD_ABBREVIATION.downcase) ||
+      abbreviation.casecmp?(TBD_ABBREVIATION)
   end
 
   # How this building compares with 25Live. A building with no formal name is
