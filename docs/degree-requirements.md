@@ -330,7 +330,7 @@ A student's AP, test, and transfer credit is in `TransferCredit` (#1020). Each r
 flowchart LR
   LW[LeopardWeb transcript] -->|PUT transfer_credits| TC[(transfer_credits)]
   S[Student] -->|POST transfer_credits| TC
-  TC --> T[DegreeProgress#taken: done, no term, transfer true]
+  TC --> T[CourseHistory#taken: done, no term, transfer true]
   E[Enrollments + CourseOutcome] --> T
   T --> B{WIT attempt passed or in progress?}
   B -->|yes| W[The WIT course counts]
