@@ -47,19 +47,6 @@ module CourseCalendars
       self.class.new(other_user).tap { |copy| copy.share_lookups_from(self) }
     end
 
-    protected
-
-    attr_reader :course_final_dates, :term_finals_start_dates, :term_finals_period_dates, :all_holidays_preloaded
-
-    def share_lookups_from(other)
-      @course_final_dates       = other.course_final_dates.dup
-      @term_finals_start_dates  = other.term_finals_start_dates.dup
-      @term_finals_period_dates = other.term_finals_period_dates.dup
-      @all_holidays_preloaded   = other.all_holidays_preloaded
-    end
-
-    public
-
     def find_first_meeting_date(meeting_time)
       return nil if meeting_time.day_of_week.blank?
 
@@ -245,6 +232,17 @@ module CourseCalendars
       else
                                   []
       end
+    end
+
+    protected
+
+    attr_reader :course_final_dates, :term_finals_start_dates, :term_finals_period_dates, :all_holidays_preloaded
+
+    def share_lookups_from(other)
+      @course_final_dates       = other.course_final_dates.dup
+      @term_finals_start_dates  = other.term_finals_start_dates.dup
+      @term_finals_period_dates = other.term_finals_period_dates.dup
+      @all_holidays_preloaded   = other.all_holidays_preloaded
     end
   end
 end

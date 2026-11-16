@@ -4,24 +4,22 @@ Calendar apps subscribe to `/calendar/:token` and poll it. Apple Calendar and Ou
 
 ## Events
 
-`CourseCalendars::EventBuilder` builds the class, final exam, and university events for the Google and Outlook sync and for the feed. The feed gives it a `Preferences::Applier`, the same object the sync uses, so each event has the person's templates and color, as in the sync. The feed only renders the events as iCalendar.
+`CourseCalendars::EventBuilder` builds the class, final exam, and university events once, as `CourseCalendars::Event` values with the person's preferences applied (`Preferences::Applier`). The Google and Outlook sync sends the same values, and the feed only renders them as iCalendar. A `CourseCalendars::Recurrence` value holds each repeat rule and its excluded days; the feed, Google, and Outlook each read it in their own form.
 
 ```mermaid
 flowchart LR
   M["Models: Course#filtered_meeting_times,<br>MeetingTime#location_text, Building#tbd?, Room#tbd?"] --> EB
   R["RecurrenceBuilder: first date, UNTIL, no-class days"] --> EB["EventBuilder"]
-  P["Preferences::Applier: templates, color"] --> EB
-  EB --> F["IcsFeed renders iCalendar"]
-  EB --> S["Google and Outlook sync"]
+  C["Preferences::Context per kind: template variables, defaults"] --> P["Preferences::Applier: templates, color"]
+  P --> EB
+  EB --> E["CourseCalendars::Event"]
+  E --> F["IcsFeed renders iCalendar"]
+  E --> S["Google and Outlook payloads"]
 ```
 
-The feed differs from the sync in three places:
+An all-day event ends on the day after its last day (`Event#exclusive_end_date`), and an all-day class has a `DATE` in its `UNTIL`, as RFC 5545 needs for a `DATE` start.
 
-- A class shows `MeetingTime#location_text` (for example `Wentworth Hall - 212`). The feed does not apply the location template to classes.
-- An all-day class has a `DATE` in its `UNTIL`, as RFC 5545 needs for a `DATE` start.
-- A class with no color preference gets the color of its schedule type (`MeetingTime#event_color`).
-
-`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows, including its preferences and its term. A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `IcsFeed::EVENT_LOGIC_CHANGED_AT`. Move that time forward when you change how the feed builds an event.
+`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows, including its preferences and its term (`Event#changed_at`). A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `CourseCalendars::Event::LOGIC_CHANGED_AT`. Move that time forward when you change how an event is built.
 
 ## Caching
 
