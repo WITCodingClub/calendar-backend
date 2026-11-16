@@ -86,9 +86,10 @@ class User < ApplicationRecord
     user
   end
 
-  # No :registerable — accounts are provisioned only via Google OAuth
-  # (see Auth::GoogleController#handle_user_login, which enforces the @wit.edu gate).
-  # Self-service password signup would bypass that domain restriction.
+  # No :registerable: accounts come only from a WIT sign-in with Google or
+  # Microsoft. Each sign-in checks the @wit.edu domain before it calls
+  # find_or_provision_for_sign_in!. Self-service password signup would bypass
+  # that domain restriction.
   devise :database_authenticatable,
          :recoverable, :rememberable, :validatable, :confirmable, :trackable, :timeoutable, :lockable
 

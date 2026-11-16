@@ -24,13 +24,6 @@ module Risc
 
       result = Risc::EventHandler.new(event_data).process
       Rails.logger.info("RISC event processed: #{result}")
-    rescue Risc::Validator::ValidationError => e
-      Rails.logger.error("RISC validation error: #{e.message}")
-      raise
-    rescue => e
-      Rails.logger.error("Error processing RISC event: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
-      raise
     end
   end
 end
