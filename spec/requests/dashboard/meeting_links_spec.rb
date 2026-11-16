@@ -119,7 +119,7 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
       delete dashboard_meeting_link_path(link.public_id, permanent: true)
 
       expect(MeetingLink.exists?(link.id)).to be(true)
-      expect(flash[:alert]).to eq("Only a revoked or expired link can be deleted.")
+      expect(flash[:alert]).to eq("A used link keeps its meeting, so it cannot be deleted.")
     end
 
     it "does not delete an active link" do
@@ -128,7 +128,7 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
       delete dashboard_meeting_link_path(link.public_id, permanent: true)
 
       expect(link.reload).to be_usable
-      expect(flash[:alert]).to eq("Only a revoked or expired link can be deleted.")
+      expect(flash[:alert]).to eq("Revoke the link before you delete it.")
     end
 
     it "does not find another person's link" do

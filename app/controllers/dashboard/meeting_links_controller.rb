@@ -41,18 +41,11 @@ module Dashboard
 
       authorize link, :destroy?
 
-      permanent = MeetingLinks::Removal.permanent?(params[:permanent])
-
-      case MeetingLinks::Removal.call(link, permanent: permanent)
-      when :revoked then redirect_to dashboard_meeting_links_path, notice: "Link revoked."
-      when :deleted then redirect_to dashboard_meeting_links_path, notice: "Link deleted."
+      result = MeetingLinks::Removal.call(link, permanent: MeetingLinks::Removal.permanent?(params[:permanent]))
+      if result.changed?
+        redirect_to dashboard_meeting_links_path, notice: "Link #{result.outcome}."
       else
-        alert = if permanent
-          "Only a revoked or expired link can be deleted."
-        else
-          "This link was already used. Delete the event in your calendar to cancel the meeting."
-        end
-        redirect_to dashboard_meeting_links_path, alert: alert
+        redirect_to dashboard_meeting_links_path, alert: "#{result.refusal.message}."
       end
     end
 
