@@ -304,6 +304,16 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 
 `AcademicProfiles::DegreeProgress` is a help for planning, not a degree audit. The official audit is Stellic.
 
+It runs in three parts. `ProgramSelection` picks the requirement sets and the plan of each. `RequirementFill` decides which course fills which row. `DegreeProgress` builds the JSON, then adds the terms (`PlanTerms`, `PlanEstimate`), the HSS slots (`HssDetails`), and the overlap (`ProgramOverlap`).
+
+```mermaid
+flowchart LR
+  S[ProgramSelection: sets and plans] --> F[RequirementFill: course of each row]
+  F --> J[DegreeProgress: row JSON, summary, HSS]
+  J --> T[PlanTerms and PlanEstimate]
+  T --> O[ProgramOverlap]
+```
+
 - It checks each active `StudentProgram` that links to a `DegreeProgram` in an imported catalog year, or the `program` argument. Without a linked program it answers with a message that says how to add one, and does not guess.
 - With `include_planned` (`GET /api/user/degree_progress?include_planned=true`), it also checks the planned programs. Each program in the result has `status`: `active` or `planned` (null for the `program` argument). The My programs dashboard page uses this to show the courses that a planned program adds (#867).
 - It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
@@ -515,7 +525,7 @@ Example. The major plans MATH 1750 (Fall 2025), MATH 2500 (Fall 2026), and MATH 
 ```
 
 - **The slots:** the open elective slots (placeholder rows with `status: open`) in the plans of the active programs. A planned program that the student also declared as active does not count. A co-op slot never takes a course of a minor. A slot with no elective list (`checkable: false`) is not a slot here.
-- **Which courses a slot takes:** the rule of `DegreeProgress#take_for`, which `AcademicProfiles::ElectiveListRule` holds for both. A free elective (a list of any course) takes any course for degree credit. A program elective takes only the courses on its list, or the courses of its subjects. An HSS slot takes a course of its subjects, and when the slot stands for a category (`hss_category`, such as Humanities), only a course of that category.
+- **Which courses a slot takes:** the rule of `RequirementFill#take_for`, which `AcademicProfiles::ElectiveListRule` holds for both. A free elective (a list of any course) takes any course for degree credit. A program elective takes only the courses on its list, or the courses of its subjects. An HSS slot takes a course of its subjects, and when the slot stands for a category (`hss_category`, such as Humanities), only a course of that category.
 - **The extra courses:** for each list of the minor, the list courses that the student did not take and that no active program has, in list order. Each list needs as many of them as its part of `extra`.
 - **A list of subjects or of any course** names no fixed courses. Its extra courses can go to a slot that takes a course of one of its subjects, or that names a course of one of its subjects (with the HSS category rule above). A list of any course goes only to a free elective. These lists add no codes to `courses`.
 - **One slot per extra course:** each slot takes at most one course, and each course uses one slot, so the result has at most `extra` slots. A course on two lists of the minor fills one slot only. The narrow slots (program electives and HSS slots) take courses first, in term order, then the free electives in term order. A free elective is then not used where a narrow slot fits. The assignment is a maximum matching: a later slot can move a course from an earlier slot to another slot that also takes it, so the most courses get a slot.
