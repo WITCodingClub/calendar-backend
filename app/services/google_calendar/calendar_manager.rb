@@ -62,7 +62,7 @@ module GoogleCalendar
       service = CalendarServices.service_account
       with_rate_limit_handling { service.delete_acl(calendar_id, "user:#{email}") }
     rescue Google::Apis::ClientError => e
-      raise unless e.status_code == 404
+      raise unless GoogleCalendar::Provider.gone?(e)
 
       Rails.logger.info("ACL rule for #{email} already absent from calendar #{calendar_id}")
     end
@@ -113,7 +113,7 @@ module GoogleCalendar
       service = CalendarServices.for_credential(credential)
       with_rate_limit_handling { service.delete_calendar_list(calendar_id) }
     rescue Google::Apis::ClientError => e
-      Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless e.status_code == 404
+      Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless GoogleCalendar::Provider.gone?(e)
     end
 
     # Removes the calendar from the list of each account that owns it, then

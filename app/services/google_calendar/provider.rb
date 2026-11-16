@@ -40,6 +40,10 @@ module GoogleCalendar
       error.is_a?(Google::Apis::ClientError) && GONE_STATUSES.include?(error.status_code)
     end
 
+    def self.rate_limited?(error)
+      RATE_LIMIT_ERRORS.any? { |klass| error.is_a?(klass) }
+    end
+
     # A linked Google account without a course calendar has nothing to sync.
     def self.syncs_for?(user)
       CourseCalendar.google.for_user(user).exists?
@@ -158,9 +162,7 @@ module GoogleCalendar
       user_calendar_service
     end
 
-    def rate_limited?(error)
-      RATE_LIMIT_ERRORS.any? { |klass| error.is_a?(klass) }
-    end
+    def rate_limited?(error) = self.class.rate_limited?(error)
 
     def each_paced(rows, &)
       with_batch_throttling(rows, &)
