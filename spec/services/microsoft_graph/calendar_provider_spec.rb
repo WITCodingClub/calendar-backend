@@ -451,7 +451,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       delete = stub_request(:delete, "#{graph}/me/events/#{created_event_id}").to_return(status: 204)
       recurring = class_event_for(meeting_time, recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ])
 
-      service.update_specific_events([ recurring ])
+      expect(service.update_specific_events([ recurring ])).to eq(created: 0, updated: 0, skipped: 1)
 
       expect(delete).to have_been_requested.once
       expect(a_request(:get, %r{/me/events/#{created_event_id}/instances})).not_to have_been_made
@@ -673,6 +673,16 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
         service.create_friend_meeting_event(meeting)
 
         expect(create_stub).to have_been_requested.once
+      end
+
+      it "deletes the new event when the meeting is already tracked in the calendar" do
+        meeting_row(calendar)
+        stub_request(:post, primary_events_url).to_return(graph_json_response("meeting_created", status: 201))
+        delete = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+
+        expect(service.create_friend_meeting_event(meeting)).to be_nil
+        expect(delete).to have_been_requested.once
+        expect(meeting.calendar_events.count).to eq(1)
       end
 
       it "keeps the meeting row when the course sync runs" do

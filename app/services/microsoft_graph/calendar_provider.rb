@@ -325,7 +325,9 @@ module MicrosoftGraph
       delete_calendar_event(row.external_event_id, row.external_ical_uid)
     end
 
-    def delete_duplicate_event(_calendar, event_id)
+    # Graph sends the cancellation to the invited friends when the organizer
+    # deletes a meeting, so notify: needs no step here.
+    def delete_duplicate_event(_calendar, event_id, notify: false) # rubocop:disable Lint/UnusedMethodArgument
       delete_quietly(event_id)
     end
 

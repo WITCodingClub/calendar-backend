@@ -211,8 +211,10 @@ module GoogleCalendar
                           external_event_id: row.external_event_id }.to_json)
     end
 
-    def delete_duplicate_event(calendar, event_id)
-      with_rate_limit_handling { user_calendar_service.delete_event(calendar.external_calendar_id, event_id, send_updates: "none") }
+    def delete_duplicate_event(calendar, event_id, notify: false)
+      with_rate_limit_handling do
+        user_calendar_service.delete_event(calendar.external_calendar_id, event_id, send_updates: notify ? "all" : "none")
+      end
     end
 
     def insert_friend_meeting(calendar, meeting, invite:)

@@ -121,12 +121,21 @@ RSpec.describe GoogleCalendar::Provider do
         expect(insert).to have_been_requested.once
       end
 
-      it "deletes the new event when the meeting is already tracked in the calendar" do
+      it "deletes the new event and tells the invited friends when the meeting is already tracked in the calendar" do
+        create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: CourseCalendar.sole)
+        stub_request(:post, events_url).with(query: hash_including({})).to_return(created)
+        delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "all" }).to_return(status: 204)
+
+        expect(described_class.new(user).create_friend_meeting_event(meeting)).to be_nil
+        expect(delete).to have_been_requested.once
+      end
+
+      it "deletes the new event without a message when it went out without invitations" do
         create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: CourseCalendar.sole)
         stub_request(:post, events_url).with(query: hash_including({})).to_return(created)
         delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
 
-        expect(described_class.new(user).create_friend_meeting_event(meeting)).to be_nil
+        expect(described_class.new(user).create_friend_meeting_event(meeting, invite: false)).to be_nil
         expect(delete).to have_been_requested.once
       end
     end
