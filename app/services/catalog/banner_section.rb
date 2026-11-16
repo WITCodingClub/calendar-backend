@@ -25,6 +25,11 @@ module Catalog
       cross_list: %w[crossListCapacity crossListAvailable]
     }.freeze
 
+    # Every column the counts can write, with the identifier of the
+    # cross-list group that the cross-list counts belong to.
+    CROSS_LIST_COLUMNS = [ :cross_list_identifier, *COUNT_PAIRS[:cross_list] ].freeze
+    COUNT_COLUMNS = (COUNT_PAIRS.except(:cross_list).values.flatten + CROSS_LIST_COLUMNS).freeze
+
     DEFAULT_TITLE = "Untitled Course"
 
     # How Banner and the extension write a meeting day that is on.
@@ -80,12 +85,15 @@ module Catalog
       )
     end
 
-    # The cross-list counts are the group's seats, so a section that left its
-    # group has none.
+    # The cross-list counts are the group's seats, so they go with the group
+    # identifier: a section that left its group has neither, and a group with
+    # half a count is not written.
     def self.search_counts(data)
-      counts = SEARCH_COUNT_KEYS.map { |name, keys| pair(name, *data.values_at(*keys)) }.reduce({}, :merge)
-      counts.merge!(COUNT_PAIRS[:cross_list].index_with(nil)) if data["crossList"].blank?
-      counts
+      counts = SEARCH_COUNT_KEYS.except(:cross_list).map { |name, keys| pair(name, *data.values_at(*keys)) }.reduce({}, :merge)
+      return counts.merge(CROSS_LIST_COLUMNS.index_with(nil)) if data["crossList"].blank?
+
+      group = pair(:cross_list, *data.values_at(*SEARCH_COUNT_KEYS[:cross_list]))
+      group.empty? ? counts : counts.merge(group, cross_list_identifier: data["crossList"])
     end
 
     def self.pair(name, capacity, available)
@@ -136,8 +144,7 @@ module Catalog
         link_identifier: data["linkIdentifier"].presence,
         is_section_linked: ActiveModel::Type::Boolean.new.cast(data["isSectionLinked"]) || false,
         part_of_term: data["partOfTerm"].presence,
-        campus: CGI.unescapeHTML(data["campusDescription"].to_s).presence,
-        cross_list_identifier: data["crossList"].presence
+        campus: CGI.unescapeHTML(data["campusDescription"].to_s).presence
       }
     end
     private_class_method :search_attributes, :search_credit_hours, :search_counts

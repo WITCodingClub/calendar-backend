@@ -25,13 +25,13 @@ RSpec.describe Catalog::BannerSection do
     let(:section) { described_class.from_search(data) }
 
     it "keeps each count pair only when Banner sends both numbers, and keeps a negative count" do
-      expect(section.counts).to eq(seats_capacity: 30, seats_available: -2,
+      expect(section.counts).to eq(seats_capacity: 30, seats_available: -2, cross_list_identifier: "03",
                                    cross_list_capacity: 40, cross_list_available: 12)
     end
 
     it "clears the cross-list counts of a section that left its group" do
       expect(described_class.from_search(data.except("crossList")).counts)
-        .to include(cross_list_capacity: nil, cross_list_available: nil)
+        .to include(cross_list_identifier: nil, cross_list_capacity: nil, cross_list_available: nil)
     end
 
     it "reads the schedule type key from Banner's text" do
@@ -76,6 +76,14 @@ RSpec.describe Catalog::BannerSection do
     it "reads ISO and US dates" do
       expect([ "2026-09-08", "09/08/2026", "", "13/45/2026" ].map { |d| described_class.parse_date(d) })
         .to eq([ Date.new(2026, 9, 8), Date.new(2026, 9, 8), nil, nil ])
+    end
+
+    it "prefers a copy with a real building to one with neither a real building nor a real room" do
+      copies = [ { "building" => "TBD", "room" => "" }, { "building" => "WENTW", "room" => "" } ].map do |place|
+        described_class.from_search(place.merge("startDate" => "09/08/2026", "beginTime" => "0800", "monday" => true))
+      end
+
+      expect(described_class.dedupe(copies).map(&:building)).to eq([ "WENTW" ])
     end
 
     it "treats a TBD building, room 0, and a blank room as no real place" do

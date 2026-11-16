@@ -10,7 +10,7 @@ module Catalog
   #
   # Catalog::SeatRefreshJob calls it for each term in its registration window.
   class SeatRefresh < ApplicationService
-    COLUMNS = BannerSection::COUNT_PAIRS.values.flatten.freeze
+    COLUMNS = BannerSection::COUNT_COLUMNS
 
     def initialize(term)
       @term = term

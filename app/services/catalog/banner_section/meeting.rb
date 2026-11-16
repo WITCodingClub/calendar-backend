@@ -37,11 +37,11 @@ module Catalog
       end
 
       # Banner lists a meeting once for each instructor, sometimes with the
-      # room on one copy only. Keeps one meeting for each dates, hours, and
-      # days, with a real room when one copy has it.
+      # place on one copy only. Keeps one meeting for each dates, hours, and
+      # days: a copy with a real room, else one with a real building.
       def self.dedupe(meetings)
         meetings.group_by(&:schedule_key).map do |_key, copies|
-          copies.find { |meeting| !meeting.tbd_location? } || copies.first
+          copies.find { |meeting| !meeting.tbd_location? } || copies.find(&:real_building?) || copies.first
         end
       end
 
@@ -84,10 +84,11 @@ module Catalog
       # The rule of Building#tbd? and Room#tbd?, read before the rows exist.
       # A meeting with no building has no place at all.
       def tbd_location?
-        return true if building.blank?
+        !real_building? || room_numbers.all? { |number| Room.new(number: number).tbd? }
+      end
 
-        Building.new(abbreviation: building, name: building_name.presence || building).tbd? ||
-          room_numbers.all? { |number| Room.new(number: number).tbd? }
+      def real_building?
+        building.present? && !Building.new(abbreviation: building, name: building_name.presence || building).tbd?
       end
 
       # "112/114" names two rooms. A blank room is room "0".

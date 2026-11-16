@@ -65,6 +65,12 @@ RSpec.describe Catalog::MeetingTimesIngest do
     expect(course.meeting_times.flat_map { |mt| mt.rooms.map(&:number) }.uniq).to eq([ "0" ])
   end
 
+  it "names the TBD building in full when Banner sends its abbreviation with no name" do
+    described_class.call(course: course, meetings: meetings([ raw_meeting_times.first.merge("building" => "TBD", "buildingDescription" => "") ]))
+
+    expect(course.meeting_times.first.building.name).to eq(Building::TBD_NAME)
+  end
+
   describe "meeting schedule type" do
     it "takes the type Banner sends with the meeting" do
       described_class.call(course: course, meetings: meetings([ raw_meeting_times.first.merge("meetingScheduleType" => "LAB") ]))

@@ -96,7 +96,7 @@ module Catalog
       # Re-importing a term is how existing rows learn their link identifier
       # and the other details, so these are written on update too.
       update_attrs = details.slice(:title, :credit_hours, :link_identifier, :is_section_linked,
-                                   :part_of_term, :campus, :cross_list_identifier)
+                                   :part_of_term, :campus)
                             .merge(start_date: start_date, end_date: end_date, **section.counts)
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|

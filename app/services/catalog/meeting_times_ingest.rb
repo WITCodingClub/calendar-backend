@@ -92,12 +92,16 @@ module Catalog
 
     # [building abbreviation, building name, room numbers], or nil for an
     # online section with no building. Any other meeting with no building
-    # gets the TBD building.
+    # gets the TBD building, and the TBD building gets its full name.
     def place_of(meeting)
-      return [ meeting.building, meeting.building_name, meeting.room_numbers ] if meeting.building.present?
-      return nil if Course::ScheduleType.online?(course.schedule_type)
+      abbr = meeting.building
+      if abbr.blank?
+        return nil if Course::ScheduleType.online?(course.schedule_type)
 
-      [ Building::TBD_ABBREVIATION, Building::TBD_NAME, meeting.room_numbers ]
+        abbr = Building::TBD_ABBREVIATION
+      end
+      name = meeting.building_name.presence || (Building::TBD_NAME if abbr == Building::TBD_ABBREVIATION)
+      [ abbr, name, meeting.room_numbers ]
     end
 
     def ingest_one(meeting, rooms)

@@ -231,6 +231,13 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(service.get_class_details).to be_nil
     end
 
+    it "lets a Banner cooldown in the enrollment request stop the caller" do
+      allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
+      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+      expect { service.get_class_details }.to raise_error(Catalog::BannerThrottle::CooldownError)
+    end
+
     it "keeps the details when only the enrollment request fails" do
       allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
       allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
