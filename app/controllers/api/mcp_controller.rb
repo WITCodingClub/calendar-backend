@@ -87,7 +87,7 @@ module Api
     # every scope, so the student picks on the consent page. A client without
     # step-up support can get a scope only there.
     def challenge(error: nil, description: nil, scope: McpTools::Scopes::NAMES.join(" "))
-      metadata = Oauth::Metadata.new(host: request.host, port: request.port, protocol: request.protocol)
+      metadata = Oauth::Metadata.from_request(request)
       parts = [ %(resource_metadata="#{metadata.resource_metadata_url}"), %(scope="#{scope}") ]
       parts << %(error="#{error}") if error
       parts << %(error_description="#{description}") if description

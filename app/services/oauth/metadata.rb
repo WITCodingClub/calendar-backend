@@ -11,6 +11,10 @@ module Oauth
   # The URLs come from the routes and the request host, the same as the other
   # discovery files (DiscoveryController).
   class Metadata
+    def self.from_request(request)
+      new(host: request.host, port: request.port, protocol: request.protocol)
+    end
+
     def initialize(url_options)
       @url_options = url_options
     end

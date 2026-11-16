@@ -22,7 +22,7 @@ module Oauth
     private
 
     def metadata
-      Oauth::Metadata.new(host: request.host, port: request.port, protocol: request.protocol)
+      Oauth::Metadata.from_request(request)
     end
   end
 end
