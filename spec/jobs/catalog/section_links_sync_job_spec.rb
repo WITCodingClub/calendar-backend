@@ -20,6 +20,13 @@ RSpec.describe Catalog::SectionLinksSyncJob do
     expect(Catalog::SectionLinksSync).not_to have_received(:for_term)
   end
 
+  it "tries again after a Banner cooldown" do
+    term = create(:term)
+    allow(Catalog::SectionLinksSync).to receive(:for_term).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    expect { described_class.perform_now(term.uid) }.to have_enqueued_job(described_class).with(term.uid)
+  end
+
   it "runs one term at a time under a fixed group" do
     expect(described_class.concurrency_group).to eq("Catalog::SectionLinksSyncJob")
     expect(described_class.concurrency_limit).to eq(1)

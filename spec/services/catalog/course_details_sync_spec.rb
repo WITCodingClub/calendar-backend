@@ -28,7 +28,7 @@ RSpec.describe Catalog::CourseDetailsSync do
     end
   end
 
-  def sync = described_class.new(term, pause: 0).call
+  def sync = described_class.new(term).call
 
   let!(:section) { create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2000, crn: 20382, title: "Data Structures") }
 
@@ -119,6 +119,17 @@ RSpec.describe Catalog::CourseDetailsSync do
 
     expect(course.reload.description).to eq("Old text")
     expect(reports.first.context).to include(catalog_course_id: course.id, crn: 20382)
+  end
+
+  it "stops on a Banner cooldown, so the job can try again later" do
+    client = class_double(Catalog::LeopardWebClient)
+    allow(client).to receive(:get_course_details).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    reports = capture_error_reports do
+      expect { described_class.new(term, client: client).call }.to raise_error(Catalog::BannerThrottle::CooldownError)
+    end
+
+    expect(reports).to be_empty
   end
 
   it "stores the other pages and keeps the old values when an optional page fails" do

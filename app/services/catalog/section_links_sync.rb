@@ -8,22 +8,19 @@ module Catalog
   #   Catalog::SectionLinksSync.call(course)  # one section
   #   Catalog::SectionLinksSync.for_term(term) # every linked section in a term
   #
-  # A failed fetch keeps the old links and is reported. A section that is not
-  # linked has no links, so it needs no request.
+  # A failed fetch keeps the old links and is reported. A Banner cooldown
+  # goes up, so the job (or Catalog::SectionSync) stops and tries again later.
+  # A section that is not linked has no links, so it needs no request.
   class SectionLinksSync
-    # Banner's search endpoints start to refuse after a burst of requests.
-    PAUSE = 0.2
-
     def self.call(course)
       new(course).call
     end
 
-    def self.for_term(term, pause: PAUSE)
+    def self.for_term(term)
       counts = { synced: 0, failed: 0 }
 
       term.courses.where(is_section_linked: true).find_each do |course|
         new(course).call ? counts[:synced] += 1 : counts[:failed] += 1
-        sleep pause if pause.positive?
       end
 
       counts
@@ -36,12 +33,10 @@ module Catalog
     def call
       return clear_links unless @course.is_section_linked
 
-      groups = LeopardWebClient.fetch_linked_sections(term: @course.term.uid, course_reference_number: @course.crn)
-      store(groups)
-      true
-    rescue LeopardWebClient::RequestError, LeopardWebClient::ParseError, Faraday::Error, JSON::ParserError => e
-      Rails.error.report(e, handled: true, context: { course_id: @course.id, crn: @course.crn })
-      false
+      BannerThrottle.report_unless_cooldown(fallback: false, course_id: @course.id, crn: @course.crn) do
+        store(LeopardWebClient.fetch_linked_sections(term: @course.term.uid, course_reference_number: @course.crn))
+        true
+      end
     end
 
     private

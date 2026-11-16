@@ -12,17 +12,17 @@ module Catalog
   # old terms only fills the gaps.
   #
   # A failed fetch keeps the old details and is reported. The sync goes on with
-  # the next course.
+  # the next course. A Banner cooldown stops the sync, and the job tries again
+  # later (Catalog::BannerThrottle.report_unless_cooldown). Courses fetched
+  # before the stop are fresh, so the next attempt skips them.
   class CourseDetailsSync
     FRESH_FOR = 7.days
-    PAUSE     = 0.1
 
     Result = Data.define(:fetched, :skipped, :failed)
 
-    def initialize(term, client: LeopardWebClient, pause: PAUSE)
+    def initialize(term, client: LeopardWebClient)
       @term   = term
       @client = client
-      @pause  = pause
     end
 
     # Makes sure every course in the sections has a CatalogCourse, with the
@@ -114,7 +114,6 @@ module Catalog
         else
           failed += 1
         end
-        sleep @pause if @pause.positive?
       end
 
       Result.new(fetched: fetched, skipped: skipped, failed: failed)
@@ -150,6 +149,12 @@ module Catalog
     end
 
     def store(catalog_course, crn)
+      BannerThrottle.report_unless_cooldown(fallback: false, catalog_course_id: catalog_course.id, term_uid: @term.uid, crn: crn) do
+        fetch_and_store(catalog_course, crn)
+      end
+    end
+
+    def fetch_and_store(catalog_course, crn)
       pages = @client.get_course_details(term: @term.uid, course_reference_number: crn)
       details = CourseDetailsParser.description(pages[:description])
       prerequisites = CourseDetailsParser.prerequisites(pages[:prerequisites])
@@ -169,9 +174,6 @@ module Catalog
         replace_prerequisite_links(catalog_course, prerequisites)
       end
       true
-    rescue LeopardWebClient::RequestError, Faraday::Error => e
-      Rails.error.report(e, handled: true, context: { catalog_course_id: catalog_course.id, term_uid: @term.uid, crn: crn })
-      false
     end
 
     def replace_prerequisite_links(catalog_course, tree)
