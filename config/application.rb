@@ -41,6 +41,12 @@ module Calendar
 
     config.active_job.queue_adapter = :solid_queue
 
+    # The public host of the site. The URL options in production.rb and
+    # development.rb, the Google OAuth callback (omniauth.rb), and the service
+    # account callback (Admin::ServiceAccountController) read it. Outside
+    # production it is nil unless APPLICATION_HOST is set (a tunnel).
+    config.x.application_host = ENV["APPLICATION_HOST"].presence || ("calendar.witcc.dev" if Rails.env.production?)
+
     # Single source of truth for the sender address. Action Mailer and Devise
     # both read it. The domain has to be one that is verified in Resend, so
     # do not point it back at wit.edu.

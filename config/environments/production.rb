@@ -71,8 +71,8 @@ Rails.application.configure do
 
   # The host and protocol for links built outside a request: mailers, meeting
   # links, calendar feed URLs. Without the protocol they start with http://.
-  config.action_mailer.default_url_options     = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev"), protocol: "https" }
-  config.action_controller.default_url_options = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev"), protocol: "https" }
+  config.action_mailer.default_url_options     = { host: config.x.application_host, protocol: "https" }
+  config.action_controller.default_url_options = { host: config.x.application_host, protocol: "https" }
 
   # Outgoing mail goes through Resend over SMTP. The user name is the literal
   # string "resend" for every account; the password is the API key, which
@@ -99,8 +99,8 @@ Rails.application.configure do
 
   # Enable DNS rebinding protection and other `Host` header attacks. Traefik
   # routes only Host: calendar.witcc.dev to the container, so every real
-  # request has that host. APPLICATION_HOST also sets the mailer URLs above.
-  config.hosts = [ ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev") ]
+  # request has that host. The same host sets the mailer URLs above.
+  config.hosts = [ config.x.application_host ]
 
   # Skip DNS rebinding protection for the default health check endpoint.
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }

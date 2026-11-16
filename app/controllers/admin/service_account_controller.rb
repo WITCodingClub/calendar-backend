@@ -93,7 +93,7 @@ module Admin
     private
 
     def app_base_url
-      if (host = ENV["APPLICATION_HOST"])
+      if (host = Rails.configuration.x.application_host)
         "#{request.protocol}#{host}"
       else
         request.base_url
