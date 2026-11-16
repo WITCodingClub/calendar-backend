@@ -1,17 +1,14 @@
 # frozen_string_literal: true
 
 module UniversityCalendar
-  # Finds the start and end dates of a term from the university calendar, the
-  # terms that LeopardWeb lists, and the term's courses. UniversityCalendar::SyncJob
-  # fills the dates that a term does not have yet.
+  # The dates of a term from LeopardWeb and the university calendar.
+  # UniversityCalendar::SyncJob fills the dates that a term does not have yet.
+  # A term's courses win over these dates (see Term).
   module TermDates
-    # Date rules:
-    # - start_date: The day LeopardWeb reports registration open for the term.
-    #               Once captured, keep the stored past start_date stable across
-    #               later syncs.
-    # - end_date:   Last day of finals period for the term.
-    #               Falls back to latest imported course end_date for the term
-    #               when finals period events are unavailable.
+    # - start_date: the day LeopardWeb first lists the term (registration
+    #   opens), kept once it is in the past. Else the "course schedule
+    #   available" event, else 14 days before the registration event.
+    # - end_date: the last day of the finals period, else the last course end.
     #
     # Both dates must fall inside Term.date_window, and the end date in the
     # term's own year. Without this, Summer 2027 took 2026-07-25 (the day
@@ -42,7 +39,7 @@ module UniversityCalendar
                             .max_by { |event| event.end_time || event.start_time }
 
       finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
-      course_end_fallback = fallback_end_date_from_courses(term)
+      course_end_fallback = term&.course_dates&.last
 
       start_date = leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date
       end_date   = finals_end_date || course_end_fallback
@@ -91,47 +88,31 @@ module UniversityCalendar
     end
 
     def self.extract_explicit_term_from_summary(summary)
-      match = summary.to_s.match(/\b(Fall|Spring|Summer)\s+(\d{4})\b/i)
-      return nil unless match
-
-      season = case match[1].downcase
-      when "fall" then :fall
-      when "spring" then :spring
-      when "summer" then :summer
-      end
-
-      return nil unless season
-
-      { season: season, year: match[2].to_i }
+      TermCode.year_and_season(TermCode.find_in(summary))
     end
 
     def self.schedule_available_summary?(summary)
-      normalized = summary.to_s
-      return false if registration_summary?(normalized)
+      summary = summary.to_s
+      return false if registration_summary?(summary)
 
-      normalized.match?(/course\s+schedule/i) ||
-        normalized.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
+      summary.match?(/course\s+schedule/i) ||
+        summary.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
     end
 
+    # The feed has no registration category of its own: "registration" also
+    # holds add/drop and enrollment deadlines.
     def self.registration_summary?(summary)
-      summary.to_s.match?(/registration\s+(opens|open|begins|begin)|registration/i)
+      summary.to_s.match?(/registration/i)
     end
 
+    # Wider than UniversityCalendarEvent.finals_periods, which decides the
+    # days with no classes: any finals event that is not a schedule release
+    # can end the term.
     def self.finals_period_summary?(summary)
-      normalized = summary.to_s
-      return false if normalized.match?(/schedule\s+(available|online|release|released|posted)/i)
+      summary = summary.to_s
+      return false if summary.match?(/schedule\s+(available|online|release|released|posted)/i)
 
-      normalized.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
-    end
-
-    def self.fallback_end_date_from_courses(term)
-      return nil unless term
-
-      term.courses.where.not(start_date: nil)
-          .where.not(end_date: nil)
-          .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", term.year - 1, term.year)
-          .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", term.year, term.year + 1)
-          .maximum(:end_date)
+      summary.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
     end
 
     # Fills each date the term does not have with the detected one. Returns the

@@ -14,6 +14,9 @@ module UniversityCalendar
 
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: -> { "university_calendar_sync" }
 
+    # The feed runs once a week, so a feed that is down gets two more tries.
+    retry_on IcsImport::FetchError, wait: 1.hour, attempts: 3
+
     def perform
       Rails.logger.info("Starting university calendar sync")
 
@@ -24,9 +27,8 @@ module UniversityCalendar
       any_changes = result[:created].positive? || result[:updated].positive? || result[:cancelled].positive?
 
       if any_changes
-        changed = Array(result[:changed_categories])
-        holidays_changed = (changed & %w[holiday study_day]).any?
-        trigger_user_calendar_syncs(holidays_changed: holidays_changed)
+        no_class_changed = Array(result[:changed_categories]).any? { |category| UniversityCalendarEvent.no_class_category?(category) }
+        trigger_user_calendar_syncs(no_class_changed:)
       end
 
       update_term_dates_from_events
@@ -36,25 +38,13 @@ module UniversityCalendar
 
     private
 
-    def trigger_user_calendar_syncs(holidays_changed:)
-      if holidays_changed
-        trigger_sync_for_all_users
+    def trigger_user_calendar_syncs(no_class_changed:)
+      if no_class_changed
+        CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.all, reason: "holidays", force: true)
       else
-        trigger_sync_for_opted_in_users
+        CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.with_university_events,
+                                                       reason: "university_events", force: true)
       end
-    end
-
-    def trigger_sync_for_all_users
-      Rails.logger.info("Holiday changes detected - syncing all users")
-
-      CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.all, reason: "holidays", force: true)
-    end
-
-    def trigger_sync_for_opted_in_users
-      Rails.logger.info("Non-holiday changes detected - syncing opted-in users only")
-
-      CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.with_university_events,
-                                                     reason: "university_events", force: true)
     end
 
     def update_term_dates_from_events

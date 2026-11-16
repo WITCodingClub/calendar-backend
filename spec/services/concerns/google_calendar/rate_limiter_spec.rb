@@ -23,7 +23,6 @@ RSpec.describe GoogleCalendar::RateLimiter do
     it "shares one config between every class that includes the concern" do
       expect(GoogleCalendar::Provider.rate_limit_config).to be(described_class.config)
       expect(GoogleCalendar::EventLabels.rate_limit_config).to be(described_class.config)
-      expect(Cleanup::UntrackedGoogleEventsJob.rate_limit_config).to be(described_class.config)
     end
   end
 

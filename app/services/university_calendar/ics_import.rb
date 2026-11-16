@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 module UniversityCalendar
+  # Imports the 25Live ICS feed into university_calendar_events.
   class IcsImport < ApplicationService
+    class FetchError < StandardError; end
+
     ICS_FEED_URL = "https://25livepub.collegenet.com/calendars/wit-main-events-calendar.ics"
 
     def self.backfill_url(start_date, end_date)
@@ -33,15 +36,11 @@ module UniversityCalendar
     private
 
     def fetch_ics_content
-      url = ics_url.gsub(/^webcal:\/\//, "https://")
+      url = ics_url.sub(%r{\Awebcal://}, "https://")
+      body = HttpFetcher.new(allowed_hosts: [ URI(url).host ], error: FetchError).get(url)
+      raise FetchError, "GET #{url}: HTTP 404" if body.nil?
 
-      response = HttpFetcher.connection.get(url)
-
-      unless response.success?
-        raise "Failed to fetch ICS feed: #{response.status}"
-      end
-
-      response.body
+      body.force_encoding(Encoding::UTF_8)
     end
 
     def parse_ics_events(ics_content)
@@ -100,16 +99,10 @@ module UniversityCalendar
       return if uids.empty?
 
       uids.each do |uid|
-        event = @existing_events_by_uid[uid]
-
-        # If no direct match, check whether this UID is the root of a merged record
-        # (stored as "merged:<uid>+<count>"). Non-root constituent UIDs of a merged
-        # event are not stored, so only the root cancellation triggers cleanup here.
-        if event.nil?
-          merged_prefix = "merged:#{uid}+"
-          _key, event = @existing_events_by_uid.find { |k, _v| k.start_with?(merged_prefix) }
-        end
-
+        # A merged event keeps only its first feed uid, so only a cancel of
+        # that day removes it.
+        event = @existing_events_by_uid[uid] ||
+                @existing_events_by_uid.each_value.find { |stored| MergedUid.root(stored.ics_uid) == uid }
         next unless event
 
         Rails.logger.info("Removing CANCELLED ICS event: #{event.summary} (#{uid} -> #{event.ics_uid})")
@@ -142,7 +135,7 @@ module UniversityCalendar
         description = description.sub(/\AEvent Name:.*/, "Event Name: #{summary}")
       end
       category    = Category.infer(summary, event_type)
-      is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
+      is_all_day  = UniversityCalendarEvent.all_day_category?(category) || all_day_event?(ics_event)
 
       if is_all_day
         last_day   = end_time.to_date
@@ -197,8 +190,7 @@ module UniversityCalendar
       return sorted_events if sorted_events.empty?
 
       result  = []
-      current = sorted_events.first.dup
-      current[:merged_uids] = [ current[:ics_uid] ]
+      current = sorted_events.first.merge(merged_uids: [ sorted_events.first[:ics_uid] ])
 
       sorted_events[1..].each do |event|
         current_end_date  = current[:end_time].to_date
@@ -211,8 +203,7 @@ module UniversityCalendar
           current[:description] ||= event[:description]
         else
           result << finalize_merged_event(current)
-          current = event.dup
-          current[:merged_uids] = [ current[:ics_uid] ]
+          current = event.merge(merged_uids: [ event[:ics_uid] ])
         end
       end
 
@@ -222,8 +213,8 @@ module UniversityCalendar
 
     def finalize_merged_event(event)
       merged_uids = event.delete(:merged_uids)
+      event[:ics_uid] = MergedUid.for(merged_uids)
       if merged_uids.size > 1
-        event[:ics_uid] = "merged:#{merged_uids.first}+#{merged_uids.size}"
         Rails.logger.info("Merged #{merged_uids.size} events into multi-day event: #{event[:summary]} (#{event[:start_time].to_date} - #{event[:end_time].to_date})")
       end
       event
@@ -233,13 +224,10 @@ module UniversityCalendar
       ics_uid = attrs[:ics_uid]
       event   = @existing_events_by_uid&.[](ics_uid) || UniversityCalendarEvent.new(ics_uid: ics_uid)
 
-      if event.new_record? && ics_uid.start_with?("merged:")
-        original_uid    = ics_uid.sub(/^merged:/, "").sub(/\+\d+$/, "")
-        existing_single = @existing_events_by_uid&.[](original_uid)
-        if existing_single
-          event = existing_single
-          cleanup_merged_single_day_events(attrs, original_uid)
-        end
+      root_uid = MergedUid.root(ics_uid)
+      if event.new_record? && root_uid && (existing_single = @existing_events_by_uid&.[](root_uid))
+        event = existing_single
+        cleanup_merged_single_day_events(attrs, root_uid)
       end
 
       if event.new_record?
@@ -369,7 +357,7 @@ module UniversityCalendar
     def parse_ics_time(ics_time)
       return nil unless ics_time
 
-      if ics_time.is_a?(Icalendar::Values::Date) || (ics_time.respond_to?(:value) && ics_time.value.is_a?(Date) && !ics_time.value.is_a?(DateTime))
+      if date_value?(ics_time)
         date = ics_time.respond_to?(:value) ? ics_time.value : ics_time
         Time.zone.local(date.year, date.month, date.day, 0, 0, 0)
       elsif ics_time.respond_to?(:to_time)
@@ -379,15 +367,14 @@ module UniversityCalendar
       end
     end
 
+    # A DATE value, not a DATE-TIME (RFC 5545).
     def date_value?(ics_time)
       ics_time.is_a?(Icalendar::Values::Date) ||
         (ics_time.respond_to?(:value) && ics_time.value.is_a?(Date) && !ics_time.value.is_a?(DateTime))
     end
 
     def all_day_event?(ics_event)
-      dtstart = ics_event.dtstart
-      return true if dtstart.is_a?(Icalendar::Values::Date)
-      return true if dtstart.respond_to?(:value) && dtstart.value.is_a?(Date) && !dtstart.value.is_a?(DateTime)
+      return true if date_value?(ics_event.dtstart)
 
       all_day_prop = ics_event.custom_properties["x_microsoft_cdo_alldayevent"]
       return true if all_day_prop&.first&.to_s&.upcase == "TRUE"
@@ -484,14 +471,11 @@ module UniversityCalendar
     def fix_summary_term_reference(summary, incorrect_term, correct_term)
       return summary if incorrect_term.blank? || correct_term.nil?
 
-      year_match       = incorrect_term.match(/\d{4}/)
-      correct_term_str = correct_term.name
+      named_year = incorrect_term[/\d{4}/]
 
-      corrected = summary.dup
-      corrected = corrected.gsub(/for\s+(Fall|Spring|Summer)\s+\d{4}/i) { "for #{correct_term_str}" }
-
-      if year_match
-        corrected = corrected.gsub(/(Fall|Spring|Summer)\s+#{year_match[0]}/i, correct_term_str)
+      corrected = summary.gsub(/for\s+#{TermCode::LABEL_TEXT}/i) { "for #{correct_term.name}" }
+      if named_year
+        corrected = corrected.gsub(TermCode::LABEL_TEXT) { |label| Regexp.last_match(2) == named_year ? correct_term.name : label }
       end
 
       Rails.logger.info("Corrected summary: '#{summary}' -> '#{corrected}'") if corrected != summary

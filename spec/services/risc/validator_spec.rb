@@ -78,25 +78,14 @@ RSpec.describe Risc::Validator, type: :service do
     it "raises when fetching the configuration times out" do
       stub_request(:get, CONFIGURATION_URL).to_timeout
 
-      expect { described_class.new }.to raise_error(Timeout::Error)
+      expect { described_class.new }.to raise_error(Risc::Validator::FetchError)
     end
 
     it "raises when fetching the JWKS times out" do
       stub_risc_configuration
       stub_request(:get, JWKS_URL).to_timeout
 
-      expect { described_class.new }.to raise_error(Timeout::Error)
-    end
-
-    it "sets an open and a read timeout on both fetches" do
-      stub_risc_configuration
-      stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
-      options = hash_including(open_timeout: described_class::OPEN_TIMEOUT, read_timeout: described_class::READ_TIMEOUT)
-      allow(Net::HTTP).to receive(:start).and_call_original
-
-      described_class.new
-
-      expect(Net::HTTP).to have_received(:start).with(anything, anything, options).twice
+      expect { described_class.new }.to raise_error(Risc::Validator::FetchError)
     end
 
     context "with a cache that keeps entries" do

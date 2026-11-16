@@ -8,15 +8,13 @@ module Cleanup
   class OrphanedCalendarEventsJob < ApplicationJob
     queue_as :low
 
-    def perform(dry_run: false)
-      Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Starting (dry_run: #{dry_run})"
-
+    def perform
       orphaned_events = CalendarEvent.orphaned
       total_count = orphaned_events.count
 
       Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Found #{total_count} orphaned events"
 
-      return { total: total_count, deleted: 0, errors: 0 } if dry_run || total_count.zero?
+      return { total: 0, deleted: 0, errors: 0 } if total_count.zero?
 
       deleted_count = 0
       error_count = 0

@@ -29,6 +29,19 @@ RSpec.describe TermCode do
     end
   end
 
+  describe ".find_in" do
+    it "reads the first term name in a text" do
+      expect(described_class.find_in("Registration for Fall 2027 opens")).to eq(202810)
+      expect(described_class.find_in("SPRING 2026 and Fall 2026")).to eq(202620)
+    end
+
+    it "returns nil when the text names no term" do
+      expect(described_class.find_in("Commencement 2026")).to be_nil
+      expect(described_class.find_in("Fall 20261")).to be_nil
+      expect(described_class.find_in(nil)).to be_nil
+    end
+  end
+
   it "converts a code back to its label" do
     expect(%w[202610 202620 202630].map { |code| described_class.label(code.to_i) })
       .to eq([ "Fall 2025", "Spring 2026", "Summer 2026" ])

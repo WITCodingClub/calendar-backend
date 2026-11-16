@@ -4,16 +4,16 @@ require "rails_helper"
 
 RSpec.describe UniversityCalendar::TermDates do
   describe "summary matchers" do
-    it ".registration_summary? matches registration text" do
-      expect(described_class.registration_summary?("Fall Registration Opens")).to be(true)
-      expect(described_class.registration_summary?("Course Schedule Posted")).to be(false)
-    end
-
     it ".schedule_available_summary? matches schedule releases but not registration" do
       expect(described_class.schedule_available_summary?("Course Schedule Available")).to be(true)
       expect(described_class.schedule_available_summary?("Schedule posted")).to be(true)
       expect(described_class.schedule_available_summary?("Registration schedule available")).to be(false)
       expect(described_class.schedule_available_summary?("Commencement")).to be(false)
+    end
+
+    it ".registration_summary? matches registration text only" do
+      expect(described_class.registration_summary?("Fall Registration Opens")).to be(true)
+      expect(described_class.registration_summary?("Last day to Add/Drop")).to be(false)
     end
 
     it ".finals_period_summary? matches exam periods but not schedule releases" do
@@ -89,21 +89,6 @@ RSpec.describe UniversityCalendar::TermDates do
       event = build(:university_calendar_event, summary: "Open house", academic_term: "Fall Semester", start_time: nil)
 
       expect(matches?(event)).to be(false)
-    end
-  end
-
-  describe ".fallback_end_date_from_courses" do
-    it "returns nil without a term" do
-      expect(described_class.fallback_end_date_from_courses(nil)).to be_nil
-    end
-
-    it "returns the latest course end date in the term year range" do
-      term = create(:term, year: 2031, season: :fall)
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 10))
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 18))
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2034, 12, 31))
-
-      expect(described_class.fallback_end_date_from_courses(term)).to eq(Date.new(2031, 12, 18))
     end
   end
 
@@ -183,7 +168,7 @@ RSpec.describe UniversityCalendar::TermDates do
     end
 
     it "estimates the start date as 14 days before registration" do
-      event_at("Fall 2031 Registration Opens", Time.zone.local(2031, 4, 15, 9, 0))
+      event_at("Fall 2031 Registration Opens", Time.zone.local(2031, 4, 15, 9, 0), category: "registration")
 
       expect(described_class.detect(2031, :fall)[:start_date]).to eq(Date.new(2031, 4, 1))
     end
@@ -230,6 +215,27 @@ RSpec.describe UniversityCalendar::TermDates do
       create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 12))
 
       expect(described_class.detect(2031, :fall)).to eq(start_date: nil, end_date: Date.new(2031, 12, 12))
+    end
+
+    it "uses a finals week or a final exams event for the end date" do
+      event_at("Finals Week", Time.zone.local(2031, 12, 10, 9, 0), end_time: Time.zone.local(2031, 12, 16, 17, 0),
+                              category: "finals", term: term)
+      event_at("Fall 2031 Final Exams", Time.zone.local(2031, 12, 12, 9, 0), end_time: Time.zone.local(2031, 12, 19, 17, 0), category: "finals")
+
+      expect(described_class.detect(2031, :fall)[:end_date]).to eq(Date.new(2031, 12, 19))
+    end
+
+    it "does not take an add/drop deadline for the registration event" do
+      event_at("Fall 2031 Last day to Add/Drop", Time.zone.local(2031, 3, 1, 9, 0), category: "registration")
+      event_at("Fall 2031 Registration Opens", Time.zone.local(2031, 4, 15, 9, 0), category: "registration")
+
+      expect(described_class.detect(2031, :fall)[:start_date]).to eq(Date.new(2031, 4, 1))
+    end
+
+    it "ignores a finals announcement for the end date" do
+      event_at("Fall 2031 Final Exam Schedule Online", Time.zone.local(2031, 12, 28, 9, 0), category: "finals")
+
+      expect(described_class.detect(2031, :fall)[:end_date]).to be_nil
     end
 
     it "returns nil dates when nothing matches" do

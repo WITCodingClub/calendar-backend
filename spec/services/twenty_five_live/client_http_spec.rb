@@ -221,11 +221,11 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
     it "raises for a JSON body of the wrong shape" do
       stub_endpoint("organizations", body: "[]")
 
-      expect { described_class.new.call! }.to raise_error(TypeError)
+      expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError, /not a JSON object/)
     end
 
-    it "does not retry an HTTP error status" do
-      stub_endpoint("organizations", status: 503)
+    it "does not retry an HTTP error status that is not a busy server" do
+      stub_endpoint("organizations", status: 500)
 
       expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError)
 
@@ -243,20 +243,26 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
       expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").times(3)
     end
 
+    it "retries a busy server" do
+      stub_all_endpoints
+      stub_request(:get, "#{base_url}organizations.json").to_return({ status: 503 }, { status: 200, body: "{}" })
+
+      expect(described_class.new.call!).to be(true)
+    end
+
     it "raises after the last retry" do
       stub_request(:get, "#{base_url}organizations.json").to_timeout
 
-      expect { described_class.new.call! }.to raise_error(Net::OpenTimeout)
-      expect(WebMock).to have_requested(:get, "#{base_url}organizations.json")
-        .times(TwentyFiveLive::Client::MAX_RETRIES)
+      expect { described_class.new.call! }.to raise_error(Faraday::Error)
+      expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").times(HttpFetcher::RETRY_OPTIONS[:max] + 1)
     end
 
     [ Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED ].each do |error|
-      it "retries #{error} three times and then raises" do
+      it "retries #{error} and then raises" do
         stub_request(:get, "#{base_url}organizations.json").to_raise(error)
 
-        expect { described_class.new.call! }.to raise_error(error)
-        expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").times(3)
+        expect { described_class.new.call! }.to raise_error(Faraday::Error)
+        expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").times(HttpFetcher::RETRY_OPTIONS[:max] + 1)
       end
     end
   end

@@ -76,8 +76,7 @@ module TwentyFiveLive
 
     def diff(check)
       data = @fetch.call(check.endpoint)
-      raw_rows = Array.wrap(data.dig(*check.list) || data.dig(*check.list.map { |k| "r25:#{k}" }))
-      api_rows = raw_rows.map { |raw| row(check, ->(k) { raw[k] || raw["r25:#{k}"] }) }
+      api_rows = Array.wrap(data.dig(*check.list)).map { |raw| row(check, ->(k) { raw[k] }) }
       const_rows = check.constants.call.map { |c| row(check, ->(k) { c[k.to_sym] }) }
 
       build_drift(check.entity, const_rows, api_rows, compare_keys: [ :name, *check.fields.keys ])

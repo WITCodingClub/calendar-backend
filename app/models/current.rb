@@ -10,4 +10,6 @@ class Current < ActiveSupport::CurrentAttributes
   attribute :cross_lists, default: -> { {} }
   # The checked course code aliases (AcademicProfiles::CourseKeys.current).
   attribute :course_keys
+  # The terms whose dates update when Term.with_deferred_date_updates ends.
+  attribute :deferred_term_dates
 end

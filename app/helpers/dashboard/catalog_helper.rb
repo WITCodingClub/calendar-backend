@@ -50,14 +50,10 @@ module Dashboard
       category.to_s.tr("_", " ").capitalize.presence || "Other"
     end
 
-    # The badge class of a university event category.
+    EVENT_TONE_BADGES = { danger: "m3-badge-error", warning: "m3-badge-tertiary", info: "m3-badge-primary" }.freeze
+
     def event_category_badge(category)
-      case category
-      when "holiday", "study_day", "finals" then "m3-badge-error"
-      when "deadline", "registration"       then "m3-badge-tertiary"
-      when "term_dates", "academic"         then "m3-badge-primary"
-      else "m3-badge-secondary"
-      end
+      EVENT_TONE_BADGES.fetch(UniversityCalendarEvent.category_tone(category), "m3-badge-secondary")
     end
 
     # When a university event happens: "Mon, Nov 9", "Mon, Nov 9 – Wed, Nov 11",

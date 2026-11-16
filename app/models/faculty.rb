@@ -45,9 +45,6 @@ class Faculty < ApplicationRecord
 
   set_public_id_prefix :fac
 
-  PHOTO_OPEN_TIMEOUT = 5
-  PHOTO_READ_TIMEOUT = 10
-
   has_many :course_faculties, dependent: :destroy, inverse_of: :faculty
   has_many :courses, through: :course_faculties
   has_many :rmp_ratings, dependent: :destroy
@@ -70,6 +67,7 @@ class Faculty < ApplicationRecord
   # jobs and the Missing RMP IDs page use this scope, not every professor who
   # ever taught (#712).
   scope :teaching_current_or_future, -> { where(id: CourseFaculty.current_or_future.select(:faculty_id)) }
+  scope :missing_rmp_id, -> { teaching_current_or_future.where(rmp_id: nil) }
 
   def full_name
     display_name.presence || [ first_name, middle_name, last_name ].compact.join(" ").squish
@@ -119,28 +117,6 @@ class Faculty < ApplicationRecord
       return numeric_part if numeric_part.match?(/\A\d+\z/)
     end
     rmp_id
-  end
-
-  def update_photo_from_url!(url)
-    return if url.blank?
-    return if url.include?("placeholder") || url.include?("Icon_User")
-    return if photo_url == url && photo.attached?
-
-    require "open-uri"
-
-    downloaded_image = URI.parse(url).open(
-      "User-Agent" => "WITCalendarBot/1.0",
-      open_timeout: PHOTO_OPEN_TIMEOUT,
-      read_timeout: PHOTO_READ_TIMEOUT
-    )
-    filename = "#{email.split("@").first}_photo#{File.extname(URI.parse(url).path)}"
-    filename = "#{email.split("@").first}_photo.jpg" if filename.end_with?("_photo")
-    photo.attach(io: downloaded_image, filename: filename, content_type: downloaded_image.content_type || "image/jpeg")
-    update_column(:photo_url, url) unless photo_url == url # rubocop:disable Rails/SkipsModelValidations
-    true
-  rescue => e
-    Rails.error.report(e, handled: true, context: { faculty_id: id })
-    false
   end
 
   private

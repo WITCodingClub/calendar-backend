@@ -36,4 +36,20 @@ RSpec.describe HttpFetcher do
     expect(connection.builder.handlers).to include(Faraday::Retry::Middleware)
     expect(connection.headers["User-Agent"]).to eq(described_class::USER_AGENT)
   end
+
+  it "retries a dropped connection" do
+    stub_request(:get, url).to_raise(Errno::ECONNRESET).then.to_return(status: 200, body: "ok")
+
+    expect(fetcher.get(url)).to eq("ok".b)
+  end
+
+  it "does not retry a connection that asks for no retries" do
+    stub_request(:get, url).to_return({ status: 503 }, { status: 200 })
+
+    expect(described_class.connection(retry_methods: []).get(url).status).to eq(503)
+  end
+
+  it "takes an open timeout" do
+    expect(described_class.connection(open_timeout: 2).options.open_timeout).to eq(2)
+  end
 end

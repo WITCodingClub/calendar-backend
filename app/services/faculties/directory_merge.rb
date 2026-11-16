@@ -41,7 +41,7 @@ module Faculties
       @faculty.save!
       # The photo download writes a column too, so read the changes first.
       changed = @faculty.saved_changes.keys
-      @faculty.update_photo_from_url!(@faculty.photo_url) if @faculty.saved_change_to_photo_url? && @faculty.photo_url.present?
+      PhotoDownload.call(@faculty, @faculty.photo_url) if @faculty.saved_change_to_photo_url?
       changed
     end
 

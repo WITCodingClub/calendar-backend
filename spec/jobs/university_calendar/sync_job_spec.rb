@@ -38,6 +38,12 @@ RSpec.describe UniversityCalendar::SyncJob do
     expect(TwentyFiveLive::Client).not_to have_received(:call!)
   end
 
+  it "tries a feed that is down again later" do
+    allow(UniversityCalendar::IcsImport).to receive(:call).and_raise(UniversityCalendar::IcsImport::FetchError, "GET feed: HTTP 503")
+
+    expect { described_class.perform_now }.to have_enqueued_job(described_class)
+  end
+
   it "belongs to the fixed concurrency group" do
     expect(described_class::CONCURRENCY_GROUP).to eq("UniversityCalendarSyncJob")
   end
@@ -60,7 +66,7 @@ RSpec.describe UniversityCalendar::SyncJob do
       end
     end
 
-    %w[holiday study_day].each do |category|
+    %w[holiday study_day finals].each do |category|
       context "when a #{category} changed" do
         let(:import_result) { no_changes.merge(created: 1, changed_categories: [ category, "academic" ]) }
 

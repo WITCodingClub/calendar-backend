@@ -35,7 +35,7 @@ module Admin
 
     def missing_rmp_ids
       authorize Faculty, :missing_rmp_ids?
-      @faculties = policy_scope(Faculty).teaching_current_or_future.where(rmp_id: nil).order(:last_name, :first_name)
+      @faculties = policy_scope(Faculty).missing_rmp_id.order(:last_name, :first_name)
 
       @faculties = search_scope(@faculties, "faculties.first_name", "faculties.last_name")
 
@@ -103,16 +103,8 @@ module Admin
 
     def batch_auto_fill
       authorize Faculty
-      missing = Faculty.teaching_current_or_future.where(rmp_id: nil)
-      # The ids load first and go in with one bulk enqueue, so the batch's
-      # transaction (which holds the RateMyProfessor lock row) stays short.
-      jobs = missing.pluck(:id).map { |id| Faculties::UpdateRatingsJob.new(id) }
-      if jobs.any?
-        SolidQueue::Batch.enqueue(description: "RateMyProfessor auto-fill", on_finish: Batches::ReportJob) do
-          ActiveJob.perform_all_later(jobs)
-        end
-      end
-      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{jobs.size} faculty members"
+      Faculties::RefreshRatingsJob.perform_later(missing_only: true)
+      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Auto-fill queued for #{Faculty.missing_rmp_id.count} faculty members"
     end
 
     def sync_directory

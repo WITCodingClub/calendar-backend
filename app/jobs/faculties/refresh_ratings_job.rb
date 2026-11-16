@@ -11,24 +11,31 @@ module Faculties
   # gets one job, and the professors with no rmp_id are enqueued first, so
   # Faculties::UpdateRatingsJob's concurrency limit runs them first.
   #
+  # missing_only: true (the admin "Auto-fill all" button) enqueues only the
+  # professors with no rmp_id.
+  #
   # The jobs are one Solid Queue batch. When the last one ends, the batch
   # embeds the new and changed reviews (Embeddings::BackfillJob).
   class RefreshRatingsJob < ApplicationJob
     queue_as :low
 
     BATCH_DESCRIPTION = "RateMyProfessor refresh"
+    # The admin "Auto-fill all" batch. It has its own name, so it neither
+    # skips nor blocks the weekly refresh.
+    AUTO_FILL_DESCRIPTION = "RateMyProfessor auto-fill"
 
-    def perform
+    def perform(missing_only: false)
       # A second run while the first one's jobs wait would give each
       # professor two jobs again.
-      if SolidQueue::Batch.exists?(description: BATCH_DESCRIPTION, finished_at: nil)
+      description = missing_only ? AUTO_FILL_DESCRIPTION : BATCH_DESCRIPTION
+      if SolidQueue::Batch.exists?(description: description, finished_at: nil)
         return Rails.logger.info("[Faculties::RefreshRatingsJob] A refresh is still running; skipped")
       end
 
-      scope = Faculty.teaching_current_or_future
-      ids = scope.where(rmp_id: nil).order(:id).pluck(:id) + scope.where.not(rmp_id: nil).order(:id).pluck(:id)
+      ids = Faculty.missing_rmp_id.order(:id).pluck(:id)
+      ids += Faculty.teaching_current_or_future.where.not(rmp_id: nil).order(:id).pluck(:id) unless missing_only
 
-      SolidQueue::Batch.enqueue(description: BATCH_DESCRIPTION,
+      SolidQueue::Batch.enqueue(description: description,
                                 on_finish: Embeddings::BackfillJob.new("RmpRating"),
                                 faculty_count: ids.size) do
         ActiveJob.perform_all_later(ids.map { |id| Faculties::UpdateRatingsJob.new(id) })

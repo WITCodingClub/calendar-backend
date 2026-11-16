@@ -4,7 +4,6 @@ module McpPlatforms
   # Reads the egress ranges that OpenAI publishes for ChatGPT connectors.
   class OpenaiRangesClient
     URL          = "https://openai.com/chatgpt-connectors.json"
-    OPEN_TIMEOUT = 5
     READ_TIMEOUT = 10
 
     # A published range wider than this would cover far more than one
@@ -40,9 +39,7 @@ module McpPlatforms
     end
 
     def connection
-      @connection ||= Faraday.new do |f|
-        f.options.open_timeout = OPEN_TIMEOUT
-        f.options.timeout      = READ_TIMEOUT
+      @connection ||= HttpFetcher.connection(timeout: READ_TIMEOUT) do |f|
         # OpenAI serves the file as application/octet-stream, so parse every
         # body, not only one with a JSON content type.
         f.response :json, content_type: //

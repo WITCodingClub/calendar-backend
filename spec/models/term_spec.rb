@@ -177,6 +177,45 @@ RSpec.describe Term, type: :model do
     end
   end
 
+  describe "#course_dates" do
+    let(:term) { create(:term, year: 2031, season: :fall) }
+
+    it "returns the first start and the last end in the term's years" do
+      create(:course, term: term, start_date: Date.new(2031, 9, 2), end_date: Date.new(2031, 12, 10))
+      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 18))
+      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2034, 12, 31))
+
+      expect(term.course_dates).to eq([ Date.new(2031, 9, 1), Date.new(2031, 12, 18) ])
+    end
+
+    it "returns nil when no course has dates in the term's years" do
+      expect(term.course_dates).to be_nil
+    end
+  end
+
+  describe "date updates from courses" do
+    let(:term) { create(:term, year: 2031, season: :fall) }
+
+    it "writes the course dates over the stored dates when a course saves" do
+      term.update!(start_date: Date.new(2031, 3, 1), end_date: Date.new(2031, 12, 30))
+
+      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 18))
+
+      expect(term.reload.slice(:start_date, :end_date).values).to eq([ Date.new(2031, 9, 1), Date.new(2031, 12, 18) ])
+    end
+
+    it "updates each term one time at the end of a deferred block" do
+      allow(term).to receive(:update_dates_from_courses!).and_call_original
+
+      described_class.with_deferred_date_updates do
+        2.times { create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 18)) }
+        expect(term.reload.start_date).to be_nil
+      end
+
+      expect(term.reload.start_date).to eq(Date.new(2031, 9, 1))
+    end
+  end
+
   describe ".date_window" do
     it "gives a window for each season" do
       expect(described_class.date_window(2026, :spring)).to eq(Date.new(2025, 8, 1)..Date.new(2026, 6, 30))

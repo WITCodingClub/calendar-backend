@@ -25,9 +25,12 @@
 #  index_terms_on_uid              (uid) UNIQUE
 #  index_terms_on_year_and_season  (year,season) UNIQUE
 #
+# A term's dates have two sources. Its courses win: a course save writes
+# start_date and end_date from the first class and the last course end
+# (update_dates_from_courses!). UniversityCalendar::TermDates fills a date
+# that is still empty, from LeopardWeb and the university calendar, for a
+# term that has no courses yet.
 class Term < ApplicationRecord
-  PENDING_DATE_UPDATES_KEY = :pending_term_date_updates
-
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :trm
@@ -70,12 +73,14 @@ class Term < ApplicationRecord
     where(uid: current_term.uid..).reverse_chronological
   }
 
+  # Inside the block, a course save marks its term, and each term updates its
+  # dates one time when the block ends.
   def self.with_deferred_date_updates
-    Thread.current[PENDING_DATE_UPDATES_KEY] = {}
+    Current.deferred_term_dates = {}
     yield
   ensure
-    pending = Thread.current[PENDING_DATE_UPDATES_KEY] || {}
-    Thread.current[PENDING_DATE_UPDATES_KEY] = nil
+    pending = Current.deferred_term_dates || {}
+    Current.deferred_term_dates = nil
     pending.each_value(&:update_dates_from_courses!)
   end
 
@@ -93,19 +98,30 @@ class Term < ApplicationRecord
   def section_start_dates = Date.new(year - 1, 1, 1)..Date.new(year, 12, 31)
   def section_end_dates = Date.new(year, 1, 1)..Date.new(year + 1, 12, 31)
 
-  def update_dates_from_courses!
-    new_start, new_end = courses
-                         .where(start_date: section_start_dates, end_date: section_end_dates)
+  # The first start and the last end of the term's sections, or nil when no
+  # section has dates in the term's years.
+  def course_dates
+    first, last = courses.where(start_date: section_start_dates, end_date: section_end_dates)
                          .pick(Arel.sql("MIN(start_date)"), Arel.sql("MAX(end_date)"))
-
-    return unless new_start && new_end
-
-    update!(start_date: new_start, end_date: new_end)
+    [ first, last ] if first && last
   end
 
-  # The dates a term can have. start_date is the day the schedule or
-  # registration opens, so a spring term starts in the fall before it. Classes
-  # end in the term's own year. See UniversityCalendar::TermDates.
+  def update_dates_from_courses!
+    first, last = course_dates
+    update!(start_date: first, end_date: last) if first
+  end
+
+  def course_dates_changed!
+    if (pending = Current.deferred_term_dates)
+      pending[id] ||= self
+    else
+      update_dates_from_courses!
+    end
+  end
+
+  # The dates a term can have. Before its courses give dates, start_date is
+  # the day the schedule or registration opens, so a spring term can start in
+  # the fall before it. Classes end in the term's own year.
   def self.date_window(year, season)
     case season.to_sym
     when :spring then Date.new(year - 1, 8, 1)..Date.new(year, 6, 30)

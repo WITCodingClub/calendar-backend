@@ -25,7 +25,7 @@ RSpec.describe Faculties::DirectoryMerge do
     end
 
     it "returns the columns that changed before the photo download" do
-      allow(faculty).to receive(:update_photo_from_url!) { faculty.update_column(:photo_url, "https://wit.edu/x.jpg") } # rubocop:disable Rails/SkipsModelValidations
+      allow(Faculties::PhotoDownload).to receive(:call) { faculty.update_column(:photo_url, "https://wit.edu/x.jpg") } # rubocop:disable Rails/SkipsModelValidations
 
       changed = described_class.apply(faculty, { display_name: "Al Lo", photo_url: "https://wit.edu/x.jpg" })
 

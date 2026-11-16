@@ -41,6 +41,16 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     expect(run_and_collect_faculty_ids).to eq([ missing.id, linked.id ])
   end
 
+  it "enqueues only the faculty with no rmp_id when asked for the missing ones" do
+    missing = teaching(create(:faculty, rmp_id: nil))
+    teaching(create(:faculty, rmp_id: "already-has-one"))
+
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+    described_class.perform_now(missing_only: true)
+
+    expect(enqueued_faculty_ids).to eq([ missing.id ])
+  end
+
   it "does not search RateMyProfessor inside the job" do
     teaching(create(:faculty, rmp_id: nil))
     allow(Faculties::UpdateRatingsJob).to receive(:perform_now)
@@ -69,6 +79,23 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION)
 
     expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
+  end
+
+  it "runs an auto-fill while the weekly refresh has jobs left, and skips a second auto-fill" do
+    missing = teaching(create(:faculty, rmp_id: nil))
+    SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION)
+
+    expect { described_class.perform_now(missing_only: true) }.to have_enqueued_job(Faculties::UpdateRatingsJob).with(missing.id)
+
+    SolidQueue::Batch.create!(description: described_class::AUTO_FILL_DESCRIPTION)
+    expect { described_class.perform_now(missing_only: true) }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
+  end
+
+  it "runs the weekly refresh while an auto-fill has jobs left" do
+    teaching(create(:faculty, rmp_id: nil))
+    SolidQueue::Batch.create!(description: described_class::AUTO_FILL_DESCRIPTION)
+
+    expect { described_class.perform_now }.to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 
   describe "batch" do

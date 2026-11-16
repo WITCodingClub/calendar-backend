@@ -22,7 +22,12 @@ module Dashboard
     def create
       authorize MeetingLink, :create?
 
-      link = current_user.meeting_links.new(link_params)
+      permitted  = link_params
+      expires_on = permitted.delete(:expires_on).presence
+      expires_at = expires_on && Friendships::ExpiryTime.parse(expires_on)
+      return redirect_to(dashboard_meeting_links_path, alert: "Expiry date must be a date.") if expires_on && !expires_at
+
+      link = current_user.meeting_links.new(permitted.merge(expires_at:))
       if link.save
         session[NEW_URL_KEY] = link.url
         redirect_to dashboard_meeting_links_path, notice: "Link made. Copy it now: it is shown only once."
@@ -52,17 +57,11 @@ module Dashboard
     private
 
     # The form asks for an expiry date. The link works until the end of that
-    # day. With no date, the model uses the end of the last day in the range.
+    # day (Friendships::ExpiryTime). With no date, the model uses the end of
+    # the last day in the range.
     def link_params
-      permitted  = params.expect(meeting_link: [ :title, :starts_on, :ends_on, :duration_minutes, :expires_on ])
-      expires_on = permitted.delete(:expires_on)
-      permitted.merge(title: permitted[:title].to_s.strip.presence, expires_at: end_of_day(expires_on))
-    end
-
-    def end_of_day(value)
-      Date.iso8601(value.to_s).in_time_zone.end_of_day if value.present?
-    rescue Date::Error
-      nil
+      permitted = params.expect(meeting_link: [ :title, :starts_on, :ends_on, :duration_minutes, :expires_on ])
+      permitted.merge(title: permitted[:title].to_s.strip.presence)
     end
   end
 end

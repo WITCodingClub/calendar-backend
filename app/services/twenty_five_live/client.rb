@@ -2,8 +2,6 @@
 
 module TwentyFiveLive
   class Client < ApplicationService
-    require "net/http"
-
     BASE_URL = "https://webservices.collegenet.com/r25ws/wrd/wit/run/"
 
     class RequestError < StandardError
@@ -14,15 +12,26 @@ module TwentyFiveLive
       end
     end
 
-    OPEN_TIMEOUT = 10
-    READ_TIMEOUT = 30
-    MAX_RETRIES  = 3
+    # The reference tables that copy one 25Live list each: the endpoint, the
+    # list keys, the key of the id and name fields, and the other columns.
+    ReferenceSync = Data.define(:model, :endpoint, :list, :key, :columns)
+
+    REFERENCE_SYNCS = [
+      ReferenceSync.new(TwentyFiveLive::Organization, "organizations", %w[organizations organization], "organization",
+                        ->(raw) { { code: raw["organization_code"]&.strip, organization_type_name: raw["organization_type_name"]&.strip } }),
+      ReferenceSync.new(TwentyFiveLive::EventCategory, "evcat", %w[categories category], "category",
+                        ->(raw) { { sort_order: raw["sort_order"]&.to_i, defn_state: raw["defn_state"]&.to_i } }),
+      ReferenceSync.new(TwentyFiveLive::EventCustomAttribute, "evatrb", %w[custom_attributes custom_attribute], "custom_attribute",
+                        ->(raw) {
+                          { attribute_type: raw["attribute_type"], attribute_type_name: raw["attribute_type_name"]&.strip,
+                            multi_val: raw["multi_val"], sort_order: raw["sort_order"]&.to_i, defn_state: raw["defn_state"]&.to_i }
+                        }),
+      ReferenceSync.new(TwentyFiveLive::Resource, "resources", %w[resources resource], "resource",
+                        ->(raw) { { stock_level: raw["stock_level"]&.to_i, assign_perm: raw["assign_perm"], schedule_perm: raw["schedule_perm"] } })
+    ].freeze
 
     def call!
-      sync_organizations
-      sync_event_categories
-      sync_event_custom_attributes
-      sync_resources
+      REFERENCE_SYNCS.each { |sync| sync_reference(sync) }
       sync_spaces
       check_constant_drift
       true
@@ -30,141 +39,54 @@ module TwentyFiveLive
 
     private
 
+    # The parsed body. 25Live names some keys with an "r25:" prefix and some
+    # without, so the prefix is dropped here and the readers use the plain key.
     def fetch(endpoint)
-      uri = URI("#{BASE_URL}#{endpoint}.json")
-      req = Net::HTTP::Get.new(uri)
-      creds = Rails.application.credentials.dig(:TwentyFiveLive)
-      req.basic_auth(creds[:username], creds[:password]) if creds
+      response = connection.get("#{endpoint}.json")
+      unless response.success?
+        raise RequestError.new("25Live API returned #{response.status} for #{endpoint}", status: response.status)
+      end
 
-      attempts = 0
-      begin
-        attempts += 1
-        res = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
-                              open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) { |h| h.request(req) }
+      body = JSON.parse(response.body)
+      raise RequestError, "25Live API returned a body that is not a JSON object for #{endpoint}" unless body.is_a?(Hash)
 
-        unless res.is_a?(Net::HTTPSuccess)
-          raise RequestError.new("25Live API returned #{res.code} for #{endpoint}", status: res.code.to_i)
-        end
+      body.deep_transform_keys { |key| key.delete_prefix("r25:") }
+    rescue JSON::ParserError => e
+      raise RequestError.new("25Live API returned non-JSON for #{endpoint}: #{e.message}")
+    end
 
-        JSON.parse(res.body)
-      rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED => e
-        retry if attempts < MAX_RETRIES
-        raise
-      rescue JSON::ParserError => e
-        raise RequestError.new("25Live API returned non-JSON for #{endpoint}: #{e.message}")
+    def connection
+      @connection ||= HttpFetcher.connection(url: BASE_URL) do |f|
+        creds = Rails.application.credentials.dig(:TwentyFiveLive)
+        f.request :authorization, :basic, creds[:username], creds[:password] if creds
       end
     end
 
-    def sync_organizations
-      data = fetch("organizations")
-      orgs = Array.wrap(data.dig("organizations", "organization") ||
-                        data.dig("r25:organizations", "r25:organization"))
-
-      orgs.each do |raw|
-        id   = (raw["organization_id"] || raw["r25:organization_id"])&.to_i
-        name = (raw["organization_name"] || raw["r25:organization_name"])&.strip
+    def sync_reference(sync)
+      Array.wrap(fetch(sync.endpoint).dig(*sync.list)).each do |raw|
+        id   = raw["#{sync.key}_id"]&.to_i
+        name = raw["#{sync.key}_name"]&.strip
         next unless id && name.present?
 
-        TwentyFiveLive::Organization
-          .find_or_initialize_by(twenty_five_live_id: id)
-          .tap do |org|
-            org.assign_attributes(
-              code: (raw["organization_code"] || raw["r25:organization_code"])&.strip,
-              name: name,
-              organization_type_name: (raw["organization_type_name"] || raw["r25:organization_type_name"])&.strip
-            )
-            org.save! if org.new_record? || org.changed?
-          end
-      end
-    end
-
-    def sync_event_categories
-      data = fetch("evcat")
-      cats = Array.wrap(data.dig("categories", "category") ||
-                        data.dig("r25:categories", "r25:category"))
-
-      cats.each do |raw|
-        id   = (raw["category_id"] || raw["r25:category_id"])&.to_i
-        name = (raw["category_name"] || raw["r25:category_name"])&.strip
-        next unless id && name.present?
-
-        TwentyFiveLive::EventCategory
-          .find_or_initialize_by(twenty_five_live_id: id)
-          .tap do |cat|
-            cat.assign_attributes(
-              name: name,
-              sort_order: (raw["sort_order"] || raw["r25:sort_order"])&.to_i,
-              defn_state: (raw["defn_state"] || raw["r25:defn_state"])&.to_i
-            )
-            cat.save! if cat.new_record? || cat.changed?
-          end
-      end
-    end
-
-    def sync_event_custom_attributes
-      data = fetch("evatrb")
-      attrs = Array.wrap(data.dig("custom_attributes", "custom_attribute") ||
-                         data.dig("r25:custom_attributes", "r25:custom_attribute"))
-
-      attrs.each do |raw|
-        id   = (raw["custom_attribute_id"] || raw["r25:custom_attribute_id"])&.to_i
-        name = (raw["custom_attribute_name"] || raw["r25:custom_attribute_name"])&.strip
-        next unless id && name.present?
-
-        TwentyFiveLive::EventCustomAttribute
-          .find_or_initialize_by(twenty_five_live_id: id)
-          .tap do |eca|
-            eca.assign_attributes(
-              name: name,
-              attribute_type: raw["attribute_type"] || raw["r25:attribute_type"],
-              attribute_type_name: (raw["attribute_type_name"] || raw["r25:attribute_type_name"])&.strip,
-              multi_val: raw["multi_val"] || raw["r25:multi_val"],
-              sort_order: (raw["sort_order"] || raw["r25:sort_order"])&.to_i,
-              defn_state: (raw["defn_state"] || raw["r25:defn_state"])&.to_i
-            )
-            eca.save! if eca.new_record? || eca.changed?
-          end
-      end
-    end
-
-    def sync_resources
-      data = fetch("resources")
-      resources = Array.wrap(data.dig("resources", "resource") ||
-                             data.dig("r25:resources", "r25:resource"))
-
-      resources.each do |raw|
-        id   = (raw["resource_id"] || raw["r25:resource_id"])&.to_i
-        name = (raw["resource_name"] || raw["r25:resource_name"])&.strip
-        next unless id && name.present?
-
-        TwentyFiveLive::Resource
-          .find_or_initialize_by(twenty_five_live_id: id)
-          .tap do |res|
-            res.assign_attributes(
-              name: name,
-              stock_level: (raw["stock_level"] || raw["r25:stock_level"])&.to_i,
-              assign_perm: raw["assign_perm"] || raw["r25:assign_perm"],
-              schedule_perm: raw["schedule_perm"] || raw["r25:schedule_perm"]
-            )
-            res.save! if res.new_record? || res.changed?
-          end
+        record = sync.model.find_or_initialize_by(twenty_five_live_id: id)
+        record.assign_attributes(name: name, **sync.columns.call(raw))
+        record.save! if record.new_record? || record.changed?
       end
     end
 
     def sync_spaces
       data   = fetch("spaces")
-      spaces = Array.wrap(data.dig("spaces", "space") ||
-                          data.dig("r25:spaces", "r25:space"))
+      spaces = Array.wrap(data.dig("spaces", "space"))
 
       buildings_by_abbr = Building.all.index_by { |b| b.abbreviation.upcase }
 
       spaces.each do |raw|
-        space_id    = (raw["space_id"]    || raw["r25:space_id"])&.to_i
-        formal_name = (raw["formal_name"] || raw["r25:formal_name"])&.strip
-        space_name  = (raw["space_name"]  || raw["r25:space_name"])&.strip
-        bldg_25_id  = (raw["building_id"] || raw["r25:building_id"])&.to_i
-        bldg_formal = (raw["building_name"] || raw["r25:building_name"])&.strip
-        capacity    = (raw["max_capacity"] || raw["r25:max_capacity"]).to_i
+        space_id    = raw["space_id"]&.to_i
+        formal_name = raw["formal_name"]&.strip
+        space_name  = raw["space_name"]&.strip
+        bldg_25_id  = raw["building_id"]&.to_i
+        bldg_formal = raw["building_name"]&.strip
+        capacity    = raw["max_capacity"].to_i
 
         next unless space_id && space_name.present?
 

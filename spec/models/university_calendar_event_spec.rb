@@ -213,6 +213,27 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
   end
 
+  describe "category facts" do
+    it "gives one badge tone per category" do
+      tones = %w[holiday study_day finals deadline registration term_dates academic campus_event].index_with { |c| described_class.category_tone(c) }
+
+      expect(tones).to eq("holiday" => :danger, "study_day" => :danger, "finals" => :danger, "deadline" => :warning,
+                          "registration" => :warning, "term_dates" => :info, "academic" => :info, "campus_event" => :neutral)
+      expect(described_class.category_tone(nil)).to eq(:neutral)
+    end
+
+    it "stores holidays and study days as all-day events" do
+      expect(%w[holiday study_day finals].map { |c| described_class.all_day_category?(c) }).to eq([ true, true, false ])
+    end
+
+    it ".finals_periods leaves out a finals announcement" do
+      period = create(:university_calendar_event, category: "finals", summary: "Final exam period")
+      create(:university_calendar_event, category: "finals", summary: "Final Exam Schedule Online")
+
+      expect(described_class.finals_periods).to contain_exactly(period)
+    end
+  end
+
   describe "instance helpers" do
     it "#excludes_classes? is true for holiday, study_day and finals" do
       expect(%w[holiday study_day finals].map { |c| build(:university_calendar_event, category: c).excludes_classes? }).to all(be(true))

@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require "net/http"
-require "uri"
-require "json"
-require "openssl"
-
 module Risc
   class Validator
     class ValidationError < StandardError; end
@@ -18,8 +13,6 @@ module Risc
     RISC_CONFIGURATION_URL = "https://accounts.google.com/.well-known/risc-configuration"
     CACHE_DURATION = 1.hour
     STALE_BACKUP_DURATION = 7.days
-    # These fetches run in the request path. A slow Google must not hold a Puma thread for 60 s.
-    OPEN_TIMEOUT = 5
     READ_TIMEOUT = 10
     # A token with an unknown kid makes one JWKS refetch. This limits how often
     # a flood of forged kids can make us call Google.
@@ -81,21 +74,18 @@ module Risc
 
     private
 
-    def get_response(uri)
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
-                      open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
-        http.request(Net::HTTP::Get.new(uri))
-      end
+    def get_json(url, name)
+      response = HttpFetcher.connection(timeout: READ_TIMEOUT).get(url)
+      raise FetchError, "Failed to fetch #{name}: #{response.status}" unless response.success?
+
+      JSON.parse(response.body)
+    rescue Faraday::Error => e
+      raise FetchError, "Failed to fetch #{name}: #{e.message}"
     end
 
     def fetch_risc_configuration
       Rails.cache.fetch("risc_configuration", expires_in: CACHE_DURATION) do
-        uri = URI.parse(RISC_CONFIGURATION_URL)
-        response = get_response(uri)
-
-        raise FetchError, "Failed to fetch RISC configuration: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-        result = JSON.parse(response.body)
+        result = get_json(RISC_CONFIGURATION_URL, "RISC configuration")
         Rails.cache.write("risc_configuration:stale", result, expires_in: STALE_BACKUP_DURATION)
         result
       end
@@ -123,12 +113,7 @@ module Risc
     end
 
     def download_jwks
-      uri = URI.parse(@risc_config["jwks_uri"])
-      response = get_response(uri)
-
-      raise FetchError, "Failed to fetch JWKS: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-      result = JSON.parse(response.body)
+      result = get_json(@risc_config["jwks_uri"], "JWKS")
       Rails.cache.write("risc_jwks:stale", result, expires_in: STALE_BACKUP_DURATION)
       result
     end
