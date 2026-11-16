@@ -52,8 +52,4 @@ RSpec.describe Catalog::ReimportAllTermsJob do
 
     expect(Catalog::ImportJob).not_to have_received(:perform_now)
   end
-
-  it "uses a fixed concurrency group" do
-    expect(described_class.concurrency_group).to eq("ReimportAllTermsJob")
-  end
 end

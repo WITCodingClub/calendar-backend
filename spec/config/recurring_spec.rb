@@ -18,4 +18,20 @@ RSpec.describe "config/recurring.yml" do
       end
     end
   end
+
+  # Jobs that only work while they run on a schedule: each picks up work that
+  # an earlier step left (a failed meeting removal, expired rows, changed
+  # sections, stale calendars, tokens near expiry). A missing or renamed
+  # entry stops that work without any error.
+  {
+    "friend_meeting_removal_sweep" => [ "FriendMeetings::RemovalSweepJob", "every hour at minute 27" ],
+    "remove_expired_records" => [ "Cleanup::ExpiredRecordsJob", "every hour at minute 25" ],
+    "nightly_calendar_sync" => [ "CourseCalendars::NightlySyncJob", "every 6 hours" ],
+    "course_data_sync" => [ "Catalog::CourseDataSyncJob", "every day at 4am" ],
+    "refresh_oauth_tokens" => [ "OauthCredentials::RefreshTokensJob", "every wednesday at 2am" ]
+  }.each do |key, (job_class, schedule)|
+    it "runs #{job_class} #{schedule}" do
+      expect(tasks[key]).to include("class" => job_class, "schedule" => schedule)
+    end
+  end
 end

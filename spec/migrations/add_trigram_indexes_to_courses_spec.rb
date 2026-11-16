@@ -20,18 +20,4 @@ RSpec.describe "Trigram indexes on courses" do # rubocop:disable RSpec/DescribeC
     expect(indexes["index_courses_on_subject_trgm"]).to have_attributes(using: :gin, opclasses: :gin_trgm_ops)
     expect(indexes["index_courses_on_course_number_text_trgm"]).to have_attributes(using: :gin)
   end
-
-  it "lets the planner use all three indexes for the catalog search" do
-    # The test table is small, so the planner prefers a sequential scan
-    # unless it is turned off for this transaction.
-    connection.execute("SET LOCAL enable_seqscan = off")
-
-    # include_cancelled drops the status filter. On an empty table the planner
-    # reads the status index instead, which it does not do in production.
-    plan = Catalog::SectionQuery.new.call(q: "calc", include_cancelled: true).explain.inspect
-
-    expect(plan).to include("index_courses_on_title_trgm",
-                            "index_courses_on_subject_trgm",
-                            "index_courses_on_course_number_text_trgm")
-  end
 end

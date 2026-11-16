@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe UniversityCalendar::SyncJob do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:no_changes) { { created: 0, updated: 0, cancelled: 0, changed_categories: [] } }
   let(:import_result) { no_changes }
 
@@ -42,10 +44,6 @@ RSpec.describe UniversityCalendar::SyncJob do
     allow(UniversityCalendar::IcsImport).to receive(:call).and_raise(UniversityCalendar::IcsImport::FetchError, "GET feed: HTTP 503")
 
     expect { described_class.perform_now }.to have_enqueued_job(described_class)
-  end
-
-  it "belongs to the fixed concurrency group" do
-    expect(described_class::CONCURRENCY_GROUP).to eq("UniversityCalendarSyncJob")
   end
 
   describe "user calendar syncs" do
@@ -128,7 +126,9 @@ RSpec.describe UniversityCalendar::SyncJob do
   end
 
   describe "term dates" do
-    let(:year) { Time.zone.today.year }
+    around { |example| travel_to(Date.new(2026, 10, 1)) { example.run } }
+
+    let(:year) { 2026 }
     let!(:term) { create(:term, year: year, season: :fall) }
 
     it "fills in missing start and end dates" do

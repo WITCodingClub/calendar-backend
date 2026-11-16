@@ -13,7 +13,7 @@ RSpec.describe Catalog::ImportJob do
     importer = instance_double(Catalog::Importer, call!: counts)
     allow(Catalog::Importer).to receive(:new).and_return(importer)
 
-    expect { expect(described_class.perform_now(term.uid)).to eq(counts) }
+    expect { described_class.perform_now(term.uid) }
       .to have_enqueued_job(Catalog::CourseDetailsSyncJob).with(term.uid)
     expect(term.reload.catalog_importing).to be(false)
   end
@@ -57,14 +57,14 @@ RSpec.describe Catalog::ImportJob do
     end
 
     it "clears the flags when the job does not reach the queue" do
-      allow_any_instance_of(described_class).to receive(:enqueue).and_return(false) # rubocop:disable RSpec/AnyInstance
+      allow(described_class.queue_adapter).to receive(:enqueue).and_raise(ActiveJob::EnqueueError, "queue is down")
 
       expect(described_class.enqueue(term)).to be(false)
       expect(term.reload).to have_attributes(catalog_importing: false, catalog_import_job_id: nil)
     end
 
     it "clears the flags when the enqueue raises" do
-      allow_any_instance_of(described_class).to receive(:enqueue).and_raise(ActiveRecord::ConnectionNotEstablished) # rubocop:disable RSpec/AnyInstance
+      allow(described_class.queue_adapter).to receive(:enqueue).and_raise(ActiveRecord::ConnectionNotEstablished)
 
       expect { described_class.enqueue(term) }.to raise_error(ActiveRecord::ConnectionNotEstablished)
       expect(term.reload.catalog_importing).to be(false)

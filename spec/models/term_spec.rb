@@ -88,12 +88,10 @@ RSpec.describe Term, type: :model do
 
     it "uses the current term that the caller passes" do
       travel_to Date.new(2026, 10, 1) do
-        fall        = create_term(year: 2026, season: :fall)
+        create_term(year: 2026, season: :fall)
         spring_next = create_term(year: 2027, season: :spring)
-        allow(described_class).to receive(:current).and_call_original
 
-        expect(described_class.current_and_future(fall).to_a).to eq([ spring_next, fall ])
-        expect(described_class).not_to have_received(:current)
+        expect(described_class.current_and_future(spring_next).to_a).to eq([ spring_next ])
       end
     end
   end
@@ -101,12 +99,11 @@ RSpec.describe Term, type: :model do
   describe ".next" do
     it "uses the current term that the caller passes" do
       travel_to Date.new(2026, 10, 1) do
-        fall        = create_term(year: 2026, season: :fall)
+        create_term(year: 2026, season: :fall)
         spring_next = create_term(year: 2027, season: :spring)
-        allow(described_class).to receive(:current).and_call_original
+        summer_next = create_term(year: 2027, season: :summer)
 
-        expect(described_class.next(fall)).to eq(spring_next)
-        expect(described_class).not_to have_received(:current)
+        expect(described_class.next(spring_next)).to eq(summer_next)
       end
     end
   end
@@ -119,23 +116,20 @@ RSpec.describe Term, type: :model do
       Rails.cache = original
     end
 
-    before { allow(described_class).to receive(:find_current).and_call_original }
-
     it "looks up the term one time for each request" do
       fall = create_term(year: 2026, season: :fall)
 
-      expect([ described_class.current, described_class.current ]).to eq([ fall, fall ])
-      expect(described_class).to have_received(:find_current).once
+      expect(described_class.current).to eq(fall)
+      expect(count_queries { expect(described_class.current).to eq(fall) }).to eq(0)
     end
 
+    # One query loads the term by the cached id; the lookup by date is skipped.
     it "reads the term id from Rails.cache in the next request" do
       fall = create_term(year: 2026, season: :fall)
       described_class.current
       Current.reset
 
-      expect(described_class.current).to eq(fall)
-      expect(described_class).to have_received(:find_current).once
-      expect(Rails.cache.read("term:current_id:2026-10-01")).to eq(fall.id)
+      expect(count_queries { expect(described_class.current).to eq(fall) }).to eq(1)
     end
 
     it "looks up the term again after a commit on a term" do
@@ -144,7 +138,6 @@ RSpec.describe Term, type: :model do
       fall = create_term(year: 2026, season: :fall)
 
       expect(described_class.current).to eq(fall)
-      expect(described_class).to have_received(:find_current).twice
     end
 
     it "looks up the term again when the date changes" do

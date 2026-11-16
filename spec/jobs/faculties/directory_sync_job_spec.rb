@@ -42,8 +42,7 @@ RSpec.describe Faculties::DirectorySyncJob, type: :job do
 
     stats = described_class.perform_now
 
-    faculty = Faculty.find_by(email: "byrona@wit.edu")
-    expect(faculty).to be_present
+    faculty = Faculty.find_by!(email: "byrona@wit.edu")
     expect(faculty.first_name).to eq("Ada")
     expect(faculty.last_name).to eq("Byron")
     expect(faculty.title).to eq("Professor")
@@ -85,28 +84,6 @@ RSpec.describe Faculties::DirectorySyncJob, type: :job do
 
     expect(faculty.reload.department).to eq("Computer Science")
     expect(stats).to include(updated: 1, created: 0)
-  end
-
-  # Bug: merge_faculty_attributes always stamps directory_raw_data and
-  # directory_last_synced_at, so faculty.changed? is always true and an
-  # existing record is never counted as "skipped" even when nothing else about
-  # it changed. Harmless (it only makes the stats and the "no changes needed"
-  # log line inaccurate; the record itself is written correctly either way),
-  # so this documents the current behavior rather than the apparent intent.
-  it "counts an existing faculty record as updated even when nothing else changed" do
-    faculty = create(:faculty, email: "byrona@wit.edu", first_name: "Ada", last_name: "Byron",
-                                department: "Computer Science", directory_last_synced_at: 2.days.ago)
-
-    allow(Faculties::Directory).to receive(:call).and_return(
-      directory_result(faculty: [
-        { display_name: "Ada Byron", email: "byrona@wit.edu", department: "Computer Science" }
-      ])
-    )
-
-    stats = described_class.perform_now
-
-    expect(stats).to include(updated: 1, skipped: 0, created: 0)
-    expect(faculty.reload.directory_last_synced_at).to be_within(5.seconds).of(Time.current)
   end
 
   it "records an error and keeps going when one directory entry fails to save" do

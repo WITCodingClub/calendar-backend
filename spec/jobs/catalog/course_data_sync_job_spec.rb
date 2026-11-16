@@ -57,12 +57,12 @@ RSpec.describe Catalog::CourseDataSyncJob do
       .and_return(class_details(meeting_times: meeting_times, faculty: faculty))
   end
 
-  # Whether the section row changes, leaving out the seats, which the
-  # stubbed details always change.
-  def unchanged_section?(details)
-    section = Catalog::BannerSection.from_class_details(details.except(:seats_available, :seats_capacity,
-                                                                       :waitlist_available, :waitlist_capacity))
-    Catalog::SectionSync.new.send(:sync_section, course, section, term.uid)
+  # Whether a second sync with the same Banner details reports a change. The
+  # first sync writes the seats and the other values the factory left out.
+  def changed_on_second_sync?
+    sync = Catalog::SectionSync.new
+    sync.call(course, term.uid)
+    sync.call(course.reload, term.uid)
   end
 
   def linked_rooms
@@ -233,9 +233,8 @@ RSpec.describe Catalog::CourseDataSyncJob do
     # so every section counted as changed.
     it "counts a section with the same schedule type as unchanged" do
       stub_schedule_type("Lecture (LEC)")
-      details = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
 
-      expect(unchanged_section?(details)).to be(false)
+      expect(changed_on_second_sync?).to be(false)
     end
 
     # Banner sends this text for some sections. It has no code, so the enum
@@ -274,9 +273,9 @@ RSpec.describe Catalog::CourseDataSyncJob do
     it "counts a section with the same label as unchanged, and does not ask for the subject list" do
       course.update!(subject: "Climate Resilience (CRES)")
       allow(Catalog::LeopardWebClient).to receive(:get_subjects)
-      details = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
 
-      expect(unchanged_section?(details.merge(title: course.title))).to be(false)
+      expect(changed_on_second_sync?).to be(false)
+      expect(course.reload.subject).to eq("Climate Resilience (CRES)")
       expect(Catalog::LeopardWebClient).not_to have_received(:get_subjects)
     end
   end
@@ -364,10 +363,6 @@ RSpec.describe Catalog::CourseDataSyncJob do
   end
 
   describe "concurrency key" do
-    it "accepts the job arguments so a scoped run can be enqueued" do
-      expect { described_class.new(term_uids: [ 202710 ]).concurrency_key }.not_to raise_error
-    end
-
     it "stays a single key regardless of the arguments" do
       expect(described_class.new(term_uids: [ 202710 ]).concurrency_key)
         .to eq(described_class.new.concurrency_key)
@@ -516,19 +511,19 @@ RSpec.describe Catalog::CourseDataSyncJob do
         end
       end
 
+      # The retry keeps the window of the first attempt, so a run stops at
+      # the end of the window, however many retries it took.
       it "keeps the time of the first attempt in the retry" do
-        described_class.perform_now(term_uids: [ term.uid ])
+        travel_to(Time.zone.local(2026, 10, 1, 2, 0)) { described_class.perform_now(term_uids: [ term.uid ]) }
+        data = ActiveJob::Base.queue_adapter.enqueued_jobs.reverse.find { |job| job["job_class"] == described_class.name }
+        retry_job = ActiveJob::Base.deserialize(data)
 
-        retry_data = ActiveJob::Base.queue_adapter.enqueued_jobs.find { |job| job["job_class"] == described_class.name }
-        first = Time.zone.parse(retry_data[Catalog::BannerCooldownRetry::FIRST_ATTEMPT_KEY])
-        expect(first).to be_within(5.seconds).of(Time.current)
-      end
-
-      it "reads the time of the first attempt back from the job data" do
-        first = 2.hours.ago.change(usec: 0)
-        data = job_started(2.hours).tap { |job| job.banner_first_attempt_at = first }.serialize
-
-        expect(described_class.new.tap { |job| job.deserialize(data) }.banner_first_attempt_at).to eq(first)
+        travel_to(Time.zone.local(2026, 10, 1, 5, 0)) do
+          expect { retry_job.perform_now }.to have_enqueued_job(described_class)
+        end
+        travel_to(Time.zone.local(2026, 10, 1, 6, 1)) do
+          capture_error_reports { expect { retry_job.perform_now }.not_to have_enqueued_job(described_class) }
+        end
       end
 
       # Each cooldown used one of 10 attempts, so a run failed after about 35
@@ -544,19 +539,21 @@ RSpec.describe Catalog::CourseDataSyncJob do
 
       # A job in the queue at deploy has no first attempt time in its data.
       it "starts the window at the first attempt of a job queued without the time" do
+        freeze_time
         data = job_started(1.hour).serialize.except(Catalog::BannerCooldownRetry::FIRST_ATTEMPT_KEY)
         job = described_class.new.tap { |j| j.deserialize(data) }
 
         expect { job.perform_now }.to have_enqueued_job(described_class)
-        expect(job.banner_first_attempt_at).to be_within(5.seconds).of(Time.current)
+        expect(job.banner_first_attempt_at).to eq(Time.current)
       end
 
       # SolidQueue::FailedExecution#retry sets executions to 0.
       it "starts a new window when Retry on the admin page started the job again" do
+        freeze_time
         job = job_started(5.hours, executions: 0)
 
         expect { job.perform_now }.to have_enqueued_job(described_class)
-        expect(job.banner_first_attempt_at).to be_within(5.seconds).of(Time.current)
+        expect(job.banner_first_attempt_at).to eq(Time.current)
       end
 
       it "tries again when the retry starts exactly at the end of the window" do

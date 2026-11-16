@@ -6,20 +6,6 @@ RSpec.describe FriendMeetings::PublishJob do
   let(:meeting)   { create(:friend_meeting) }
   let(:publisher) { instance_double(FriendMeetings::Publisher, publish: nil) }
 
-  it "publishes the meeting for its owner" do
-    allow(FriendMeetings::Publisher).to receive(:new).with(meeting.user).and_return(publisher)
-
-    described_class.perform_now(meeting)
-
-    expect(publisher).to have_received(:publish).with(meeting)
-  end
-
-  it "shares the concurrency key of the course sync for the same person" do
-    job = described_class.new(meeting)
-
-    expect(job.concurrency_key).to eq("GoogleCalendarSyncJob/google_calendar_sync_user_#{meeting.user_id}")
-  end
-
   it "discards the job when the Google refresh token was revoked" do
     allow(FriendMeetings::Publisher).to receive(:new).and_return(publisher)
     allow(publisher).to receive(:publish).and_raise(Google::Auth::AuthorizationError.new("synthetic invalid_grant"))

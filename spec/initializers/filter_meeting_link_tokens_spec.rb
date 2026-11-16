@@ -7,15 +7,20 @@ RSpec.describe FilterMeetingLinkTokens do
     ActionDispatch::Request.new(Rack::MockRequest.env_for(path, method: method))
   end
 
-  def started_line(request)
-    Rails::Rack::Logger.new(->(_env) { [ 200, {}, [] ] }).send(:started_request_message, request)
+  # The "Started ..." line that Rails logs for a request to the path.
+  def started_line(path, method: "GET")
+    log = StringIO.new
+    allow(Rails).to receive(:logger).and_return(ActiveSupport::Logger.new(log))
+    body = Rails::Rack::Logger.new(->(_env) { [ 200, {}, [] ] }).call(Rack::MockRequest.env_for(path, method: method)).last
+    body.close if body.respond_to?(:close)
+    log.string
   end
 
   it "hides the token in the logged path of each meeting link route" do
-    expect(started_line(request_for("/meet/synthetic-secret-token"))).to include('"/meet/[FILTERED]"')
-    expect(started_line(request_for("/meet/synthetic-secret-token", method: "POST"))).to include('Started POST "/meet/[FILTERED]"')
-    expect(started_line(request_for("/meet/synthetic-secret-token/sign_in"))).to include('"/meet/[FILTERED]/sign_in"')
-    expect(started_line(request_for("/meet/synthetic-secret-token?date=2026-10-08"))).to include('"/meet/[FILTERED]?date=2026-10-08"')
+    expect(started_line("/meet/synthetic-secret-token")).to include('"/meet/[FILTERED]"')
+    expect(started_line("/meet/synthetic-secret-token", method: "POST")).to include('Started POST "/meet/[FILTERED]"')
+    expect(started_line("/meet/synthetic-secret-token/sign_in")).to include('"/meet/[FILTERED]/sign_in"')
+    expect(started_line("/meet/synthetic-secret-token?date=2026-10-08")).to include('"/meet/[FILTERED]?date=2026-10-08"')
   end
 
   it "keeps the real path for routing" do

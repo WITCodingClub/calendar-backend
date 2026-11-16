@@ -6,18 +6,20 @@ RSpec.describe FriendMeetings::UpdateJob do
   let(:meeting)   { create(:friend_meeting) }
   let(:publisher) { instance_double(FriendMeetings::Publisher, update: nil) }
 
-  it "runs the publisher for the meeting's owner" do
-    allow(FriendMeetings::Publisher).to receive(:new).with(meeting.user).and_return(publisher)
+  it "writes the change to the owner's Google calendar" do
+    credential = create(:oauth_credential, token_expires_at: 1.hour.from_now)
+    calendar = create(:course_calendar, oauth_credential: credential, external_calendar_id: "synthetic-course-calendar")
+    meeting = create(:friend_meeting, user: credential.user, destinations: %w[google])
+    create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: calendar,
+                                                 external_event_id: "gcal_synthetic_meeting")
+    put = stub_request(:put, "#{GoogleApiStubs::GOOGLE_CALENDAR_API}/calendars/synthetic-course-calendar/events/gcal_synthetic_meeting")
+          .with(query: hash_including({}))
+          .to_return(status: 200, body: file_fixture("google_calendar/event_created.json").read,
+                     headers: { "Content-Type" => "application/json" })
 
     described_class.perform_now(meeting)
 
-    expect(publisher).to have_received(:update).with(meeting)
-  end
-
-  it "shares the concurrency key of the course sync for the same person" do
-    job = described_class.new(meeting)
-
-    expect(job.concurrency_key).to eq("GoogleCalendarSyncJob/google_calendar_sync_user_#{meeting.user_id}")
+    expect(put).to have_been_requested.once
   end
 
   it "discards the job when the Google refresh token was revoked" do

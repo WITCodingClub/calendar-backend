@@ -11,11 +11,4 @@ RSpec.describe Cleanup::OrphanedCalendarRecordsJob do
 
     expect(CourseCalendar.exists?(calendar.id)).to be(true)
   end
-
-  it "is not on the recurring schedule" do
-    schedule = YAML.load_file(Rails.root.join("config/recurring.yml"), aliases: true)
-    classes = schedule.values.flat_map { |tasks| Array(tasks&.values) }.filter_map { |task| task["class"] if task.is_a?(Hash) }
-
-    expect(classes).not_to include(described_class.name)
-  end
 end

@@ -7,10 +7,6 @@ require "rails_helper"
 RSpec.describe "config/blazer.yml" do
   let(:data_source) { Blazer.data_sources.fetch("main") }
 
-  it "sets a statement timeout of 15 seconds" do
-    expect(data_source.timeout).to eq(15)
-  end
-
   it "applies the timeout to each query" do
     result = data_source.run_statement("SHOW statement_timeout")
 

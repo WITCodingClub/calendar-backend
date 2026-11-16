@@ -11,37 +11,41 @@ RSpec.describe "Job concurrency groups" do
 
   let(:limited_jobs) { ApplicationJob.descendants.select(&:concurrency_key) }
 
-  it "has jobs with a concurrency limit" do
-    expect(limited_jobs).not_to be_empty
+  # Outside contract: jobs already in the queue hold their locks under these
+  # groups, so a changed group lets an old and a new job run at once. Solid
+  # Queue frees a lock when its duration ends, even while the job still runs,
+  # so a shorter duration lets a second job with the same key start. Add a new
+  # limited job here; change a value only on purpose.
+  let(:locks) do
+    {
+      Catalog::CourseDataSyncJob => [ "CourseDataSyncJob", 1, 6.hours ],
+      Catalog::CourseDetailsSyncJob => [ "CatalogCourseDetailsSyncJob", 1, 6.hours ],
+      Catalog::ReimportAllTermsJob => [ "ReimportAllTermsJob", 1, 3.minutes ],
+      Catalog::SeatRefreshJob => [ "Catalog::SeatRefreshJob", 1, 15.minutes ],
+      Catalog::SectionLinksSyncJob => [ "Catalog::SectionLinksSyncJob", 1, 2.hours ],
+      CourseCalendars::HistoricalSyncJob => [ "GoogleCalendarHistoricalSyncJob", 1, 1.hour ],
+      CourseCalendars::SyncJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      Courses::ProcessTermJob => [ "ProcessTermCoursesJob", 1, 1.hour ],
+      DegreeRequirements::CourseImportJob => [ "DegreeRequirementsCourseImportJob", 1, 1.hour ],
+      DegreeRequirements::ImportJob => [ "DegreeRequirementsImportJob", 1, 1.hour ],
+      Embeddings::GenerateJob => [ "EmbeddingsGenerateJob", 1, 10.minutes ],
+      Faculties::UpdateRatingsJob => [ "UpdateFacultyRatingsJob", 1, 30.minutes ],
+      FinalsSchedules::ProcessJob => [ "FinalsScheduleProcessJob", 1, 3.minutes ],
+      FriendMeetings::PublishJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::RemoveJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::ResumeJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::UpdateJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      MicrosoftGraph::CalendarPlacementJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      TermElectives::ImportJob => [ "TermElectivesImportJob", 1, 30.minutes ],
+      UniversityCalendar::BackfillJob => [ "UniversityCalendarBackfillJob", 1, 3.minutes ],
+      UniversityCalendar::SyncJob => [ "UniversityCalendarSyncJob", 1, 3.minutes ]
+    }
   end
 
-  it "gives every limited job a fixed group name, not the class name default" do
-    limited_jobs.each do |job|
-      expect(job.concurrency_group).to be_a(String), "#{job.name} uses the default group"
-    end
-  end
+  it "keeps the group, limit, and lock duration of every limited job" do
+    actual = limited_jobs.to_h { |job| [ job, [ job.concurrency_group, job.concurrency_limit, job.concurrency_duration ] ] }
 
-  it "keeps the jobs that write a user's calendar in the group of CourseCalendars::SyncJob" do
-    writers = [ FriendMeetings::PublishJob, FriendMeetings::RemoveJob, FriendMeetings::ResumeJob,
-                FriendMeetings::UpdateJob, MicrosoftGraph::CalendarPlacementJob ]
-
-    expect(writers.map(&:concurrency_group).uniq).to eq([ "GoogleCalendarSyncJob" ])
-    expect(CourseCalendars::SyncJob.concurrency_group).to eq("GoogleCalendarSyncJob")
-  end
-
-  # Solid Queue frees a lock when its duration ends, even while the job still
-  # runs. A second job with the same key could then run at the same time. Each
-  # of these jobs can run for longer than the 3-minute default.
-  {
-    CourseCalendars::SyncJob => 1.hour,
-    CourseCalendars::HistoricalSyncJob => 1.hour,
-    Courses::ProcessTermJob => 1.hour,
-    Catalog::CourseDataSyncJob => 6.hours,
-    Faculties::UpdateRatingsJob => 30.minutes
-  }.each do |job, duration|
-    it "holds the lock of #{job.name} for #{duration.inspect}" do
-      expect(job.concurrency_duration).to eq(duration)
-    end
+    expect(actual).to eq(locks)
   end
 
   # CourseCalendars::UserLock: the jobs that write a user's calendar take one

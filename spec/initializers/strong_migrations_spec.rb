@@ -13,17 +13,12 @@ RSpec.describe "strong_migrations" do # rubocop:disable RSpec/DescribeClass
     end
   end
 
-  it "checks every migration after the last one that ran before the gem" do
-    expect(StrongMigrations.start_after).to eq(20261008223000)
-  end
-
-  it "checks against the PostgreSQL version that production runs" do
-    expect(StrongMigrations.target_version).to eq(17)
-  end
-
-  it "sets lock and statement timeouts for migrations" do
-    expect(StrongMigrations.lock_timeout).to eq(10.seconds)
-    expect(StrongMigrations.statement_timeout).to eq(1.hour)
+  # Migrations before start_after ran before the gem; production runs
+  # PostgreSQL 17; the timeouts keep a migration from holding locks while the
+  # old container still serves (docs/deploy.md).
+  it "checks new migrations against production's PostgreSQL with lock and statement timeouts" do
+    expect(StrongMigrations).to have_attributes(start_after: 20261008223000, target_version: 17,
+                                                lock_timeout: 10.seconds, statement_timeout: 1.hour)
   end
 
   it "stops an unsafe migration" do

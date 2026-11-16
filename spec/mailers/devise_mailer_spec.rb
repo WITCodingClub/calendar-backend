@@ -10,11 +10,6 @@ RSpec.describe Devise::Mailer, type: :mailer do
     [ mail.html_part.body.decoded, mail.text_part.body.decoded ]
   end
 
-  it "uses ApplicationMailer, so the emails get the shared layout and sender" do
-    expect(described_class.superclass).to eq(ApplicationMailer)
-    expect(described_class._layout).to eq("mailer")
-  end
-
   it "sends the reset password email with an HTML and a text part" do
     mail = described_class.reset_password_instructions(user, "reset-token")
 

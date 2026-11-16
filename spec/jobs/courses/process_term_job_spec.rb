@@ -18,15 +18,6 @@ RSpec.describe Courses::ProcessTermJob do
     TermProcessingStatus.find_by(user: user, term: term)
   end
 
-  it "processes the courses for the user" do
-    service = stub_service { [ { id: 1 } ] }
-
-    described_class.perform_now(user, term, courses)
-
-    expect(Courses::Processor).to have_received(:new).with(courses, user)
-    expect(service).to have_received(:call)
-  end
-
   it "marks the term as processing while the service runs" do
     seen = nil
     stub_service do

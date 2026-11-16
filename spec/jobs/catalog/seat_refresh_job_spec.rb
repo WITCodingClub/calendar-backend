@@ -16,6 +16,11 @@ RSpec.describe Catalog::SeatRefreshJob do
     allow(Catalog::SeatRefresh).to receive(:call).and_return(0)
   end
 
+  # Enough Banner failures in a row to open the shared cooldown.
+  def open_banner_cooldown
+    Catalog::BannerThrottle::COOLDOWN_AFTER.times { Catalog::BannerThrottle.record_failure }
+  end
+
   it "refreshes the term students register for, not the term in session" do
     described_class.perform_now
 
@@ -40,8 +45,10 @@ RSpec.describe Catalog::SeatRefreshJob do
   it "stops before the next term when Banner starts to cool down" do
     summer = create(:term, uid: 202730, season: :summer, year: 2027, start_date: Date.new(2027, 5, 4), end_date: Date.new(2027, 8, 10))
     create(:course, term: summer)
-    remaining = [ nil, 120 ]
-    allow(Catalog::BannerThrottle).to receive(:cooldown_remaining) { remaining.shift }
+    allow(Catalog::SeatRefresh).to receive(:call) do
+      open_banner_cooldown
+      0
+    end
 
     described_class.perform_now
 
@@ -60,7 +67,7 @@ RSpec.describe Catalog::SeatRefreshJob do
   end
 
   it "skips the run while Banner cools down" do
-    allow(Catalog::BannerThrottle).to receive(:cooldown_remaining).and_return(120)
+    open_banner_cooldown
 
     described_class.perform_now
 

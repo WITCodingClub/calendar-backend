@@ -42,11 +42,15 @@ RSpec.describe Cleanup::OrphanedCalendarEventsJob do
     broken = create_orphan(external_event_id: "evt-1")
     fine = create_orphan(external_event_id: "evt-2")
     allow(Rails.error).to receive(:report)
-    allow_any_instance_of(CalendarEvent).to receive(:destroy!).and_wrap_original do |original, *args|
-      raise ActiveRecord::RecordNotDestroyed, "synthetic failure" if original.receiver.id == broken.id
-
-      original.call(*args)
-    end
+    # The database refuses to delete one row. The trigger goes away with the
+    # test transaction.
+    connection = ActiveRecord::Base.connection
+    connection.execute(<<~SQL)
+      CREATE FUNCTION pg_temp.refuse_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'synthetic failure'; END $$;
+      CREATE TRIGGER refuse_delete BEFORE DELETE ON calendar_events
+      FOR EACH ROW WHEN (OLD.id = #{broken.id.to_i}) EXECUTE FUNCTION pg_temp.refuse_delete();
+    SQL
 
     result = described_class.perform_now
 
@@ -54,6 +58,6 @@ RSpec.describe Cleanup::OrphanedCalendarEventsJob do
     expect(CalendarEvent.exists?(broken.id)).to be(true)
     expect(CalendarEvent.exists?(fine.id)).to be(false)
     expect(Rails.error).to have_received(:report)
-      .with(an_instance_of(ActiveRecord::RecordNotDestroyed), handled: true, context: { calendar_event_id: broken.id })
+      .with(a_kind_of(ActiveRecord::StatementInvalid), handled: true, context: { calendar_event_id: broken.id })
   end
 end

@@ -35,10 +35,4 @@ RSpec.describe FriendMeetings::RemovalSweepJob do
 
     expect { described_class.perform_now }.not_to have_enqueued_job(FriendMeetings::RemoveJob)
   end
-
-  it "runs every hour in production" do
-    schedule = YAML.load_file(Rails.root.join("config/recurring.yml")).dig("production", "friend_meeting_removal_sweep")
-
-    expect(schedule).to include("class" => "FriendMeetings::RemovalSweepJob", "schedule" => "every hour at minute 27")
-  end
 end

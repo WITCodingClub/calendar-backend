@@ -36,6 +36,9 @@ RSpec.describe CourseCalendars::BulkSyncFinishedJob do
   end
 
   it "does nothing without a batch" do
-    expect { described_class.perform_now }.not_to raise_error
+    allow(Rails.logger).to receive(:info)
+
+    expect { described_class.perform_now }.not_to(change { [ count("completed"), count("failed") ] })
+    expect(Rails.logger).not_to have_received(:info).with(a_string_including('"reason"'))
   end
 end

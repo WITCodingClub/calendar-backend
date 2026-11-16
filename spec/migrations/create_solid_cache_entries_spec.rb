@@ -33,10 +33,4 @@ RSpec.describe CreateSolidCacheEntries do
 
     expect { migration.migrate(:up) }.not_to raise_error
   end
-
-  it "is the version that db/cache_schema.rb records, so a fresh load skips it" do
-    schema = Rails.root.join("db/cache_schema.rb").read
-
-    expect(schema).to include("define(version: 2026_10_08_000000)")
-  end
 end

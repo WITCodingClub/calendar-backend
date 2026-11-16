@@ -34,10 +34,6 @@ RSpec.describe UserExtensionConfig, type: :model do
   # The user model creates a UserExtensionConfig on create; reuse it.
   let(:config) { user.user_extension_config }
 
-  before do
-    allow(CourseCalendars::SyncJob).to receive(:perform_later)
-  end
-
   describe "associations and validations" do
     subject { config }
 
@@ -88,17 +84,22 @@ RSpec.describe UserExtensionConfig, type: :model do
   end
 
   describe "syncing after a settings change" do
-    it "enqueues a forced calendar sync when sync_university_events changes" do
-      config.update!(sync_university_events: true)
+    before { config }
 
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
+    it "enqueues a forced calendar sync when sync_university_events changes" do
+      expect { config.update!(sync_university_events: true) }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
     end
 
     it "enqueues a forced calendar sync when university_event_categories changes" do
       config.update!(sync_university_events: true)
-      config.update!(university_event_categories: %w[finals])
 
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).twice
+      expect { config.update!(university_event_categories: %w[finals]) }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+    end
+
+    it "does not enqueue the sync when no watched setting changed" do
+      expect { config.update!(military_time: true) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
     end
   end
 
@@ -107,28 +108,20 @@ RSpec.describe UserExtensionConfig, type: :model do
     before { config }
 
     it "does not enqueue the sync before the transaction commits" do
-      ActiveRecord::Base.transaction(requires_new: true) do
-        config.update!(sync_university_events: true)
-
-        expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
-      end
-
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
+      expect {
+        ActiveRecord::Base.transaction(requires_new: true) do
+          expect { config.update!(sync_university_events: true) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+        end
+      }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
     end
 
     it "does not enqueue the sync when the transaction rolls back" do
-      ActiveRecord::Base.transaction(requires_new: true) do
-        config.update!(sync_university_events: true)
-        raise ActiveRecord::Rollback
-      end
-
-      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
-    end
-
-    it "does not enqueue the sync when no watched setting changed" do
-      config.update!(military_time: true)
-
-      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+      expect {
+        ActiveRecord::Base.transaction(requires_new: true) do
+          config.update!(sync_university_events: true)
+          raise ActiveRecord::Rollback
+        end
+      }.not_to have_enqueued_job(CourseCalendars::SyncJob)
     end
   end
 end
