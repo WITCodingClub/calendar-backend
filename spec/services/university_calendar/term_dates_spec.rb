@@ -11,6 +11,18 @@ RSpec.describe UniversityCalendar::TermDates do
       expect(described_class.schedule_available_summary?("Commencement")).to be(false)
     end
 
+    it ".registration_summary? matches registration text only" do
+      expect(described_class.registration_summary?("Fall Registration Opens")).to be(true)
+      expect(described_class.registration_summary?("Last day to Add/Drop")).to be(false)
+    end
+
+    it ".finals_period_summary? matches exam periods but not schedule releases" do
+      expect(described_class.finals_period_summary?("Final Exam Period")).to be(true)
+      expect(described_class.finals_period_summary?("Finals Week")).to be(true)
+      expect(described_class.finals_period_summary?("Final exam schedule posted")).to be(false)
+      expect(described_class.finals_period_summary?("Commencement")).to be(false)
+    end
+
     it ".extract_explicit_term_from_summary reads the season and the year" do
       expect(described_class.extract_explicit_term_from_summary("Registration for Spring 2027")).to eq(season: :spring, year: 2027)
       expect(described_class.extract_explicit_term_from_summary("FALL 2026 begins")).to eq(season: :fall, year: 2026)
@@ -203,6 +215,21 @@ RSpec.describe UniversityCalendar::TermDates do
       create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 12))
 
       expect(described_class.detect(2031, :fall)).to eq(start_date: nil, end_date: Date.new(2031, 12, 12))
+    end
+
+    it "uses a finals week or a final exams event for the end date" do
+      event_at("Finals Week", Time.zone.local(2031, 12, 10, 9, 0), end_time: Time.zone.local(2031, 12, 16, 17, 0),
+                              category: "finals", term: term)
+      event_at("Fall 2031 Final Exams", Time.zone.local(2031, 12, 12, 9, 0), end_time: Time.zone.local(2031, 12, 19, 17, 0), category: "finals")
+
+      expect(described_class.detect(2031, :fall)[:end_date]).to eq(Date.new(2031, 12, 19))
+    end
+
+    it "does not take an add/drop deadline for the registration event" do
+      event_at("Fall 2031 Last day to Add/Drop", Time.zone.local(2031, 3, 1, 9, 0), category: "registration")
+      event_at("Fall 2031 Registration Opens", Time.zone.local(2031, 4, 15, 9, 0), category: "registration")
+
+      expect(described_class.detect(2031, :fall)[:start_date]).to eq(Date.new(2031, 4, 1))
     end
 
     it "ignores a finals announcement for the end date" do

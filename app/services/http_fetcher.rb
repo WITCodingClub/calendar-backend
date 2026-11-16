@@ -47,10 +47,11 @@ class HttpFetcher
   # redirect cannot send the server to another host.
   # error: the error class to raise, so the job of each domain retries its own.
   # before_request: called with each URL before it is requested, for pacing.
-  def initialize(allowed_hosts:, error:, timeout: 30, before_request: nil)
+  # connection_options: the timeouts and retry_methods of HttpFetcher.connection.
+  def initialize(allowed_hosts:, error:, before_request: nil, **connection_options)
     @allowed_hosts  = allowed_hosts.map(&:downcase)
     @error          = error
-    @timeout        = timeout
+    @connection_options = connection_options
     @before_request = before_request
   end
 
@@ -94,6 +95,6 @@ class HttpFetcher
   end
 
   def connection
-    @connection ||= self.class.connection(timeout: @timeout)
+    @connection ||= self.class.connection(**@connection_options)
   end
 end

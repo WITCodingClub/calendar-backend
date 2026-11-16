@@ -84,10 +84,6 @@ class UniversityCalendarEvent < ApplicationRecord
     "term_dates" => :info, "academic" => :info
   }.freeze
 
-  # The finals events that are days with no classes. The university feed puts
-  # announcements such as "Final Exam Schedule Online" in the same category.
-  FINALS_PERIOD_PATTERN = /final exam period|study day/i
-
   def self.no_class_category?(category) = NO_CLASS_CATEGORIES.include?(category)
   def self.all_day_category?(category) = ALL_DAY_CATEGORIES.include?(category)
   def self.category_tone(category) = CATEGORY_TONES.fetch(category.to_s, :neutral)
@@ -113,8 +109,9 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
   scope :holidays,      -> { where(category: HOLIDAY) }
   scope :finals,        -> { where(category: "finals") }
-  # The same events as finals_period?.
-  scope :finals_periods, -> { finals.where("summary ~* ?", FINALS_PERIOD_PATTERN.source) }
+  # The finals events that are days with no classes. The university feed puts
+  # announcements such as "Final Exam Schedule Online" in the same category.
+  scope :finals_periods, -> { finals.where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%") }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
@@ -163,8 +160,6 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def excludes_classes? = self.class.no_class_category?(category)
-
-  def finals_period? = category == "finals" && summary.to_s.match?(FINALS_PERIOD_PATTERN)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish

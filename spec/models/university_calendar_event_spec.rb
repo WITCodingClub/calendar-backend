@@ -226,7 +226,7 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(%w[holiday study_day finals].map { |c| described_class.all_day_category?(c) }).to eq([ true, true, false ])
     end
 
-    it ".finals_periods matches the same events as #finals_period?" do
+    it ".finals_periods leaves out a finals announcement" do
       period = create(:university_calendar_event, category: "finals", summary: "Final exam period")
       create(:university_calendar_event, category: "finals", summary: "Final Exam Schedule Online")
 
@@ -238,12 +238,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     it "#excludes_classes? is true for holiday, study_day and finals" do
       expect(%w[holiday study_day finals].map { |c| build(:university_calendar_event, category: c).excludes_classes? }).to all(be(true))
       expect(build(:university_calendar_event, category: "deadline").excludes_classes?).to be(false)
-    end
-
-    it "#finals_period? is true only for a finals period or study day in the finals category" do
-      expect(build(:university_calendar_event, category: "finals", summary: "Fall 2026 Final Exam Period").finals_period?).to be(true)
-      expect(build(:university_calendar_event, category: "finals", summary: "Final Exam Schedule Online").finals_period?).to be(false)
-      expect(build(:university_calendar_event, category: "study_day", summary: "Study Day").finals_period?).to be(false)
     end
 
     it "#formatted_date shows only the date for an all-day event" do

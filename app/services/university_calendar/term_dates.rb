@@ -30,11 +30,13 @@ module UniversityCalendar
                                  .min_by(&:start_time)
 
       registration_event = matching_events
-                           .select { |event| event.category == "registration" }
+                           .select { |event| registration_summary?(event.summary) }
                            .min_by(&:start_time)
       estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
 
-      finals_period_event = matching_events.select(&:finals_period?).max_by { |event| event.end_time || event.start_time }
+      finals_period_event = matching_events
+                            .select { |event| event.category == "finals" && finals_period_summary?(event.summary) }
+                            .max_by { |event| event.end_time || event.start_time }
 
       finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
       course_end_fallback = term&.course_dates&.last
@@ -91,10 +93,26 @@ module UniversityCalendar
 
     def self.schedule_available_summary?(summary)
       summary = summary.to_s
-      return false if summary.match?(/registration/i)
+      return false if registration_summary?(summary)
 
       summary.match?(/course\s+schedule/i) ||
         summary.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
+    end
+
+    # The feed has no registration category of its own: "registration" also
+    # holds add/drop and enrollment deadlines.
+    def self.registration_summary?(summary)
+      summary.to_s.match?(/registration/i)
+    end
+
+    # Wider than UniversityCalendarEvent.finals_periods, which decides the
+    # days with no classes: any finals event that is not a schedule release
+    # can end the term.
+    def self.finals_period_summary?(summary)
+      summary = summary.to_s
+      return false if summary.match?(/schedule\s+(available|online|release|released|posted)/i)
+
+      summary.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
     end
 
     # Fills each date the term does not have with the detected one. Returns the

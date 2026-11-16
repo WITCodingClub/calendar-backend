@@ -63,7 +63,7 @@ RSpec.describe "Admin RateMyProfessors linking", type: :request do
 
       expect { post batch_auto_fill_admin_faculties_path }
         .to have_enqueued_job(Faculties::RefreshRatingsJob).with(missing_only: true)
-      expect(flash[:notice]).to eq("Auto-fill started for 1 faculty members")
+      expect(flash[:notice]).to eq("Auto-fill queued for 1 faculty members")
     end
   end
 end

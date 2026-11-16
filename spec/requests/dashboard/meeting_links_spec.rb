@@ -62,6 +62,13 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
       expect(flash[:alert]).to eq("Expiry date must be a date.")
     end
 
+    it "answers 400 for a body with no meeting link" do
+      post dashboard_meeting_links_path, params: { expires_on: "2026-10-12" }
+
+      expect(response).to have_http_status(:bad_request)
+      expect(MeetingLink.count).to eq(0)
+    end
+
     it "shows the reason when the link is not valid" do
       post dashboard_meeting_links_path, params: { meeting_link: form.merge(ends_on: "2026-10-01") }
 

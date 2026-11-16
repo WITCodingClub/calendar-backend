@@ -81,6 +81,23 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 
+  it "runs an auto-fill while the weekly refresh has jobs left, and skips a second auto-fill" do
+    missing = teaching(create(:faculty, rmp_id: nil))
+    SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION)
+
+    expect { described_class.perform_now(missing_only: true) }.to have_enqueued_job(Faculties::UpdateRatingsJob).with(missing.id)
+
+    SolidQueue::Batch.create!(description: described_class::AUTO_FILL_DESCRIPTION)
+    expect { described_class.perform_now(missing_only: true) }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
+  end
+
+  it "runs the weekly refresh while an auto-fill has jobs left" do
+    teaching(create(:faculty, rmp_id: nil))
+    SolidQueue::Batch.create!(description: described_class::AUTO_FILL_DESCRIPTION)
+
+    expect { described_class.perform_now }.to have_enqueued_job(Faculties::UpdateRatingsJob)
+  end
+
   describe "batch" do
     it "runs the faculty with no rmp_id first, and holds the rest behind the concurrency limit" do
       linked  = teaching(create(:faculty, rmp_id: "already-has-one"))

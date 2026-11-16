@@ -46,9 +46,37 @@ RSpec.describe Faculties::PhotoDownload do
     expect(Rails.error).to have_received(:report).with(an_instance_of(described_class::Error), handled: true, context: { faculty_id: faculty.id })
   end
 
-  it "returns false when the download times out" do
-    stub_request(:get, url).to_timeout
+  it "returns false after one try when the download times out" do
+    stub = stub_request(:get, url).to_timeout
 
     expect(described_class.call(faculty, url)).to be(false)
+    expect(stub).to have_been_requested.once
+  end
+
+  it "does not retry a busy server" do
+    stub = stub_request(:get, url).to_return(status: 503)
+
+    expect(described_class.call(faculty, url)).to be(false)
+    expect(stub).to have_been_requested.once
+  end
+
+  it "does nothing for a url with no host" do
+    expect(described_class.call(faculty, "/sites/default/files/face.jpg")).to be_nil
+  end
+
+  it "follows a redirect to another wit.edu host" do
+    stub_request(:get, "https://wit.edu/photo.jpg").to_return(status: 301, headers: { "Location" => "https://www.wit.edu/photo.jpg" })
+    stub_request(:get, "https://www.wit.edu/photo.jpg").to_return(status: 200, body: "synthetic image bytes")
+
+    expect(described_class.call(faculty, "https://wit.edu/photo.jpg")).to be(true)
+  end
+
+  it "reports any other failure and returns false" do
+    stub_request(:get, url).to_return(status: 200, body: "synthetic image bytes")
+    allow(faculty.photo).to receive(:attach).and_raise(ActiveStorage::Error, "synthetic")
+    allow(Rails.error).to receive(:report)
+
+    expect(described_class.call(faculty, url)).to be(false)
+    expect(Rails.error).to have_received(:report).with(an_instance_of(ActiveStorage::Error), handled: true, context: { faculty_id: faculty.id })
   end
 end

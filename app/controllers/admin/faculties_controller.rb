@@ -104,7 +104,7 @@ module Admin
     def batch_auto_fill
       authorize Faculty
       Faculties::RefreshRatingsJob.perform_later(missing_only: true)
-      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Auto-fill started for #{Faculty.missing_rmp_id.count} faculty members"
+      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Auto-fill queued for #{Faculty.missing_rmp_id.count} faculty members"
     end
 
     def sync_directory
