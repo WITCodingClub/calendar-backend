@@ -148,14 +148,18 @@ RSpec.describe Preferences::Version do
     expect(described_class.for(user)).to eq(version)
   end
 
-  [ :SYSTEM_DEFAULTS, :FINAL_EXAM_DEFAULTS, :UNI_CAL_DEFAULTS, :UNI_CAL_ALL_DAY_REMINDERS, :UNI_CAL_TIMED_REMINDERS ].each do |constant|
-    it "detects a change to resolver #{constant}" do
+  %w[
+    Preferences::MeetingTimeContext::DEFAULTS Preferences::FinalExamContext::DEFAULTS
+    Preferences::UniversityEventContext::DEFAULTS Preferences::UniversityEventContext::ALL_DAY_REMINDERS
+    Preferences::UniversityEventContext::TIMED_REMINDERS
+  ].each do |constant|
+    it "detects a change to #{constant}" do
       version = described_class.for(user)
-      original = Preferences::Resolver.const_get(constant)
+      original = constant.constantize
       replacement = [ { "time" => "45", "type" => "minutes", "method" => "popup" } ]
       replacement = original.merge(title_template: "New default title") if original.is_a?(Hash)
 
-      stub_const("Preferences::Resolver::#{constant}", replacement)
+      stub_const(constant, replacement)
 
       expect(described_class.for(user)).not_to eq(version)
     end

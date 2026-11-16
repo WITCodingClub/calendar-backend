@@ -60,7 +60,7 @@ module PreferenceFields
       next reminder unless reminder.is_a?(Hash)
 
       stringified = reminder.stringify_keys
-      stringified["method"] = "popup" if stringified["method"] == "notification"
+      stringified["method"] = Preferences::Reminders.stored_method(stringified["method"])
       stringified
     end
   end

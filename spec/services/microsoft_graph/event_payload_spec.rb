@@ -6,19 +6,19 @@ RSpec.describe MicrosoftGraph::EventPayload do
   let(:zone) { Time.find_zone!("America/New_York") }
 
   let(:weekly_class) do
-    {
+    CourseCalendars::Event.new(
+      source:      nil,
       summary:     "Synthetic Course",
       description: "COMP-1000-01",
       location:    "Synthetic Hall - 101",
       start_time:  zone.local(2026, 9, 14, 9, 0),
       end_time:    zone.local(2026, 9, 14, 10, 15),
       all_day:     false,
-      recurrence:  [
-        "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO,WE",
-        "EXDATE;TZID=America/New_York:20261012T090000"
-      ]
-    }
+      recurrence:  rule("FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO,WE", "EXDATE;TZID=America/New_York:20261012T090000")
+    )
   end
+
+  def rule(rrule, *exdates) = CourseCalendars::Recurrence.parse([ "RRULE:#{rrule}", *exdates ])
 
   describe ".build" do
     it "sends local wall-clock times in the Eastern time zone" do
@@ -44,20 +44,20 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "turns a daily RRULE with an interval into a daily pattern" do
-      recurrence = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=DAILY;INTERVAL=3;UNTIL=20261212T045959Z" ]))[:recurrence]
+      recurrence = described_class.build(weekly_class.with(recurrence: rule("FREQ=DAILY;INTERVAL=3;UNTIL=20261212T045959Z")))[:recurrence]
 
       expect(recurrence[:pattern]).to eq(type: "daily", interval: 3)
     end
 
     it "keeps the interval of a weekly RRULE" do
-      recurrence = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=MO;UNTIL=20261212T045959Z" ]))[:recurrence]
+      recurrence = described_class.build(weekly_class.with(recurrence: rule("FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=MO;UNTIL=20261212T045959Z")))[:recurrence]
 
       expect(recurrence[:pattern]).to eq(type: "weekly", interval: 2, daysOfWeek: %w[monday], firstDayOfWeek: "sunday")
     end
 
     it "turns a monthly RRULE on one weekday of the month into a relativeMonthly pattern" do
-      second = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;BYDAY=2MO;UNTIL=20261212T045959Z" ]))[:recurrence]
-      last   = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=-1MO" ]))[:recurrence]
+      second = described_class.build(weekly_class.with(recurrence: rule("FREQ=MONTHLY;BYDAY=2MO;UNTIL=20261212T045959Z")))[:recurrence]
+      last   = described_class.build(weekly_class.with(recurrence: rule("FREQ=MONTHLY;INTERVAL=2;BYDAY=-1MO")))[:recurrence]
 
       expect(second[:pattern]).to eq(type: "relativeMonthly", interval: 1, daysOfWeek: %w[monday], index: "second")
       expect(last).to eq(
@@ -67,7 +67,7 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "sends no recurrence for a monthly RRULE that it cannot map" do
-      expect(described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;BYMONTHDAY=14" ]))[:recurrence]).to be_nil
+      expect(described_class.build(weekly_class.with(recurrence: rule("FREQ=MONTHLY;BYMONTHDAY=14")))[:recurrence]).to be_nil
     end
 
     it "shows a timed event as busy, so a class blocks the time" do
@@ -75,17 +75,17 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "shows an all-day event as free" do
-      expect(described_class.build(weekly_class.merge(all_day: true))[:showAs]).to eq("free")
+      expect(described_class.build(weekly_class.with(all_day: true))[:showAs]).to eq("free")
     end
 
     it "sends no recurrence for a single event" do
-      expect(described_class.build(weekly_class.merge(recurrence: nil))[:recurrence]).to be_nil
+      expect(described_class.build(weekly_class.with(recurrence: nil))[:recurrence]).to be_nil
     end
 
     it "sends an all-day event from midnight to midnight the day after" do
-      payload = described_class.build(
-        summary: "Fall Break", start_time: zone.local(2026, 10, 12), end_time: zone.local(2026, 10, 12, 23, 59, 59), all_day: true
-      )
+      payload = described_class.build(CourseCalendars::Event.new(
+        source: nil, summary: "Fall Break", start_time: zone.local(2026, 10, 12), end_time: zone.local(2026, 10, 12, 23, 59, 59), all_day: true
+      ))
 
       expect(payload).to include(
         isAllDay: true,
@@ -95,7 +95,7 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "keeps the earliest reminder, because Graph has one reminder per event" do
-      payload = described_class.build(weekly_class.merge(reminder_settings: [
+      payload = described_class.build(weekly_class.with(reminder_settings: [
         { "time" => "1", "type" => "hours", "method" => "popup" },
         { "time" => "15", "type" => "minutes", "method" => "notification" }
       ]))
@@ -104,7 +104,7 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "turns the reminder off for an empty list" do
-      expect(described_class.build(weekly_class.merge(reminder_settings: []))).to include(isReminderOn: false)
+      expect(described_class.build(weekly_class.with(reminder_settings: []))).to include(isReminderOn: false)
     end
 
     it "leaves the Outlook default reminder alone when no reminders were resolved" do
@@ -112,18 +112,8 @@ RSpec.describe MicrosoftGraph::EventPayload do
     end
 
     it "maps private visibility to private sensitivity" do
-      expect(described_class.build(weekly_class.merge(visibility: "private"))).to include(sensitivity: "private")
-      expect(described_class.build(weekly_class.merge(visibility: "public"))).to include(sensitivity: "normal")
-    end
-  end
-
-  describe ".excluded_dates" do
-    it "reads the local dates from EXDATE entries" do
-      expect(described_class.excluded_dates(weekly_class[:recurrence])).to eq([ Date.new(2026, 10, 12) ])
-    end
-
-    it "is empty without a recurrence" do
-      expect(described_class.excluded_dates(nil)).to eq([])
+      expect(described_class.build(weekly_class.with(visibility: "private"))).to include(sensitivity: "private")
+      expect(described_class.build(weekly_class.with(visibility: "public"))).to include(sensitivity: "normal")
     end
   end
 end

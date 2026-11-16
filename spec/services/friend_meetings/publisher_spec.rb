@@ -302,14 +302,14 @@ RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
       delete = stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: { "sendUpdates" => "all" })
                                                                                    .to_return(status: 204)
       insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "all" }) { |request|
-        JSON.parse(request.body)["recurrence"] == meeting.recurrence
+        JSON.parse(request.body)["recurrence"] == meeting.recurrence.lines
       }.to_return(google_created)
 
       described_class.new(user).update(meeting)
 
       expect(delete).to have_been_requested.once
       expect(insert).to have_been_requested.once
-      expect(meeting.calendar_events.sole.recurrence).to eq(meeting.recurrence)
+      expect(meeting.calendar_events.sole.recurrence).to eq(meeting.recurrence.lines)
       expect(publication("google")).to be_published
     end
 

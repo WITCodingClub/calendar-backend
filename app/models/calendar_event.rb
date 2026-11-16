@@ -87,29 +87,25 @@ class CalendarEvent < ApplicationRecord
   def university_event? = university_calendar_event_id.present?
   def friend_meeting?   = friend_meeting_id.present?
 
-  # Every field the providers send, so a sync without force sees each change.
-  # CourseCalendars::Provider and Preferences::Applier build these fields. The
-  # description is last: rows saved before it was in the hash differ once and
-  # update on their next sync.
-  def self.generate_data_hash(event_data)
-    hash_input = [
-      event_data[:summary],
-      event_data[:location],
-      event_data[:start_time]&.to_i,
-      event_data[:end_time]&.to_i,
-      event_data[:recurrence]&.to_json,
-      event_data[:reminder_settings]&.to_json,
-      event_data[:color_id]&.to_s,
-      event_data[:visibility],
-      event_data[:all_day],
-      event_data[:description]
-    ].join("|")
+  # The record each tracking column points at. A row has exactly one.
+  SOURCE_COLUMNS = {
+    "Course::MeetingTime"     => :meeting_time_id,
+    "FinalExam"               => :final_exam_id,
+    "UniversityCalendarEvent" => :university_calendar_event_id,
+    "FriendMeeting"           => :friend_meeting_id
+  }.freeze
 
-    Digest::SHA256.hexdigest(hash_input)
+  def self.source_column(record) = SOURCE_COLUMNS.fetch(record.class.name)
+
+  # The column that tracks the row's source and the source id, as
+  # CourseCalendars::Event#source_key gives it.
+  def source_key
+    column = SOURCE_COLUMNS.values.find { |name| self[name] }
+    [ column, self[column] ] if column
   end
 
-  def data_changed?(new_event_data)
-    event_data_hash != self.class.generate_data_hash(new_event_data)
+  def data_changed?(event)
+    event_data_hash != event.data_hash
   end
 
   def mark_synced!
@@ -156,8 +152,7 @@ class CalendarEvent < ApplicationRecord
   end
 
   def only_one_event_type_associated
-    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id, friend_meeting_id ].compact
-    return unless event_types.size != 1
+    return if SOURCE_COLUMNS.values.count { |column| self[column] } == 1
 
     errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, university_calendar_event, or friend_meeting")
   end

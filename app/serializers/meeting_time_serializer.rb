@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
+# One weekly meeting of a person's course, with the title, description,
+# color, and reminders the person's calendar gives it. The extension's course
+# list, a friend's schedule, the MCP course tools, and the dashboard read it.
 class MeetingTimeSerializer
+  DAYS = Course::MeetingTime.day_of_weeks.keys.freeze
+
   # recurrence is a CourseCalendars::RecurrenceBuilder for the schedule owner.
   # It gives the same end date and no-class dates that calendar sync uses.
   def initialize(meeting_time, preference_resolver:, template_renderer:, recurrence:)
@@ -11,19 +16,6 @@ class MeetingTimeSerializer
   end
 
   def as_json(*)
-    preferences = @preference_resolver.resolve_actual_for(@mt)
-    context = Preferences::TemplateRenderer.build_context_from_meeting_time(@mt)
-
-    rendered_title = if preferences[:title_template].present?
-                       @template_renderer.render(preferences[:title_template], context)
-    else
-                       @mt.course.title
-    end
-
-    rendered_description = if preferences[:description_template].present?
-                              @template_renderer.render(preferences[:description_template], context)
-    end
-
     {
       id:                  @mt.public_id,
       day_of_week:         @mt.day_of_week,
@@ -40,27 +32,28 @@ class MeetingTimeSerializer
         building: building_json,
         rooms:    @mt.rooms.map(&:formatted_number)
       },
-      **days,
-      calendar_config: {
-        title:             rendered_title,
-        description:       rendered_description,
-        color_id:          Preferences::Colors.normalize(preferences[:color_id]) || @mt.event_color,
-        reminder_settings: preferences[:reminder_settings],
-        visibility:        preferences[:visibility]
-      }
+      **DAYS.to_h { |day| [ day.to_sym, @mt.day_of_week == day ] },
+      calendar_config: calendar_config
     }
   end
 
   private
 
-  def days
-    result = {
-      monday: false, tuesday: false, wednesday: false,
-      thursday: false, friday: false, saturday: false, sunday: false
+  def calendar_config
+    preferences = @preference_resolver.resolve_with_sources(@mt)[:preferences]
+    variables   = Preferences::Context.for(@mt).variables
+
+    {
+      title:             render(preferences[:title_template], variables) || @mt.course.title,
+      description:       render(preferences[:description_template], variables),
+      color_id:          Preferences::Colors.normalize(preferences[:color_id]),
+      reminder_settings: preferences[:reminder_settings],
+      visibility:        preferences[:visibility]
     }
-    day_symbol = @mt.day_of_week&.to_sym
-    result[day_symbol] = true if day_symbol
-    result
+  end
+
+  def render(template, variables)
+    @template_renderer.render(template, variables) if template.present?
   end
 
   def building_json

@@ -401,13 +401,16 @@ module McpTools
     ).freeze
     INSTRUCTOR_DETAIL = object(INSTRUCTOR_DETAIL_PROPERTIES, optional: %i[sections]).freeze
 
-    # A weekly meeting of one of the user's courses
-    # (Courses::ProcessedEventsBuilder, without calendar_config). Each day
-    # key is true on the day it meets.
+    # A weekly meeting of one of the user's courses (MeetingTimeSerializer,
+    # without calendar_config). Each day key is true on the day it meets.
     MY_MEETING_TIME = object(
-      id:         STRING,
-      begin_time: TIME,
-      end_time:   TIME,
+      id:                 STRING,
+      day_of_week:        nullable(STRING),
+      begin_time:         nullable(TIME),
+      end_time:           nullable(TIME),
+      begin_time_display: nullable(STRING),
+      end_time_display:   nullable(STRING),
+      building_room:      nullable(STRING),
       start_date: DATE_TIME,
       end_date:   DATE_TIME,
       effective_end_date: DATE,

@@ -107,7 +107,7 @@ RSpec.describe Preferences::Resolver do
     def default_title_for(course)
       meeting = create(:course_meeting_time, course: course)
       template = described_class.new(user).resolve_for(meeting)[:title_template]
-      Preferences::TemplateRenderer.new.render(template, Preferences::TemplateRenderer.build_context_from_meeting_time(meeting))
+      Preferences::TemplateRenderer.new.render(template, Preferences::Context.for(meeting).variables)
     end
 
     it "adds Lab to a lab whose title does not have it" do

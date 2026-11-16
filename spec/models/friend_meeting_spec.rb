@@ -146,7 +146,7 @@ RSpec.describe FriendMeeting do
 
       # 21:00 Eastern on a Tuesday is Wednesday in UTC, so BYDAY must use the
       # local day. UNTIL is 23:59:59 Eastern on the last day.
-      expect(meeting.recurrence).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261219T045959Z" ])
+      expect(meeting.recurrence.lines).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261219T045959Z" ])
     end
 
     def repeating(**attributes)
@@ -155,25 +155,25 @@ RSpec.describe FriendMeeting do
     end
 
     it "repeats every N days" do
-      expect(repeating(frequency: "daily", repeat_interval: 3).recurrence)
+      expect(repeating(frequency: "daily", repeat_interval: 3).recurrence.lines)
         .to eq([ "RRULE:FREQ=DAILY;INTERVAL=3;UNTIL=20261219T045959Z" ])
     end
 
     it "repeats every other week on each picked day and the start day, with weeks that start on Sunday" do
-      expect(repeating(repeat_interval: 2, repeat_days: %w[thursday sunday]).recurrence)
+      expect(repeating(repeat_interval: 2, repeat_days: %w[thursday sunday]).recurrence.lines)
         .to eq([ "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=SU,TU,TH;UNTIL=20261219T045959Z" ])
     end
 
     it "repeats monthly on the same weekday of the month" do
       # 2026-09-15 is the third Tuesday of September.
-      expect(repeating(frequency: "monthly").recurrence).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=3TU;UNTIL=20261219T045959Z" ])
+      expect(repeating(frequency: "monthly").recurrence.lines).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=3TU;UNTIL=20261219T045959Z" ])
     end
 
     it "repeats monthly on the last weekday when the start is the fifth one" do
       # 2026-09-29 is the fifth Tuesday of September.
       meeting = repeating(frequency: "monthly", start_time: zone.local(2026, 9, 29, 15), end_time: zone.local(2026, 9, 29, 16))
 
-      expect(meeting.recurrence).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=-1TU;UNTIL=20261219T045959Z" ])
+      expect(meeting.recurrence.lines).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=-1TU;UNTIL=20261219T045959Z" ])
     end
   end
 
@@ -187,12 +187,13 @@ RSpec.describe FriendMeeting do
     end
   end
 
-  describe "#event_data" do
-    it "has the shape of a course event" do
+  describe "#calendar_event" do
+    it "is the meeting as the calendar sync sends it" do
       meeting = build(:friend_meeting, title: "Synthetic Study Group", location: "")
 
-      expect(meeting.event_data).to include(summary: "Synthetic Study Group", location: nil, recurrence: nil, all_day: false,
-                                            start_time: meeting.start_time, end_time: meeting.end_time)
+      expect(meeting.calendar_event).to have_attributes(source: meeting, summary: "Synthetic Study Group", location: nil,
+                                                        recurrence: nil, all_day: false,
+                                                        start_time: meeting.start_time, end_time: meeting.end_time)
     end
   end
 

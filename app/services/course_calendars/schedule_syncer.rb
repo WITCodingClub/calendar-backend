@@ -20,13 +20,7 @@ module CourseCalendars
     def sync_schedule(force: false, backfill_historical: force)
       services = Providers.services_for(user)
 
-      # One query for the holidays of every meeting time, in place of one for
-      # each date range.
-      events.preload_holidays!
-
-      desired = events.course_events(user.enrollments, prefer_valid_locations: true)
-      desired.concat(events.finals_events(time_scope: :future))
-      desired.concat(events.university_events(time_scope: :future))
+      desired = events.class_events + events.final_exam_events + events.university_events
 
       result = each_provider(services) { |service| service.update_calendar_events(desired, force: force) }
 
@@ -51,8 +45,7 @@ module CourseCalendars
     # and updates events, and deletes none.
     def sync_historical(force: false)
       services = Providers.services_for(user)
-      desired  = events.finals_events(time_scope: :past)
-      desired.concat(events.university_events(time_scope: :past))
+      desired  = events.final_exam_events(time_scope: :past) + events.university_events(time_scope: :past)
       return if desired.empty?
 
       each_provider(services) { |service| service.update_specific_events(desired, force: force) }

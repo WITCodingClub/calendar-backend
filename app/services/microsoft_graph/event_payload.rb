@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
 module MicrosoftGraph
-  # Turns the event hash the sync builds (the same one Google gets) into a
-  # Graph event resource, and a Graph event back into a
-  # CourseCalendars::RemoteEvent.
+  # Turns a CourseCalendars::Event into a Graph event resource, and a Graph
+  # event back into a CourseCalendars::RemoteEvent.
   #
-  # Graph has no RRULE or EXDATE. A daily, weekly, or monthly RRULE becomes a
-  # patternedRecurrence,
-  # and the EXDATE days are cancelled after the series exists (see
-  # MicrosoftGraph::CalendarProvider#cancel_excluded_occurrences). Graph has one
-  # reminder per event, so the earliest reminder wins. Colors are not part of
-  # the payload: MicrosoftGraph::CalendarProvider adds an Outlook category.
+  # Graph has no RRULE or EXDATE. A daily, weekly, or monthly rule becomes a
+  # patternedRecurrence, and the excluded days are cancelled after the series
+  # exists (see MicrosoftGraph::CalendarProvider#cancel_excluded_occurrences).
+  # Graph has one reminder per event, so the earliest reminder wins. Colors
+  # are not part of the payload: MicrosoftGraph::CalendarProvider adds an
+  # Outlook category.
   #
   # A timed event shows as busy, so a class in the primary calendar blocks the
   # time for people who check the person's availability. An all-day event, for
@@ -29,28 +28,45 @@ module MicrosoftGraph
     # The ordinal in a monthly BYDAY, for example 2 in 2WE, as a Graph index.
     WEEK_INDEXES = { "1" => "first", "2" => "second", "3" => "third", "4" => "fourth", "-1" => "last" }.freeze
 
-    SENSITIVITY      = { "private" => "private", "confidential" => "confidential" }.freeze
+    SENSITIVITIES = %w[private confidential].freeze
 
-    def self.build(event_data)
-      new(event_data).to_h
+    def self.build(event)
+      new(event).to_h
     end
 
-    # The local dates an EXDATE list removes from a series.
-    def self.excluded_dates(recurrence)
-      Array(recurrence).select { |rule| rule.to_s.start_with?("EXDATE") }.flat_map do |rule|
-        rule.split(":", 2).last.to_s.split(",").filter_map do |value|
-          Date.strptime(value[0, 8], "%Y%m%d")
-        rescue Date::Error
-          nil
-        end
-      end.uniq
+    # The patternedRecurrence of a CourseCalendars::Recurrence that starts at
+    # start_time, or nil.
+    def self.recurrence_payload(recurrence, start_time)
+      return nil unless recurrence && start_time
+
+      local_start = start_time.in_time_zone(SchoolTimeZone::NAME)
+      pattern     = pattern_payload(recurrence, local_start)
+      return nil unless pattern
+
+      range = { startDate: local_start.to_date.iso8601, recurrenceTimeZone: MicrosoftGraph::TIME_ZONE }
+      range = recurrence.until_date ? range.merge(type: "endDate", endDate: recurrence.until_date.iso8601) : range.merge(type: "noEnd")
+      { pattern: pattern, range: range }
     end
 
-    # The patternedRecurrence for a start time and an RRULE list, or nil.
-    def self.recurrence_for(start_time:, recurrence:)
-      return nil if start_time.nil?
+    # A course sync builds only weekly rules. A friend meeting can also be
+    # daily, or monthly on one weekday of the month.
+    def self.pattern_payload(recurrence, local_start)
+      interval = recurrence.interval
 
-      new(start_time: start_time, recurrence: recurrence).send(:recurrence_payload)
+      case recurrence.frequency
+      when "DAILY"
+        { type: "daily", interval: interval }
+      when "WEEKLY"
+        days = recurrence.days.filter_map { |day| DAYS[day] }
+        days = [ local_start.strftime("%A").downcase ] if days.empty?
+        { type: "weekly", interval: interval, daysOfWeek: days, firstDayOfWeek: "sunday" }
+      when "MONTHLY"
+        match = recurrence.days.join(",").match(/\A(-?\d)([A-Z]{2})\z/)
+        index = match && WEEK_INDEXES[match[1]]
+        return nil unless index && DAYS[match[2]]
+
+        { type: "relativeMonthly", interval: interval, daysOfWeek: [ DAYS[match[2]] ], index: index }
+      end
     end
 
     # The Graph event as CourseCalendars::EventEdits reads it. row is the
@@ -64,11 +80,10 @@ module MicrosoftGraph
         end_time:           parse_time(remote["end"]),
         all_day:            remote["isAllDay"] == true,
         recurrence_changed: normalize_recurrence(remote["recurrence"]) !=
-                              normalize_recurrence(recurrence_for(start_time: row.start_time, recurrence: row.recurrence)),
+                              normalize_recurrence(recurrence_payload(CourseCalendars::Recurrence.parse(row.recurrence), row.start_time)),
         raw:                remote
       )
     end
-
     def self.parse_time(value)
       return nil if value.blank? || value["dateTime"].blank?
 
@@ -92,98 +107,55 @@ module MicrosoftGraph
         range["type"], range["type"] == "endDate" ? range["endDate"] : nil
       ]
     end
-    private_class_method :parse_time, :normalize_recurrence
+    private_class_method :parse_time, :normalize_recurrence, :pattern_payload
 
-    def initialize(event_data)
-      @data = event_data
+    def initialize(event)
+      @event = event
     end
 
     def to_h
       payload = {
-        subject:    data[:summary],
-        body:       { contentType: "text", content: data[:description].to_s },
-        location:   { displayName: data[:location].to_s },
+        subject:    event.summary,
+        body:       { contentType: "text", content: event.description.to_s },
+        location:   { displayName: event.location.to_s },
         isAllDay:   all_day?,
         showAs:     all_day? ? "free" : "busy",
         start:      time_payload(start_value),
         end:        time_payload(end_value),
-        recurrence: recurrence_payload
+        recurrence: self.class.recurrence_payload(event.recurrence, event.start_time)
       }
 
       payload.merge!(reminder_payload)
-      payload[:sensitivity] = SENSITIVITY.fetch(data[:visibility], "normal") if data[:visibility].present?
+      payload[:sensitivity] = SENSITIVITIES.include?(event.visibility) ? event.visibility : "normal" if event.visibility.present?
       payload
     end
 
     private
 
-    attr_reader :data
+    attr_reader :event
 
-    def all_day?
-      data[:all_day] ? true : false
-    end
+    def all_day? = event.all_day?
 
     def local_start
-      data[:start_time].in_time_zone(SchoolTimeZone::NAME)
+      event.start_time.in_time_zone(SchoolTimeZone::NAME)
     end
 
     def start_value
       all_day? ? local_start.to_date.beginning_of_day.strftime(TIME_FORMAT) : local_start.strftime(TIME_FORMAT)
     end
 
-    # An all-day event ends at midnight on the day after, like Google's
-    # exclusive end date.
     def end_value
-      local_end = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
-      all_day? ? (local_end.to_date + 1.day).beginning_of_day.strftime(TIME_FORMAT) : local_end.strftime(TIME_FORMAT)
+      return event.exclusive_end_date.beginning_of_day.strftime(TIME_FORMAT) if all_day?
+
+      event.end_time.in_time_zone(SchoolTimeZone::NAME).strftime(TIME_FORMAT)
     end
 
     def time_payload(value)
       { dateTime: value, timeZone: MicrosoftGraph::TIME_ZONE }
     end
 
-    def recurrence_payload
-      rule = Array(data[:recurrence]).find { |entry| entry.to_s.start_with?("RRULE:") }
-      return nil unless rule
-
-      parts = rule.delete_prefix("RRULE:").split(";").to_h { |part| part.split("=", 2) }
-      # A course sync builds only weekly rules. A friend meeting can also be
-      # daily, or monthly on one weekday of the month.
-      pattern = pattern_payload(parts)
-      return nil unless pattern
-
-      { pattern: pattern, range: range_payload(parts["UNTIL"], local_start.to_date) }
-    end
-
-    def pattern_payload(parts)
-      interval = (parts["INTERVAL"] || 1).to_i
-
-      case parts["FREQ"]
-      when "DAILY"
-        { type: "daily", interval: interval }
-      when "WEEKLY"
-        days = parts["BYDAY"].to_s.split(",").filter_map { |day| DAYS[day] }
-        days = [ local_start.strftime("%A").downcase ] if days.empty?
-        { type: "weekly", interval: interval, daysOfWeek: days, firstDayOfWeek: "sunday" }
-      when "MONTHLY"
-        match = parts["BYDAY"].to_s.match(/\A(-?\d)([A-Z]{2})\z/)
-        index = match && WEEK_INDEXES[match[1]]
-        return nil unless index && DAYS[match[2]]
-
-        { type: "relativeMonthly", interval: interval, daysOfWeek: [ DAYS[match[2]] ], index: index }
-      end
-    end
-
-    def range_payload(until_value, start_date)
-      range = { startDate: start_date.iso8601, recurrenceTimeZone: MicrosoftGraph::TIME_ZONE }
-      return range.merge(type: "noEnd") if until_value.blank?
-
-      end_date = Time.parse(until_value).in_time_zone(SchoolTimeZone::NAME).to_date
-      range.merge(type: "endDate", endDate: end_date.iso8601)
-    end
-
     def reminder_payload
-      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      reminders = Preferences::Reminders.for_sync(event.reminder_settings)
       return {} if reminders.nil?
       return { isReminderOn: false } if reminders.empty?
 

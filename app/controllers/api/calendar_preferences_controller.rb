@@ -81,11 +81,7 @@ module Api
       end
 
       begin
-        Preferences::TemplateRenderer.validate_template(template)
-        renderer = Preferences::TemplateRenderer.new
-        context  = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
-        rendered = renderer.render(template, context)
-        render json: { rendered: rendered, valid: true }
+        render json: { rendered: Preferences::Preview.render_template(template, meeting_time), valid: true }
       rescue Preferences::TemplateRenderer::InvalidTemplateError => e
         render_error e.message, status: :unprocessable_content, valid: false
       end

@@ -5,17 +5,18 @@ require "rails_helper"
 RSpec.describe GoogleCalendar::EventPayload do
   let(:zone) { Time.find_zone!("America/New_York") }
   let(:event_data) do
-    {
+    CourseCalendars::Event.new(
+      source: nil,
       summary: "Fall Break",
       start_time: Time.zone.local(2026, 10, 12),
       end_time: Time.zone.local(2026, 10, 12, 23, 59, 59),
       all_day: true
-    }
+    )
   end
 
   describe ".build" do
     it "copies the summary, description, and location" do
-      google_event = described_class.build(event_data.merge(description: "Synthetic notes", location: "Synthetic Hall"))
+      google_event = described_class.build(event_data.with(description: "Synthetic notes", location: "Synthetic Hall"))
 
       expect(google_event).to have_attributes(summary: "Fall Break", description: "Synthetic notes", location: "Synthetic Hall")
     end
@@ -28,7 +29,8 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "sends a timed event in Eastern time" do
-      timed = { summary: "Synthetic Lecture", start_time: zone.local(2026, 9, 15, 10), end_time: zone.local(2026, 9, 15, 11, 30) }
+      timed = CourseCalendars::Event.new(source: nil, summary: "Synthetic Lecture", start_time: zone.local(2026, 9, 15, 10),
+                                         end_time: zone.local(2026, 9, 15, 11, 30))
 
       google_event = described_class.build(timed)
 
@@ -37,14 +39,14 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "sends the recurrence and the visibility when they are present" do
-      google_event = described_class.build(event_data.merge(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TU" ], visibility: "private"))
+      google_event = described_class.build(event_data.with(recurrence: CourseCalendars::Recurrence.parse([ "RRULE:FREQ=WEEKLY;BYDAY=TU" ]), visibility: "private"))
 
       expect(google_event.recurrence).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=TU" ])
       expect(google_event.visibility).to eq("private")
     end
 
     it "leaves the recurrence and the visibility out when they are blank" do
-      google_event = described_class.build(event_data.merge(recurrence: [], visibility: ""))
+      google_event = described_class.build(event_data.with(recurrence: nil, visibility: ""))
 
       expect(google_event.recurrence).to be_nil
       expect(google_event.visibility).to be_nil
@@ -54,7 +56,7 @@ RSpec.describe GoogleCalendar::EventPayload do
   describe ".build reminders" do
     it "sends the reminder the preferences resolved" do
       google_event = described_class.build(
-        event_data.merge(reminder_settings: [ { "time" => "15", "type" => "hours", "method" => "popup" } ])
+        event_data.with(reminder_settings: [ { "time" => "15", "type" => "hours", "method" => "popup" } ])
       )
 
       expect(google_event.reminders.use_default).to be(false)
@@ -62,7 +64,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "clears the reminders when the list is empty, rather than falling back to the Google defaults" do
-      google_event = described_class.build(event_data.merge(reminder_settings: []))
+      google_event = described_class.build(event_data.with(reminder_settings: []))
 
       expect(google_event.reminders.use_default).to be(false)
       expect(google_event.reminders.overrides).to eq([])
@@ -75,7 +77,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "sends a notification as a popup and converts days and minutes" do
-      google_event = described_class.build(event_data.merge(reminder_settings: [
+      google_event = described_class.build(event_data.with(reminder_settings: [
         { "time" => "1", "type" => "days", "method" => "notification" },
         { "time" => "30", "type" => "minutes", "method" => "email" }
       ]))
@@ -84,7 +86,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "drops a reminder with an unknown method or a missing field" do
-      google_event = described_class.build(event_data.merge(reminder_settings: [
+      google_event = described_class.build(event_data.with(reminder_settings: [
         { "time" => "10", "type" => "minutes", "method" => "sms" },
         { "time" => "10", "method" => "popup" },
         "not a hash"
@@ -98,7 +100,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     let(:labels) { instance_double(GoogleCalendar::EventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555") }
 
     it "gives a custom color through the label for that color" do
-      google_event = described_class.build(event_data.merge(color_id: "#1a2b3c"), labels)
+      google_event = described_class.build(event_data.with(color_id: "#1a2b3c"), labels)
 
       expect(labels).to have_received(:label_id_for).with("#1a2b3c")
       expect(google_event.event_label_id).to eq("11111111-2222-3333-4444-555555555555")
@@ -107,7 +109,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     end
 
     it "removes the label from an event with no color" do
-      google_event = described_class.build(event_data.merge(color_id: nil), labels)
+      google_event = described_class.build(event_data.with(color_id: nil), labels)
 
       expect(google_event.event_label_id).to eq("")
       expect(described_class.request_options(google_event)).to eq(event_label_version: 1)
@@ -116,7 +118,7 @@ RSpec.describe GoogleCalendar::EventPayload do
     it "sends the nearest legacy color id when the calendar cannot take labels" do
       allow(labels).to receive_messages(available?: false, label_id_for: nil)
 
-      google_event = described_class.build(event_data.merge(color_id: "#ff0000"), labels)
+      google_event = described_class.build(event_data.with(color_id: "#ff0000"), labels)
 
       expect(google_event.event_label_id).to be_nil
       expect(google_event.color_id).to eq("11")
@@ -126,14 +128,14 @@ RSpec.describe GoogleCalendar::EventPayload do
     it "sends the nearest legacy color id when the calendar has no room for another label" do
       allow(labels).to receive(:label_id_for).and_return(nil)
 
-      google_event = described_class.build(event_data.merge(color_id: "#0b8043"), labels)
+      google_event = described_class.build(event_data.with(color_id: "#0b8043"), labels)
 
       expect(google_event.event_label_id).to be_nil
       expect(google_event.color_id).to eq("10")
     end
 
     it "sends the nearest legacy color id when no labels are given" do
-      google_event = described_class.build(event_data.merge(color_id: "#ff0000"))
+      google_event = described_class.build(event_data.with(color_id: "#ff0000"))
 
       expect(google_event.color_id).to eq("11")
       expect(described_class.request_options(google_event)).to eq({})

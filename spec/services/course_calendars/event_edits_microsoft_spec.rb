@@ -82,11 +82,12 @@ RSpec.describe CourseCalendars::EventEdits do
   describe "#merge" do
     it "takes the person's value for each edited field only" do
       result = edits(subject: "Renamed", start: { dateTime: "2026-09-14T11:00:00.0000000", timeZone: "Eastern Standard Time" })
-      data   = { summary: "App title", location: "App room", start_time: zone.local(2026, 9, 14, 9), end_time: zone.local(2026, 9, 14, 10) }
+      event  = CourseCalendars::Event.new(source: nil, summary: "App title", location: "App room",
+                                          start_time: zone.local(2026, 9, 14, 9), end_time: zone.local(2026, 9, 14, 10))
 
-      merged = result.merge(data, %w[summary start_time])
+      merged = result.merge(event, %w[summary start_time])
 
-      expect(merged).to include(summary: "Renamed", location: "App room", start_time: zone.local(2026, 9, 14, 11),
+      expect(merged).to have_attributes(summary: "Renamed", location: "App room", start_time: zone.local(2026, 9, 14, 11),
                                 end_time: zone.local(2026, 9, 14, 10))
     end
   end

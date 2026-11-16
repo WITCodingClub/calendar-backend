@@ -60,7 +60,7 @@ module McpTools
 
     def settings_result(meeting_time, preference, result)
       resolved = Preferences::Resolver.new(user).resolve_with_sources(meeting_time)
-      context  = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
+      context  = Preferences::Context.for(meeting_time).variables
 
       {
         meeting_time_id: meeting_time.public_id,

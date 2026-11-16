@@ -49,6 +49,8 @@ class UniversityCalendarEvent < ApplicationRecord
   # The categories a person can sync. The feed puts too much clutter in campus_event,
   # meeting, exhibit, announcement, and other, so they stay in the database but never
   # sync (issue #621).
+  HOLIDAY = "holiday"
+
   SYNCABLE_CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic].freeze
 
   # Shown to users who pick which categories to sync, in the extension and on the dashboard.
@@ -89,7 +91,7 @@ class UniversityCalendarEvent < ApplicationRecord
   serialize :recurrence, coder: JSON
 
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
-  scope :holidays,      -> { where(category: "holiday") }
+  scope :holidays,      -> { where(category: HOLIDAY) }
   scope :finals,        -> { where(category: "finals") }
   # The finals events that are days with no classes. The university feed puts
   # announcements such as "Final Exam Schedule Online" in the same category.
@@ -100,6 +102,13 @@ class UniversityCalendarEvent < ApplicationRecord
   # Events that overlap the range. A break is one event of several days, so an
   # event that starts before the range still counts when it runs into it.
   scope :in_date_range, ->(s, e) { where(end_time: s.beginning_of_day.., start_time: ..e.end_of_day) }
+
+  # The categories a person's calendar gets: every person gets the holidays,
+  # and the other categories only when they sync university events.
+  def self.categories_wanted_by(user)
+    config = user.user_extension_config
+    [ HOLIDAY, *(config&.sync_university_events ? config.synced_university_event_categories : []) ]
+  end
 
   # The no-class spans that overlap the range, earliest first. They come from
   # Rails.cache, so a schedule, an ICS feed, or a sync does not query the table.

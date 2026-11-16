@@ -15,7 +15,16 @@ module Preferences
 
     Reminder = Data.define(:delivery, :minutes)
 
+    # The extension's name for a popup.
+    CLIENT_POPUP = "notification"
+
     module_function
+
+    # The stored name of a method: "popup" for "notification".
+    def stored_method(method) = method == CLIENT_POPUP ? "popup" : method
+
+    # The name the extension shows: "notification" for "popup".
+    def client_method(method) = method == "popup" ? CLIENT_POPUP : method
 
     # The reminders a provider sends, in the order of the list. An entry that
     # does not follow the rules is left out. Returns nil when the setting is not
@@ -25,10 +34,9 @@ module Preferences
 
       settings.filter_map do |reminder|
         next unless reminder.is_a?(Hash) && METHODS.include?(reminder["method"])
-        next if reminder["time"].blank? || reminder["type"].blank?
+        next if reminder["time"].blank? || !TIME_TYPES.include?(reminder["type"])
 
-        method = reminder["method"] == "notification" ? "popup" : reminder["method"]
-        Reminder.new(delivery: method, minutes: (reminder["time"].to_f * MINUTES.fetch(reminder["type"], 1)).to_i)
+        Reminder.new(delivery: stored_method(reminder["method"]), minutes: (reminder["time"].to_f * MINUTES.fetch(reminder["type"])).to_i)
       end
     end
   end

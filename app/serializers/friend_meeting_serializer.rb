@@ -58,7 +58,7 @@ class FriendMeetingSerializer
       end_time:        local(@meeting.end_time),
       time_zone:       SchoolTimeZone::NAME,
       frequency:       @meeting.frequency,
-      recurrence:      @meeting.recurrence&.first,
+      recurrence:      @meeting.recurrence&.lines&.first,
       repeat_interval: @meeting.repeat_interval,
       repeat_days:     @meeting.weekdays,
       repeat_until:    @meeting.repeat_until&.iso8601,

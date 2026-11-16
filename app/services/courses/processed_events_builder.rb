@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Courses
-  class Courses::ProcessedEventsBuilder
+  # One person's classes with their meeting times (MeetingTimeSerializer),
+  # for a friend's schedule, the course history, and the MCP course tools.
+  class ProcessedEventsBuilder
     ENROLLMENT_INCLUDES = [
       :term,
       { course: [
@@ -112,79 +114,10 @@ module Courses
     end
 
     def build_meeting_times_data(meeting_times)
-      meeting_times.map do |mt|
-        days = build_days_hash(mt.day_of_week)
-        preferences = @preference_resolver.resolve_actual_for(mt)
-        context = Preferences::TemplateRenderer.build_context_from_meeting_time(mt)
-
-        rendered_title = render_title(preferences, context, mt)
-        rendered_description = render_description(preferences, context)
-
-        {
-          id: mt.public_id,
-          begin_time: mt.fmt_begin_time_military,
-          end_time: mt.fmt_end_time_military,
-          start_date: mt.start_date,
-          end_date: mt.end_date,
-          effective_end_date: @recurrence.effective_end_date(mt).iso8601,
-          excluded_dates: @recurrence.excluded_dates(mt).map(&:iso8601),
-          location: build_location_data(mt),
-          **days,
-          calendar_config: {
-            title: rendered_title,
-            description: rendered_description,
-            color_id: Preferences::Colors.normalize(preferences[:color_id]) || mt.event_color,
-            reminder_settings: preferences[:reminder_settings],
-            visibility: preferences[:visibility]
-          }
-        }
+      meeting_times.map do |meeting_time|
+        MeetingTimeSerializer.new(meeting_time, preference_resolver: @preference_resolver,
+                                                template_renderer: @template_renderer, recurrence: @recurrence).as_json
       end
-    end
-
-    def build_days_hash(day_of_week)
-      days = {
-        monday: false,
-        tuesday: false,
-        wednesday: false,
-        thursday: false,
-        friday: false,
-        saturday: false,
-        sunday: false
-      }
-
-      day_symbol = day_of_week&.to_sym
-      days[day_symbol] = true if day_symbol
-      days
-    end
-
-    def build_location_data(meeting_time)
-      building = meeting_time.building
-      {
-        building: if building
-                    {
-                      pub_id: building.public_id,
-                      name: building.name,
-                      abbreviation: building.abbreviation
-                    }
-                  else
-                    nil
-                  end,
-        rooms: meeting_time.rooms.map(&:formatted_number)
-      }
-    end
-
-    def render_title(preferences, context, meeting_time)
-      if preferences[:title_template].present?
-        @template_renderer.render(preferences[:title_template], context)
-      else
-        meeting_time.course.title
-      end
-    end
-
-    def render_description(preferences, context)
-      return nil if preferences[:description_template].blank?
-
-      @template_renderer.render(preferences[:description_template], context)
     end
   end
 end

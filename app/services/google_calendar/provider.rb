@@ -172,8 +172,8 @@ module GoogleCalendar
       @labels[calendar.external_calendar_id] ||= GoogleCalendar::EventLabels.new(user_calendar_service, calendar.external_calendar_id)
     end
 
-    def insert_event(calendar, data)
-      google_event = EventPayload.build(data, labels_for(calendar))
+    def insert_event(calendar, event)
+      google_event = EventPayload.build(event, labels_for(calendar))
       created = with_rate_limit_handling do
         user_calendar_service.insert_event(calendar.external_calendar_id, google_event, **EventPayload.request_options(google_event))
       end
@@ -187,8 +187,8 @@ module GoogleCalendar
       raise unless self.class.gone?(e)
     end
 
-    def patch_event(row, event_id, data, remote:, force:) # rubocop:disable Lint/UnusedMethodArgument
-      google_event = EventPayload.build(data, labels_for(row.course_calendar))
+    def patch_event(row, event_id, event, remote:, force:) # rubocop:disable Lint/UnusedMethodArgument
+      google_event = EventPayload.build(event, labels_for(row.course_calendar))
       with_rate_limit_handling do
         user_calendar_service.update_event(calendar_id_of(row), event_id, google_event, **EventPayload.request_options(google_event))
       end

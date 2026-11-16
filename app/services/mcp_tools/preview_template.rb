@@ -24,10 +24,7 @@ module McpTools
       authorize user, :show?
       meeting_time = find_my_meeting_time(meeting_time_id)
 
-      Preferences::TemplateRenderer.validate_template(template)
-      context = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
-
-      { template: template, rendered: Preferences::TemplateRenderer.new.render(template, context) }
+      { template: template, rendered: Preferences::Preview.render_template(template, meeting_time) }
     rescue Preferences::TemplateRenderer::InvalidTemplateError => e
       raise ToolError, "The template is not valid: #{e.message}"
     end

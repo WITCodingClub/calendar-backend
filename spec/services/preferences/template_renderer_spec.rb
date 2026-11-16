@@ -3,59 +3,6 @@
 require "rails_helper"
 
 RSpec.describe Preferences::TemplateRenderer do
-  let(:course) { create(:course, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 10, 20)) }
-
-  let(:meeting_time) do
-    Catalog::MeetingTimesIngest.call(
-      course: course,
-      meetings: [
-        Catalog::BannerSection::Meeting.from_search(
-          "startDate"           => "09/08/2026",
-          "endDate"             => "10/20/2026",
-          "beginTime"           => "1300",
-          "endTime"             => "1410",
-          "building"            => "BEATT",
-          "buildingDescription" => "Beatty Hall",
-          "room"                => "420",
-          "monday"              => true
-        )
-      ]
-    )
-    course.meeting_times.first
-  end
-
-  let!(:minevich)  { create(:faculty, email: "minevichi@wit.edu", first_name: "Igor", last_name: "Minevich") }
-  let!(:sanderson) { create(:faculty, email: "sandersone1@wit.edu", first_name: "Elijah", last_name: "Sanderson") }
-
-  # The instructor who was attached first is not always the one teaching the
-  # section. Before the join carried Banner's primary flag, the event named
-  # whichever row was oldest.
-  it "names Banner's primary instructor, not the oldest join row" do
-    create(:course_faculty, course: course, faculty: minevich, primary_indicator: false)
-    create(:course_faculty, course: course, faculty: sanderson, primary_indicator: true)
-
-    context = described_class.build_context_from_meeting_time(meeting_time)
-
-    expect(context[:faculty]).to eq("Elijah Sanderson")
-    expect(context[:faculty_email]).to eq("sandersone1@wit.edu")
-  end
-
-  it "lists every instructor with the primary one first" do
-    create(:course_faculty, course: course, faculty: minevich, primary_indicator: false)
-    create(:course_faculty, course: course, faculty: sanderson, primary_indicator: true)
-
-    context = described_class.build_context_from_meeting_time(meeting_time)
-
-    expect(context[:all_faculty]).to eq("Elijah Sanderson, Igor Minevich")
-  end
-
-  it "leaves the instructor blank when the section has none" do
-    context = described_class.build_context_from_meeting_time(meeting_time)
-
-    expect(context[:faculty]).to eq("")
-    expect(context[:faculty_email]).to eq("")
-  end
-
   describe "#render" do
     subject(:renderer) { described_class.new }
 

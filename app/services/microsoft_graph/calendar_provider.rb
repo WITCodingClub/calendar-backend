@@ -267,16 +267,16 @@ module MicrosoftGraph
       end
     end
 
-    def insert_event(calendar, data)
-      remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", event_payload(data))
+    def insert_event(calendar, event)
+      remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", event_payload(event))
       { external_event_id: remote["id"], external_ical_uid: remote["iCalUId"] }
     end
 
     # The row exists before the occurrences are cancelled, so a failure here
     # cannot make the next sync post the series again. The cleared hash makes
     # the next sync see a change and run the exclusions through an update.
-    def event_created(row, data)
-      cancel_excluded_occurrences(row.external_event_id, data)
+    def event_created(row, event)
+      cancel_excluded_occurrences(row.external_event_id, event)
     rescue MicrosoftGraph::Error, Faraday::Error => e
       Rails.error.report(e, handled: true, context: { user_id: user&.id, calendar_event_id: row.id })
       row.update_column(:event_data_hash, nil) # rubocop:disable Rails/SkipsModelValidations
@@ -311,11 +311,11 @@ module MicrosoftGraph
     # a read, the person's own categories and free or busy choice stay.
     # Updating a series restores its occurrences, so the excluded ones are
     # cancelled again.
-    def patch_event(row, event_id, data, remote:, force:)
-      payload = event_payload(data, remote_categories: remote&.raw&.fetch("categories", nil))
+    def patch_event(row, event_id, event, remote:, force:)
+      payload = event_payload(event, remote_categories: remote&.raw&.fetch("categories", nil))
       payload[:categories] ||= [] if force
       event_id = patch_tracked_event(row, event_id, payload)
-      cancel_excluded_occurrences(event_id, data) if event_id.present?
+      cancel_excluded_occurrences(event_id, event) if event_id.present?
       event_id
     end
 
@@ -354,9 +354,9 @@ module MicrosoftGraph
     # the event (a create or a forced update), the WIT category is set only when
     # the event has a color. After a read, the person's own categories stay and
     # only the WIT category changes.
-    def event_payload(data, remote_categories: nil)
-      payload  = MicrosoftGraph::EventPayload.build(data)
-      category = category_cache.name_for(data[:color_id])
+    def event_payload(event, remote_categories: nil)
+      payload  = MicrosoftGraph::EventPayload.build(event)
+      category = category_cache.name_for(event.color_id)
 
       if remote_categories.nil?
         payload[:categories] = [ category ] if category
@@ -411,8 +411,8 @@ module MicrosoftGraph
 
     # Graph cannot take EXDATEs, so each excluded day's occurrence is cancelled
     # once the series exists.
-    def cancel_excluded_occurrences(event_id, data)
-      MicrosoftGraph::EventPayload.excluded_dates(data[:recurrence]).each do |date|
+    def cancel_excluded_occurrences(event_id, event)
+      event.excluded_dates.each do |date|
         day_start = SchoolTimeZone.zone.local(date.year, date.month, date.day)
         response  = client.get("#{event_path(event_id)}/instances", params: {
           "startDateTime" => day_start.iso8601,
@@ -427,7 +427,7 @@ module MicrosoftGraph
     # With attendees: true the event lists the invited friends. Without, the
     # key is left out, so a PATCH keeps the attendees that the event has.
     def friend_meeting_payload(meeting, attendees:)
-      payload = MicrosoftGraph::EventPayload.build(meeting.event_data)
+      payload = MicrosoftGraph::EventPayload.build(meeting.calendar_event)
       return payload unless attendees
 
       payload[:attendees] = meeting.invitees.map do |friend|

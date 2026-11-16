@@ -31,11 +31,9 @@ module CourseCalendars
       remote.recurrence_changed
     end
 
-    # The event data with the person's value in place of each edited field.
-    def merge(event_data, fields)
-      merged = event_data.dup
-      remote_attributes.each { |field, value| merged[field] = value if fields.include?(field.to_s) }
-      merged
+    # The CourseCalendars::Event with the person's value in place of each edited field.
+    def merge(event, fields)
+      event.with(**remote_attributes.select { |field, _value| fields.include?(field.to_s) })
     end
 
     # The row values that describe the event as the person left it.
@@ -55,8 +53,8 @@ module CourseCalendars
       remote.start_time
     end
 
-    # An all-day event ends at midnight after its last day. The app keeps the
-    # last day itself, as the providers' payloads expect.
+    # An all-day event ends at midnight after its last day. The app keeps a
+    # time on the last day itself (CourseCalendars::Event#exclusive_end_date).
     def remote_end
       time = remote.end_time
       time && remote.all_day ? time - 1.day : time
