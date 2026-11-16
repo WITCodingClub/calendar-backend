@@ -17,7 +17,7 @@ module CourseCalendars
   #   .invalid_grant?(error)            whether the error says the grant is refused for good
   #   .release_calendar(credential)     before the credential is destroyed
   #   .revoke_later(credential)         after the credential is destroyed
-  #   AUTH_ERRORS, RATE_LIMIT_ERRORS, TRANSIENT_ERRORS
+  #   AUTH_ERRORS, RATE_LIMIT_ERRORS, TRANSIENT_ERRORS, REMOVAL_RETRY_ERRORS
   #
   # A new provider is a new subclass and one new entry in CLASSES.
   module Providers
@@ -66,6 +66,12 @@ module CourseCalendars
 
     def transient_errors
       all.flat_map { |provider| provider::TRANSIENT_ERRORS }
+    end
+
+    # The errors that a friend meeting removal retries besides
+    # transient_errors (FriendMeetings::RemoveJob).
+    def removal_retry_errors
+      all.flat_map { |provider| provider::REMOVAL_RETRY_ERRORS }
     end
 
     def invalid_grant?(error)

@@ -15,6 +15,8 @@ module MicrosoftGraph
     # MicrosoftGraph::Error, so it is transient (#rate_limited?).
     RATE_LIMIT_ERRORS = [].freeze
     TRANSIENT_ERRORS  = [ MicrosoftGraph::Error ].freeze
+    # TRANSIENT_ERRORS already holds every Graph failure.
+    REMOVAL_RETRY_ERRORS = [].freeze
 
     # A reconnect follows a refused grant, and every sync failed while it was
     # refused, so the reconnect writes every event again.

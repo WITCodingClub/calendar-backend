@@ -40,7 +40,7 @@ module Courses
       @user = user
       @term = term
       @preference_resolver = preference_resolver || Preferences::Resolver.new(user)
-      @template_renderer = Preferences::TemplateRenderer.new(user_id: user.id)
+      @preview = Preferences::Preview.new(Preferences::TemplateRenderer.new(user_id: user.id))
     end
 
     def build
@@ -116,7 +116,7 @@ module Courses
     def build_meeting_times_data(meeting_times)
       meeting_times.map do |meeting_time|
         MeetingTimeSerializer.new(meeting_time, preference_resolver: @preference_resolver,
-                                                template_renderer: @template_renderer, recurrence: @recurrence).as_json
+                                                preview: @preview, recurrence: @recurrence).as_json
       end
     end
   end

@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe Courses::Reprocessor do
+  include ActiveJob::TestHelper
+
   let(:user) { create(:user) }
   let!(:term) { create(:term, uid: 202710) }
 
@@ -122,94 +124,39 @@ RSpec.describe Courses::Reprocessor do
         expect(Enrollment.exists?(other_enrollment.id)).to be(true)
       end
 
-      context "with calendar events on the removed course" do
-        let(:calendar_id) { "reprocess-cal" }
-        let(:event_url) { %r{\Ahttps://www\.googleapis\.com/calendar/v3/calendars/reprocess-cal/events/} }
-        let(:credential) { create(:oauth_credential, user: user, refresh_token: "synthetic-refresh", token_expires_at: 1.hour.from_now) }
-        let(:calendar) { create(:course_calendar, oauth_credential: credential, external_calendar_id: calendar_id) }
-        let(:meeting_time) { create(:course_meeting_time, course: old_course) }
+      # The sync reconcile (CourseCalendars::Provider#update_calendar_events)
+      # deletes the events of the removed course in every provider.
+      it "queues the sync for the removed course when the processor fails" do
+        create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
+        allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(42))
 
-        before do
-          create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time, external_event_id: "evt-1")
-        end
-
-        it "deletes the events in Google and in the database" do
-          stub = stub_request(:delete, "https://www.googleapis.com/calendar/v3/calendars/reprocess-cal/events/evt-1")
-                 .to_return(status: 204)
-
-          described_class.new(payload, user).call
-
-          expect(stub).to have_been_requested
-          expect(CalendarEvent.where(external_event_id: "evt-1")).to be_empty
-        end
-
-        it "still deletes the database row when Google answers with a client error" do
-          stub_request(:delete, event_url).to_return(status: 404, body: { error: { message: "Not Found" } }.to_json,
-                                                     headers: { "Content-Type" => "application/json" })
-
-          described_class.new(payload, user).call
-
-          expect(CalendarEvent.where(external_event_id: "evt-1")).to be_empty
-        end
-
-        it "treats a 410 as already deleted" do
-          stub_request(:delete, event_url).to_return(status: 410, body: { error: { message: "Gone" } }.to_json,
-                                                     headers: { "Content-Type" => "application/json" })
-
-          described_class.new(payload, user).call
-
-          expect(CalendarEvent.where(external_event_id: "evt-1")).to be_empty
-        end
-
-        [ 401, 403, 429 ].each do |status|
-          it "keeps the row and reports the error when Google answers #{status}" do
-            stub_request(:delete, event_url).to_return(status: status, body: { error: { message: "No" } }.to_json,
-                                                       headers: { "Content-Type" => "application/json" })
-
-            reports = capture_error_reports { described_class.new(payload, user).call }
-
-            expect(CalendarEvent.where(external_event_id: "evt-1")).to exist
-            expect(reports.size).to eq(1)
-            expect(reports.first.handled).to be(true)
-            expect(reports.first.context).to eq(user_id: user.id, calendar_event_id: CalendarEvent.find_by!(external_event_id: "evt-1").id)
-          end
-        end
-
-        it "refreshes an expired token before the delete" do
-          credential.update!(token_expires_at: 1.hour.ago)
-          token_stub = stub_request(:post, "https://oauth2.googleapis.com/token")
-                       .to_return(status: 200,
-                                  body: { access_token: "synthetic-new-token", expires_in: 3600 }.to_json,
-                                  headers: { "Content-Type" => "application/json" })
-          stub_request(:delete, event_url).to_return(status: 204)
-
-          described_class.new(payload, user).call
-
-          expect(token_stub).to have_been_requested
-          expect(credential.reload.access_token).to eq("synthetic-new-token")
-        end
-      end
-
-      it "skips the Google call when the user has no calendar" do
-        create(:course_meeting_time, course: old_course)
-
-        expect { described_class.new(payload, user).call }.not_to raise_error
-      end
-
-      it "skips the Google call when the course has no meeting times" do
-        credential = create(:oauth_credential, user: user)
-        create(:course_calendar, oauth_credential: credential)
-
-        expect { described_class.new(payload, user).call }.not_to raise_error
+        expect { described_class.new(payload, user).call }
+          .to raise_error(Catalog::BannerThrottle::CooldownError)
+          .and have_enqueued_job(CourseCalendars::SyncJob).with(user, force: false)
         expect(Enrollment.exists?(old_enrollment.id)).to be(false)
       end
 
-      it "skips the Google call when the meeting times have no events" do
-        credential = create(:oauth_credential, user: user)
-        create(:course_calendar, oauth_credential: credential)
-        create(:course_meeting_time, course: old_course)
+      it "deletes the removed course's calendar event when the queued sync runs" do
+        stub_google_service_account
+        credential = create(:oauth_credential, user: user, token_expires_at: 1.hour.from_now)
+        calendar   = create(:course_calendar, oauth_credential: credential, external_calendar_id: "reprocess-cal")
+        row = create(:calendar_event, course_calendar: calendar, meeting_time: create(:course_meeting_time, course: old_course),
+                                      external_event_id: "evt-old", start_time: 1.day.from_now, end_time: 1.day.from_now + 1.hour)
+        delete = stub_request(:delete, %r{/calendars/reprocess-cal/events/evt-old}).to_return(status: 204)
+        allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(42))
 
-        expect { described_class.new(payload, user).call }.not_to raise_error
+        perform_enqueued_jobs(only: CourseCalendars::SyncJob) do
+          expect { described_class.new(payload, user).call }.to raise_error(Catalog::BannerThrottle::CooldownError)
+        end
+
+        expect(delete).to have_been_requested
+        expect(CalendarEvent.exists?(row.id)).to be(false)
+      end
+
+      it "queues a sync for a user with a course calendar" do
+        create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
+
+        expect { described_class.new(payload, user).call }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: false)
       end
     end
   end

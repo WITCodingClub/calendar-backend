@@ -112,8 +112,7 @@ module FriendMeetings
 
       friends = @user.friends
       ids.map do |id|
-        public_id = id.include?("_") ? id : "usr_#{id}"
-        friends.find_by_public_id(public_id) || raise(Error, "#{id} is not one of your accepted friends")
+        friends.find_by_public_id(PublicIds.with_prefix(User, id)) || raise(Error, "#{id} is not one of your accepted friends")
       end.uniq
     end
 

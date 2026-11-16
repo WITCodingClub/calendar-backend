@@ -11,7 +11,7 @@ module FriendMeetings
     GRACE = 1.hour
 
     def perform
-      refused = FriendMeetingPublication.where(last_error: FriendMeetings::Publisher::AUTH_ERRORS.map(&:name))
+      refused = FriendMeetingPublication.where(last_error: CourseCalendars::Providers.auth_errors.map(&:name))
 
       FriendMeeting.where(cancelled_at: ...GRACE.ago).where.not(id: refused.select(:friend_meeting_id)).find_each do |meeting|
         FriendMeetings::RemoveJob.perform_later(meeting)

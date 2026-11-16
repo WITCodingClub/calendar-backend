@@ -32,4 +32,18 @@ RSpec.describe CourseCalendars::Event do
 
     expect(event(recurrence: recurrence).fields[:recurrence]).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=MO" ])
   end
+
+  describe ".read_at" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    it "is the latest updated_at of the source and the records it shows" do
+      meeting_time = create(:course_meeting_time)
+      room = create(:room)
+      create(:course_meeting_time_room, meeting_time: meeting_time, room: room)
+      later = 1.hour.from_now.change(usec: 0)
+      travel_to(later) { room.building.touch }
+
+      expect(described_class.read_at(meeting_time.reload)).to eq(later)
+    end
+  end
 end

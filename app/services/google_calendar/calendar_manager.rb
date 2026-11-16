@@ -12,9 +12,10 @@ module GoogleCalendar
   class CalendarManager
     include GoogleCalendar::RateLimiter
 
-    CALENDAR_COLOR_ID  = "7"
-    LIST_RETRIES       = 3
-    LIST_RETRY_SECONDS = 10
+    CALENDAR_COLOR_ID = "7"
+
+    # Google answers 404 while a new calendar has not reached the account yet.
+    class NotListableYetError < StandardError; end
 
     # user is the person whose calendar is shared or listed. The calls that
     # only use the service account work without one.
@@ -66,14 +67,18 @@ module GoogleCalendar
       Rails.logger.info("ACL rule for #{email} already absent from calendar #{calendar_id}")
     end
 
+    # An account that cannot see the new calendar yet gets it from
+    # GoogleCalendar::CalendarListJob, so no request or job waits here.
     def add_to_all_calendar_lists(calendar_id)
       with_batch_throttling(user.google_credentials.to_a) do |credential|
         add_to_calendar_list(calendar_id, credential.email)
+      rescue NotListableYetError
+        CalendarListJob.set(wait: CalendarListJob::WAIT).perform_later(user, calendar_id, credential.email)
       end
     end
 
-    # A new calendar can take some seconds to reach the account, so a 404 is
-    # tried again after a wait. A calendar that is already in the list is done.
+    # A calendar that is already in the list is done. Raises
+    # NotListableYetError while the account cannot see the calendar.
     def add_to_calendar_list(calendar_id, email)
       credential = user.google_credential_for_email(email)
       return unless credential
@@ -88,25 +93,12 @@ module GoogleCalendar
         hidden:           false
       )
 
-      retries = 0
-
-      begin
-        with_rate_limit_handling { service.insert_calendar_list(calendar_list_entry) }
-      rescue Google::Apis::ClientError => e
-        if e.status_code == 409
-          Rails.logger.debug { "Calendar #{calendar_id} already in list for #{email}" }
-        elsif e.status_code == 404 && retries < LIST_RETRIES
-          retries += 1
-          wait_time = LIST_RETRY_SECONDS * retries
-          Rails.logger.warn "Calendar #{calendar_id} not accessible yet for #{email} - retrying in #{wait_time}s (attempt #{retries}/#{LIST_RETRIES})"
-          sleep(wait_time)
-          retry
-        elsif e.status_code == 404
-          Rails.logger.error "Calendar #{calendar_id} still not accessible for #{email} after #{LIST_RETRIES} retries"
-          raise
-        else
-          raise
-        end
+      with_rate_limit_handling { service.insert_calendar_list(calendar_list_entry) }
+    rescue Google::Apis::ClientError => e
+      case e.status_code
+      when 409 then Rails.logger.debug { "Calendar #{calendar_id} already in list for #{email}" }
+      when 404 then raise NotListableYetError, "Calendar #{calendar_id} is not visible to the account yet"
+      else raise
       end
     end
 

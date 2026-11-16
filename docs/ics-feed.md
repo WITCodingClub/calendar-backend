@@ -19,7 +19,7 @@ flowchart LR
 
 An all-day event ends on the day after its last day (`Event#exclusive_end_date`), and an all-day class has a `DATE` in its `UNTIL`, as RFC 5545 needs for a `DATE` start.
 
-`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows, including its preferences and its term (`Event#changed_at`). A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `CourseCalendars::Event::LOGIC_CHANGED_AT`. Move that time forward when you change how an event is built.
+`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows (`Event#changed_at`). `CourseCalendars::Event::READS` lists the records each kind of event shows besides its source, for example the rooms, buildings and faculty of a class. The preference rows (`Preferences::Resolver.rows_of`) and the no-class days of a class also count. A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `CourseCalendars::Event::LOGIC_CHANGED_AT`. Move that time forward when you change how an event is built.
 
 ## Caching
 
@@ -48,4 +48,4 @@ flowchart TD
 
 A write that skips `updated_at` (`update_all`, `update_columns`) does not change the key. The cache entry expires after one day, so such a feed stays at most one day. The same write also leaves `LAST-MODIFIED` as it was, so calendar apps keep their old copy too.
 
-When the feed starts to read a new table or column, add it to `CacheKey`. The key holds the deploy revision, so a deploy drops every cached feed. Increase `CacheKey::VERSION` only to drop them without a code change to the feed, for example when the key format changes.
+When an event starts to show a new record, add its association to `Event::READS`, and add its table to `CacheKey`. The `CacheKey` spec fails when a table in `Event::READS` is missing from the key. When the feed reads another new table or column, add it to `CacheKey`. The key holds the deploy revision, so a deploy drops every cached feed. Increase `CacheKey::VERSION` only to drop them without a code change to the feed, for example when the key format changes.

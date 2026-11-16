@@ -60,6 +60,10 @@ RSpec.describe CourseCalendars::Providers do
     end
   end
 
+  it "lists the removal retry errors of every provider" do
+    expect(described_class.removal_retry_errors).to eq([ Google::Apis::TransmissionError, Google::Apis::ClientError ])
+  end
+
   describe ".for" do
     it "gives the provider class of each stored name" do
       expect(described_class.for("google")).to eq(GoogleCalendar::Provider)

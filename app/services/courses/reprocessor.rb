@@ -20,7 +20,7 @@ module Courses
       term = Term.find_by(uid: term_uid)
       raise Courses::InvalidPayloadError, "Term with UID #{term_uid} not found" unless term
 
-      Rails.logger.info("[CourseReprocess] Starting for user #{user.id} (#{user.email}), term #{term.uid}")
+      Rails.logger.info("[CourseReprocess] Starting for user #{user.id}, term #{term.uid}")
 
       current_enrollments = user.enrollments.includes(:course).where(term: term)
       current_crns        = current_enrollments.map { |e| e.course.crn }
@@ -39,14 +39,18 @@ module Courses
       enrollments_to_remove.each do |enrollment|
         course = enrollment.course
         removed_courses << { crn: course.crn, title: course.title, course_number: course.course_number }
-
-        events_deleted = cleanup_calendar_events_for_enrollment(enrollment)
-        Rails.logger.info("[CourseReprocess] User #{user.id}: Deleted #{events_deleted} calendar events for CRN #{course.crn}")
-
         enrollment.destroy!
       end
 
-      processed_courses = Courses::Processor.new(courses, user).call
+      # The processor starts a sync (CourseCalendars.resync). The sync deletes
+      # the calendar events of the removed courses in every provider. When the
+      # processor fails, the removed courses still need that sync.
+      begin
+        processed_courses = Courses::Processor.new(courses, user).call
+      rescue StandardError
+        CourseCalendars.resync(user, force: false) if removed_courses.any?
+        raise
+      end
 
       Rails.logger.info("[CourseReprocess] User #{user.id}: Done — removed #{removed_courses.count} enrollments")
 
@@ -73,44 +77,6 @@ module Courses
       # payload that Courses::Processor refuses must not cost the user their
       # enrollments and calendar events.
       Courses::Processor.new(courses, user).validate!
-    end
-
-    def cleanup_calendar_events_for_enrollment(enrollment)
-      course_calendar = CourseCalendar.google.for_user(user).first
-      return 0 unless course_calendar
-
-      course           = enrollment.course
-      meeting_time_ids = course.meeting_times.pluck(:id)
-      return 0 if meeting_time_ids.empty?
-
-      calendar_events = course_calendar.calendar_events.where(meeting_time_id: meeting_time_ids)
-      return 0 if calendar_events.empty?
-
-      service       = build_google_service
-      deleted_count = 0
-
-      calendar_events.find_each do |cal_event|
-        begin
-          service&.delete_event(course_calendar.external_calendar_id, cal_event.external_event_id)
-        rescue Google::Apis::Error => e
-          # 404 and 410 mean the event is already gone. Any other answer (401,
-          # 403, 429) leaves the real event on the calendar, so the row stays:
-          # without it nothing points at the event and it is stranded.
-          unless GoogleCalendar::Provider.gone?(e)
-            Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.external_event_id}: #{e.message}")
-            Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_event_id: cal_event.id })
-            next
-          end
-        end
-        cal_event.destroy!
-        deleted_count += 1
-      end
-
-      deleted_count
-    end
-
-    def build_google_service
-      GoogleCalendar::CalendarServices.for_user(user) if user.google_credential
     end
   end
 end

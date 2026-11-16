@@ -103,23 +103,11 @@ RSpec.describe GoogleCalendar::CalendarManager do
       expect { manager.add_to_calendar_list("synthetic-course-calendar", "synthetic.person@wit.edu") }.not_to raise_error
     end
 
-    it "tries again while the new calendar is not visible to the account" do
-      allow(manager).to receive(:sleep)
-      add = stub_request(:post, list_url).to_return(google_error(404), { status: 200, body: "{}", headers: json_headers })
-
-      manager.add_to_calendar_list("synthetic-course-calendar", "synthetic.person@wit.edu")
-
-      expect(add).to have_been_requested.twice
-      expect(manager).to have_received(:sleep).with(10)
-    end
-
-    it "raises after three more tries" do
-      allow(manager).to receive(:sleep)
-      add = stub_request(:post, list_url).to_return(google_error(404))
+    it "raises NotListableYetError while the new calendar is not visible to the account" do
+      stub_request(:post, list_url).to_return(google_error(404))
 
       expect { manager.add_to_calendar_list("synthetic-course-calendar", "synthetic.person@wit.edu") }
-        .to raise_error(Google::Apis::ClientError)
-      expect(add).to have_been_requested.times(4)
+        .to raise_error(GoogleCalendar::CalendarManager::NotListableYetError)
     end
   end
 
@@ -133,6 +121,14 @@ RSpec.describe GoogleCalendar::CalendarManager do
       throttle_free_manager.add_to_all_calendar_lists("synthetic-course-calendar")
 
       expect(add).to have_been_requested.twice
+    end
+
+    it "leaves an account that cannot see the calendar yet to a job, with no wait here" do
+      credential
+      stub_request(:post, "#{api}/users/me/calendarList").to_return(google_error(404))
+
+      expect { throttle_free_manager.add_to_all_calendar_lists("synthetic-course-calendar") }
+        .to have_enqueued_job(GoogleCalendar::CalendarListJob).with(user, "synthetic-course-calendar", credential.email)
     end
   end
 

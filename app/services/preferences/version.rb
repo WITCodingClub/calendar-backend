@@ -9,11 +9,12 @@ module Preferences
   class Version
     def self.for(user)
       fields = Preferences::Resolver::PREFERENCE_FIELDS
+      rows   = Preferences::Resolver.rows_of(user.id)
       inputs = {
         user: user.id,
-        events: user.event_preferences.order(:id).pluck(:id, :preferenceable_type, :preferenceable_id, *fields),
-        calendars: user.calendar_preferences.order(:id).pluck(:id, :scope, :event_type, *fields),
-        colors: UserExtensionConfig.where(user: user).pick(:default_color_lecture, :default_color_lab),
+        events: rows[:event_preferences].order(:id).pluck(:id, :preferenceable_type, :preferenceable_id, *fields),
+        calendars: rows[:calendar_preferences].order(:id).pluck(:id, :scope, :event_type, *fields),
+        colors: rows[:extension_config].pick(:default_color_lecture, :default_color_lab),
         notifications_disabled: user.notifications_disabled?,
         defaults: Preferences::Resolver.defaults
       }

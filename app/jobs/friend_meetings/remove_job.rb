@@ -21,7 +21,7 @@ module FriendMeetings
 
     limits_concurrency_per_user(&:user_id)
 
-    retry_on_provider_errors Google::Apis::TransmissionError, Google::Apis::ClientError, attempts: 8
+    retry_on_provider_errors(*CourseCalendars::Providers.removal_retry_errors, attempts: 8)
 
     def perform(meeting)
       return unless meeting.cancelled?

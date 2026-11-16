@@ -36,7 +36,7 @@ module Api
       # reads then gives an old version with new data, which the next version
       # check corrects. The other order would label old data as current.
       version       = Preferences::Version.for(current_user)
-      record_ids    = ids.index_with { |id| meeting_time_record_id(id) }
+      record_ids    = ids.index_with { |id| PublicIds.record_id(Course::MeetingTime, id) }
       meeting_times = Course::MeetingTime.includes(course: [ :faculties, :term ], rooms: :building)
                                          .where(id: record_ids.values.compact)
                                          .index_by(&:id)
@@ -108,30 +108,15 @@ module Api
       }
     end
 
-    # Reads an id the way Course::MeetingTime.find does: a public id with its
-    # prefix, a bare hashid, or a database id. Returns nil for no match.
-    def meeting_time_record_id(id)
-      separator = EncodedIds.configuration.separator
-
-      if id.include?(separator)
-        prefix, _, hash = id.rpartition(separator)
-        return nil unless prefix == Course::MeetingTime.get_public_id_prefix
-
-        Course::MeetingTime.decode_id(hash)
-      else
-        Course::MeetingTime.decode_id(id) || Integer(id, exception: false)
-      end
-    end
-
     def set_preferenceable
       if params[:meeting_time_id]
         id    = params[:meeting_time_id]
         scope = Course::MeetingTime.eager_load(course: :faculties)
-        @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
+        @preferenceable = find_by_any_id!(scope, id)
       elsif calendar_event_param
         id    = calendar_event_param
         scope = CalendarEvent.eager_load(meeting_time: { course: :faculties })
-        @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
+        @preferenceable = find_by_any_id!(scope, id)
         # A CalendarEvent belongs to a specific user's calendar; enforce
         # ownership here so another user's event id can't leak preference data.
         authorize @preferenceable, :show?

@@ -9,12 +9,12 @@ module Courses
     def self.for(user, term)
       enrollments = user.enrollments.where(term_id: term.id).includes(ProcessedEventsBuilder::ENROLLMENT_INCLUDES)
       resolver    = Preferences::Resolver.new(user)
-      renderer    = Preferences::TemplateRenderer.new(user_id: user.id)
+      preview     = Preferences::Preview.new(Preferences::TemplateRenderer.new(user_id: user.id))
       recurrence  = CourseCalendars::RecurrenceBuilder.preloaded(user, enrollments.map(&:course))
 
       enrollments.map do |enrollment|
         EnrolledCourseSerializer.new(enrollment, term: term, preference_resolver: resolver,
-                                                 template_renderer: renderer, recurrence: recurrence).as_json
+                                                 preview: preview, recurrence: recurrence).as_json
       end
     end
   end

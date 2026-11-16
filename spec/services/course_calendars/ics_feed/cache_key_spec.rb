@@ -36,6 +36,23 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
     expect(key).not_to eq(before)
   end
 
+  # Each record an event shows (Event::READS) must move the key.
+  it "fingerprints every table that an event reads" do
+    models = lambda do |klass, paths|
+      Array(paths).flat_map do |path|
+        (path.is_a?(Hash) ? path : { path => [] }).flat_map do |name, inner|
+          target = klass.reflect_on_association(name).klass
+          [ target, *models.call(target, inner) ]
+        end
+      end
+    end
+    tables = CourseCalendars::Event::READS.flat_map { |name, paths| [ name.constantize, *models.call(name.constantize, paths) ] }
+                                          .map(&:quoted_table_name).uniq
+    sql = described_class.new(user).send(:parts).values.join
+
+    expect(tables.reject { |table| sql.include?(table) }).to be_empty
+  end
+
   it "gives the same key when nothing changed" do
     expect(key).to eq(key)
   end

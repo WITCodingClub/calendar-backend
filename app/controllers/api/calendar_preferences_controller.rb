@@ -61,12 +61,7 @@ module Api
         return
       end
 
-      scope = Course::MeetingTime.includes(course: :faculties)
-      meeting_time = if meeting_time_id.to_s.include?("_")
-                       scope.find_by_public_id(meeting_time_id)
-      else
-                       scope.find_by(id: meeting_time_id)
-      end
+      meeting_time = find_by_any_id(Course::MeetingTime.includes(course: :faculties), meeting_time_id)
 
       unless meeting_time
         render_error "Meeting time not found", status: :not_found

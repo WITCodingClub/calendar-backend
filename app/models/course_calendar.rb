@@ -68,7 +68,7 @@ class CourseCalendar < ApplicationRecord
   STALE_AFTER = 1.day
 
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
-  scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
+  scope :stale, ->(time_ago = STALE_AFTER) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
 
   def mark_synced!
     update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
