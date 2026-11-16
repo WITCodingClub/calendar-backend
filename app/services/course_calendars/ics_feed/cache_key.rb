@@ -23,8 +23,9 @@ module CourseCalendars
     # write also leaves LAST-MODIFIED in the feed as it was, so calendar apps
     # keep their old copy too.
     #
-    # When you make the feed read a new table or column, add it here. Increase
-    # VERSION to drop every cached feed.
+    # When you make the feed read a new table or column, add it here. The
+    # spec checks that each table in CourseCalendars::Event::READS is here.
+    # Increase VERSION to drop every cached feed.
     class CacheKey
       VERSION = 1
       TTL     = 1.day
@@ -89,9 +90,7 @@ module CourseCalendars
           university_events: summary(UniversityCalendarEvent.all),
           # A university event's template can show its term name.
           university_event_terms: summary(Term.where(id: UniversityCalendarEvent.select(:term_id))),
-          extension_config: rows(UserExtensionConfig.where(user_id: @user.id)),
-          event_preferences: rows(EventPreference.where(user_id: @user.id)),
-          calendar_preferences: rows(CalendarPreference.where(user_id: @user.id)),
+          **Preferences::Resolver.rows_of(@user.id).transform_values { |relation| rows(relation) },
           friend_meetings: rows(friend_meetings),
           # not_ended depends on the time, not only on the rows.
           live_friend_meetings: rows(friend_meetings.live.not_ended, timestamps: false),

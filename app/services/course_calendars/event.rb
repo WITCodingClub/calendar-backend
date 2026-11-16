@@ -20,6 +20,31 @@ module CourseCalendars
     # when a code change alters an event body.
     LOGIC_CHANGED_AT = SchoolTimeZone.zone.local(2026, 11, 16, 15, 0)
 
+    # The records that each kind of event shows besides its source, as
+    # association paths from the source. EventBuilder::COURSE_INCLUDES and
+    # its other includes load them, changed_at reads their updated_at, and
+    # IcsFeed::CacheKey fingerprints their tables (its spec checks this list).
+    READS = {
+      "Course::MeetingTime"     => [ :meeting_time_rooms, { rooms: :building }, { course: :faculties } ],
+      "FinalExam"               => [ :term, { course: :faculties } ],
+      "UniversityCalendarEvent" => [ :term ]
+    }.freeze
+
+    # The latest updated_at of the source and the records it READS.
+    def self.read_at(source)
+      records_read(source, READS.fetch(source.class.name)).push(source).filter_map(&:updated_at).max
+    end
+
+    def self.records_read(record, paths)
+      Array(paths).flat_map do |path|
+        nested = path.is_a?(Hash) ? path : { path => [] }
+        nested.flat_map do |name, inner|
+          Array(record.public_send(name)).compact.flat_map { |read| [ read, *records_read(read, inner) ] }
+        end
+      end
+    end
+    private_class_method :records_read
+
     # The fields that each destination sends, so a sync without force sees
     # each change. The description is last: rows saved before it was in the
     # hash differ once and update on their next sync.

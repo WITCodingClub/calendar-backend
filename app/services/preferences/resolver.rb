@@ -15,6 +15,17 @@ module Preferences
         UniversityEventContext::ALL_DAY_REMINDERS, UniversityEventContext::TIMED_REMINDERS ]
     end
 
+    # The preference rows of one user that resolution reads. The version
+    # token (Preferences::Version) and the ICS feed cache key
+    # (CourseCalendars::IcsFeed::CacheKey) fingerprint the same rows.
+    def self.rows_of(user_id)
+      {
+        extension_config: UserExtensionConfig.where(user_id: user_id),
+        event_preferences: EventPreference.where(user_id: user_id),
+        calendar_preferences: CalendarPreference.where(user_id: user_id)
+      }
+    end
+
     # A caller that resolves for many users at once can pass each user's
     # preference rows, loaded for all users in one query. Then this object
     # sends no query of its own.
@@ -64,10 +75,11 @@ module Preferences
     private
 
     def preload_preferences(event_preferences, calendar_preferences)
-      @event_preferences = (event_preferences || EventPreference.where(user: @user))
+      rows = self.class.rows_of(@user.id)
+      @event_preferences = (event_preferences || rows[:event_preferences])
                            .index_by { |ep| [ ep.preferenceable_type, ep.preferenceable_id ] }
 
-      @calendar_preferences = (calendar_preferences || CalendarPreference.where(user: @user))
+      @calendar_preferences = (calendar_preferences || rows[:calendar_preferences])
                               .index_by { |cp| [ cp.scope, cp.event_type ] }
 
       @config = @user.user_extension_config

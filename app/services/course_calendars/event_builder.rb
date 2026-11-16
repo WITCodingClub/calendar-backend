@@ -89,29 +89,18 @@ module CourseCalendars
             end_time: end_time,
             recurrence: recurrence.recurrence_for(meeting_time, start_time),
             all_day: meeting_time.all_day?,
-            changed_at: [
-              course.updated_at,
-              meeting_time.updated_at,
-              *course.faculties.map(&:updated_at),
-              *meeting_time.meeting_time_rooms.map(&:updated_at),
-              *meeting_time.rooms.map(&:updated_at),
-              *meeting_time.rooms.filter_map { |room| room.building&.updated_at },
-              *recurrence.holidays_for_meeting_time(meeting_time).map(&:updated_at)
-            ])
+            changed_at: recurrence.holidays_for_meeting_time(meeting_time).map(&:updated_at))
     end
 
     def final_exam_event(final_exam)
       return nil unless final_exam.start_datetime && final_exam.end_datetime
 
-      course = final_exam.course
       build(final_exam,
             summary: "Final Exam: #{final_exam.course_title}",
             description: final_exam.course_code,
             location: final_exam.location_with_names,
             start_time: final_exam.start_datetime,
-            end_time: final_exam.end_datetime,
-            changed_at: [ final_exam.updated_at, final_exam.term&.updated_at, course&.updated_at,
-                          *course&.faculties&.map(&:updated_at) ])
+            end_time: final_exam.end_datetime)
     end
 
     def university_event(event, summary:, all_day:)
@@ -121,14 +110,14 @@ module CourseCalendars
             location: event.location,
             start_time: event.start_time,
             end_time: event.end_time,
-            all_day: all_day,
-            changed_at: [ event.updated_at, event.term&.updated_at ])
+            all_day: all_day)
     end
 
-    # changed_at also counts the person's preference rows and the code that
-    # shapes events (Event::LOGIC_CHANGED_AT).
-    def build(source, changed_at:, **fields)
-      changed_at = [ *changed_at, preferences.changed_at_for(source), Event::LOGIC_CHANGED_AT ].compact.max
+    # changed_at counts the records the event reads (Event::READS), the
+    # person's preference rows, the code that shapes events
+    # (Event::LOGIC_CHANGED_AT), and any other changed_at times given.
+    def build(source, changed_at: [], **fields)
+      changed_at = [ Event.read_at(source), *changed_at, preferences.changed_at_for(source), Event::LOGIC_CHANGED_AT ].compact.max
       preferences.apply(Event.new(source: source, changed_at: changed_at, **fields))
     end
   end
