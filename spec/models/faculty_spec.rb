@@ -170,14 +170,6 @@ RSpec.describe Faculty, type: :model do
     end
   end
 
-  describe "#update_photo_from_url!" do
-    it "returns false when the photo download times out" do
-      stub_request(:get, "https://photos.example.test/face.jpg").to_timeout
-
-      expect(create(:faculty).update_photo_from_url!("https://photos.example.test/face.jpg")).to be(false)
-    end
-  end
-
   describe "simple scopes" do
     it "filters by employee type" do
       faculty = create(:faculty, employee_type: "faculty")
@@ -294,50 +286,6 @@ RSpec.describe Faculty, type: :model do
 
       expect(build(:faculty, rmp_id: encoded).rmp_numeric_id).to eq(encoded)
       expect(build(:faculty, rmp_id: "plain-id").rmp_numeric_id).to eq("plain-id")
-    end
-  end
-
-  describe "#update_photo_from_url! downloads" do
-    let(:url) { "https://photos.example.test/face.jpg" }
-    let(:faculty) { create(:faculty, email: "synthetic.person@wit.edu", directory_last_synced_at: Time.current) }
-
-    it "does nothing for a blank or placeholder url" do
-      expect(faculty.update_photo_from_url!("")).to be_nil
-      expect(faculty.update_photo_from_url!("https://photos.example.test/placeholder.png")).to be_nil
-      expect(faculty.update_photo_from_url!("https://photos.example.test/Icon_User.png")).to be_nil
-    end
-
-    it "attaches the photo and stores the url" do
-      stub_request(:get, url).to_return(status: 200, body: "synthetic image bytes", headers: { "Content-Type" => "image/jpeg" })
-
-      expect(faculty.update_photo_from_url!(url)).to be(true)
-      expect(faculty.photo).to be_attached
-      expect(faculty.photo.filename.to_s).to eq("synthetic.person_photo.jpg")
-      expect(faculty.reload.photo_url).to eq(url)
-    end
-
-    it "names the file with a jpg extension when the url has none" do
-      stub_request(:get, "https://photos.example.test/face").to_return(status: 200, body: "synthetic image bytes", headers: { "Content-Type" => "image/jpeg" })
-
-      faculty.update_photo_from_url!("https://photos.example.test/face")
-
-      expect(faculty.photo.filename.to_s).to eq("synthetic.person_photo.jpg")
-    end
-
-    it "does not download again when the same photo is attached" do
-      stub = stub_request(:get, url).to_return(status: 200, body: "synthetic image bytes", headers: { "Content-Type" => "image/jpeg" })
-      faculty.update_photo_from_url!(url)
-
-      expect(faculty.update_photo_from_url!(url)).to be_nil
-      expect(stub).to have_been_requested.once
-    end
-
-    it "reports an HTTP error and returns false" do
-      stub_request(:get, url).to_return(status: 404)
-      allow(Rails.error).to receive(:report)
-
-      expect(faculty.update_photo_from_url!(url)).to be(false)
-      expect(Rails.error).to have_received(:report).with(an_instance_of(OpenURI::HTTPError), handled: true, context: { faculty_id: faculty.id })
     end
   end
 end

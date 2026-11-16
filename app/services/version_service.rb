@@ -72,17 +72,20 @@ class VersionService < ApplicationService
 
   # The parsed JSON body, or nil when GitHub does not answer with a success.
   def github_get(path)
-    response = Faraday.get("https://api.github.com/repos/#{GITHUB_REPO}/#{path}") do |req|
-      req.headers["Accept"]     = "application/vnd.github.v3+json"
-      req.headers["User-Agent"] = "WIT-Calendar"
-      req.options.timeout       = 5
-      req.options.open_timeout  = 2
-    end
+    response = github.get("repos/#{GITHUB_REPO}/#{path}")
 
     JSON.parse(response.body) if response.success?
   rescue Faraday::Error, JSON::ParserError => e
     Rails.error.report(e, handled: true, context: { path: path })
     nil
+  end
+
+  # The admin layout waits for this, so the timeouts are short and a failure
+  # is not retried.
+  def github
+    @github ||= HttpFetcher.connection(url: "https://api.github.com/", timeout: 5, open_timeout: 2, retry_methods: []) do |f|
+      f.headers["Accept"] = "application/vnd.github.v3+json"
+    end
   end
 
   def extract_tag(version)

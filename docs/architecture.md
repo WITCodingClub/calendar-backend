@@ -44,7 +44,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `TwentyFiveLive` | 25Live: client, sync job, models, and value objects |
 | `Cleanup`, `Database` | Maintenance jobs. `Cleanup::ExpiredRecordsJob` deletes the expired rows of each `Expirable` model |
 
-Code with no domain stays at the root of its folder, for example `ApplicationService`, `JsonWebTokenService`, `AppMetrics`, `HttpFetcher` (every request to an outside site that an importer reads), and `PdfText` (every PDF that an importer reads).
+Code with no domain stays at the root of its folder, for example `ApplicationService`, `JsonWebTokenService`, `AppMetrics`, `HttpFetcher` (every outside request with no client of its own: the importers, 25Live, the faculty photos, the Google RISC keys, the OpenAI address list, and GitHub releases), and `PdfText` (every PDF that an importer reads).
 
 ## Calendar providers
 

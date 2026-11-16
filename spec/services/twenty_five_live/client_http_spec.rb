@@ -234,9 +234,6 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
   end
 
   describe "network failures" do
-    # HttpFetcher waits between tries. The examples do not.
-    before { allow_any_instance_of(Faraday::Retry::Middleware).to receive(:sleep) } # rubocop:disable RSpec/AnyInstance
-
     it "retries a timeout and then succeeds" do
       stub_all_endpoints
       stub_request(:get, "#{base_url}organizations.json")

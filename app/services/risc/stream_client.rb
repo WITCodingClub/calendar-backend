@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "net/http"
-
 module Risc
   # The RISC stream management API of Google
   # (https://developers.google.com/identity/protocols/risc). It sets where
@@ -30,7 +28,7 @@ module Risc
                             events_requested: SecurityEvent::ALL_EVENT_TYPES)
     end
 
-    def stream = JSON.parse(request(Net::HTTP::Get, "stream").body)
+    def stream = JSON.parse(request(:get, "stream").body)
 
     # Asks Google to send a verification event with this state.
     def verify(state) = post("stream:verify", state: state)
@@ -40,24 +38,21 @@ module Risc
 
     private
 
-    def post(path, body) = request(Net::HTTP::Post, path, body)
+    def post(path, body) = request(:post, path, body)
 
     def request(method, path, body = nil)
-      uri = URI.parse("#{BASE_URL}#{path}")
-      request = method.new(uri)
-      request["Authorization"] = "Bearer #{auth_token}"
-      if body
-        request["Content-Type"] = "application/json"
-        request.body = body.to_json
-      end
-
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
-                                 open_timeout: Validator::OPEN_TIMEOUT, read_timeout: Validator::READ_TIMEOUT) do |http|
-        http.request(request)
-      end
-      raise Error, "#{response.code} #{response.message}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      headers = { "Authorization" => "Bearer #{auth_token}" }
+      headers["Content-Type"] = "application/json" if body
+      response = connection.run_request(method, path, body&.to_json, headers)
+      raise Error, "#{response.status}: #{response.body}" unless response.success?
 
       response
+    rescue Faraday::Error => e
+      raise Error, e.message
+    end
+
+    def connection
+      @connection ||= HttpFetcher.connection(url: BASE_URL)
     end
 
     # A self-signed JWT of the service account, valid for one hour.
