@@ -66,7 +66,7 @@ module TermElectives
       write(list || TermElectiveList.new(url: url), term, sha256, text, parsed)
       counts[:imported] += 1
       term.id
-    rescue FetchError, PdfText::Error, ArgumentError, SystemCallError, ActiveRecord::ActiveRecordError => e
+    rescue FetchError, RuntimeError, ArgumentError, SystemCallError, ActiveRecord::ActiveRecordError => e
       # One bad file does not stop the others. The next run tries it again.
       Rails.error.report(e, handled: true, context: { url: url })
       counts[:failed] += 1

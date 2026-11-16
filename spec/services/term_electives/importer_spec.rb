@@ -141,6 +141,14 @@ RSpec.describe TermElectives::Importer do
       .with(an_instance_of(TermElectives::FetchError), handled: true, context: { url: scds_url })
   end
 
+  it "reports a PDF that pdftotext cannot read and imports the others" do
+    allow(Rails.error).to receive(:report)
+    allow(PdfText).to receive(:extract).with("scds-pdf").and_raise(PdfText::Error, "Failed to extract text from PDF: bad")
+
+    expect(importer.call).to have_attributes(imported: 1, failed: 1)
+    expect(Rails.error).to have_received(:report).with(an_instance_of(PdfText::Error), handled: true, context: { url: scds_url })
+  end
+
   it "reports a PDF that fails to save and imports the others" do
     allow(Rails.error).to receive(:report)
     allow(TermElectiveList).to receive(:new).and_call_original
