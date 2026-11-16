@@ -33,8 +33,6 @@ module Catalog
     class Candidates
       class TermNotFoundError < ::Catalog::FilterError; end
 
-      LAB_TYPES = %w[laboratory online_sync_lab rotating_lab].freeze
-
       # A course entry with its units. index is its place in the request.
       # section_ids are the ids of its offered sections, pinned its pinned
       # sections.
@@ -185,7 +183,7 @@ module Catalog
         end.sort_by(&:crns)
       end
 
-      def lab?(course) = LAB_TYPES.include?(course.schedule_type)
+      def lab?(course) = Course::ScheduleType.lab?(course.schedule_type)
 
       def merge_partner_entries(entries)
         entries.each_with_object([]) do |entry, kept|
