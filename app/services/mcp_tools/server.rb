@@ -63,7 +63,7 @@ module McpTools
 
     # scopes: the scope names of the token, expanded (McpTools::Scopes.expand).
     def self.build(user:, application:, scopes:, request: nil)
-      MCP::Server.new(
+      SdkServer.new(
         name:           NAME,
         title:          "WIT Calendar",
         description:    DESCRIPTION,
@@ -89,6 +89,24 @@ module McpTools
         input_required_legacy_shim: false
       ).tap do |server|
         server.completion_handler { |params| Completions.call(params) }
+      end
+    end
+
+    # The SDK leaves icons and description out of serverInfo when the client
+    # asks for protocol 2025-06-18 or older, because those versions do not
+    # define them. Clients that ask for an older version, such as some
+    # connector clients, then show no icon. A JSON-RPC client ignores fields it
+    # does not know, so the server sends both on every version.
+    #
+    # This relies on MCP::Server#handle_request calling init by name. The
+    # specs for each older version fail if a gem upgrade changes that.
+    class SdkServer < MCP::Server
+      private
+
+      def init(...)
+        super.tap do |result|
+          result[:serverInfo] = server_info.slice(:icons, :description).merge(result[:serverInfo])
+        end
       end
     end
 

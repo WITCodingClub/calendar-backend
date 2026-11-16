@@ -99,6 +99,19 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(response.parsed_body.dig("result", "instructions")).to include("without being asked to by name")
   end
 
+  %w[2024-11-05 2025-03-26 2025-06-18].each do |version|
+    it "sends the icon and description to a client on protocol #{version}" do
+      rpc "initialize", { protocolVersion: version, capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+
+      result = response.parsed_body["result"]
+      expect(result["protocolVersion"]).to eq(version)
+      expect(result.dig("serverInfo", "icons", 0, "src")).to eq("http://example.com/icon.png")
+      expect(result.dig("serverInfo", "description")).to eq(McpTools::Server::DESCRIPTION)
+      # The SDK still leaves out the fields that the version does not define.
+      expect(result["serverInfo"].key?("title")).to be(version > "2025-03-26")
+    end
+  end
+
   it "keeps the instructions under the Claude Code limit, so no client cuts them" do
     expect(McpTools::Server::INSTRUCTIONS.length).to be <= McpTools::Server::MAX_INSTRUCTIONS_LENGTH
   end

@@ -469,6 +469,10 @@ A write tool changes only the signed-in student's own data, through the same mod
 5. If an argument can complete, use the name `term`, `subject`, or `courses`, or add a case to `McpTools::Completions`.
 6. Add examples to `spec/services/mcp_tools/prompts_spec.rb`.
 
+### Icon
+
+`public/icon.png` (180x180) is the icon of the server. `McpTools::Server` sends it in `serverInfo.icons` on every protocol version, also on 2025-06-18 and older, where the SDK would leave it out. `server.json` names the same file. The Claude connector directory does not read either: upload the icon in the listing step of the submission portal.
+
 ### Publish to the MCP Registry
 
 `server.json` at the repo root describes the server for the official MCP Registry. The registry holds only this metadata. It does not call the endpoint.
