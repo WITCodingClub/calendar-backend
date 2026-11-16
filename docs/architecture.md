@@ -37,7 +37,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Passkeys` | The passkey sign-in and registration ceremonies, and their `Passkeys::Failed` messages |
 | `Faculties` | The faculty directory and RateMyProfessor |
 | `FinalsSchedules` | Finals schedule PDFs and their parsers |
-| `UniversityCalendar` | The university event calendar import |
+| `UniversityCalendar` | The university event calendar import: the category of a feed event (`Category`) and the match of a repeated event (`DuplicateMatcher`) |
 | `Embeddings` | Vector embeddings |
 | `Preferences` | Calendar preferences: resolution, versions, templates, colors, reminders. `PreferenceFields` lists the fields |
 | `FeatureFlags` | Flipper flags, groups, and actors. Add a new flag to `FeatureFlags::DESCRIPTIONS` |

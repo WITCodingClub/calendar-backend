@@ -37,7 +37,6 @@
 #
 class UniversityCalendarEvent < ApplicationRecord
   include EncodedIds::HashidIdentifiable
-  include FuzzyDuplicateDetector
 
   set_public_id_prefix :uce, min_hash_length: 12
 
@@ -90,7 +89,6 @@ class UniversityCalendarEvent < ApplicationRecord
   serialize :recurrence, coder: JSON
 
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
-  scope :past,          -> { where(start_time: ...Time.current) }
   scope :holidays,      -> { where(category: "holiday") }
   scope :finals,        -> { where(category: "finals") }
   # The finals events that are days with no classes. The university feed puts
@@ -102,10 +100,6 @@ class UniversityCalendarEvent < ApplicationRecord
   # Events that overlap the range. A break is one event of several days, so an
   # event that starts before the range still counts when it runs into it.
   scope :in_date_range, ->(s, e) { where(end_time: s.beginning_of_day.., start_time: ..e.end_of_day) }
-
-  def self.holidays_between(start_date, end_date)
-    holidays.in_date_range(start_date, end_date).order(:start_time)
-  end
 
   # The no-class spans that overlap the range, earliest first. They come from
   # Rails.cache, so a schedule, an ICS feed, or a sync does not query the table.
@@ -140,64 +134,10 @@ class UniversityCalendarEvent < ApplicationRecord
     end.uniq
   end
 
-  def self.infer_category(summary, event_type_raw)
-    s = summary.to_s.downcase
-    t = event_type_raw.to_s.downcase
-
-    if s.include?("holiday") ||
-       s.match?(/\b(spring|winter|fall|summer)\s+(break|recess)\b/) ||
-       s.include?("thanksgiving") ||
-       s.include?("offices closed") || s.include?("university closed") ||
-       s.include?("no class") ||
-       s.include?("memorial day") || s.include?("labor day") ||
-       s.include?("independence day") || s.include?("july 4th") || s.include?("july 4") ||
-       s.match?(/martin luther king|mlk day/i) ||
-       s.include?("presidents' day") || s.include?("presidents day") ||
-       s.include?("patriots' day") || s.include?("patriots day") ||
-       s.include?("veterans day") || s.include?("veteran's day") ||
-       s.include?("indigenous peoples") || s.include?("columbus day") ||
-       s.include?("election day") ||
-       s.include?("juneteenth") ||
-       s.include?("wellbeing day") || s.include?("well-being day")
-      "holiday"
-    elsif s.include?("classes begin") || s.include?("classes end") ||
-          s.include?("first day of classes") || s.include?("last day of classes") ||
-          s.include?("semester begins") || s.include?("semester ends")
-      "term_dates"
-    elsif s.include?("study day") || s.include?("study period") ||
-          s.include?("reading day") || s.include?("reading period")
-      "study_day"
-    elsif s.include?("final exam") || s.include?("finals week") ||
-          s.include?("exam period") || s.include?("final examinations")
-      "finals"
-    elsif s.include?("commencement") || s.include?("graduation") || s.include?("convocation")
-      "graduation"
-    elsif s.include?("registration") || s.include?("enrollment") ||
-          s.include?("add/drop") || s.include?("course selection")
-      "registration"
-    elsif s.include?("deadline") || s.include?("last day to") ||
-          s.include?("withdrawal") || s.include?("tuition due") ||
-          s.include?("grade submission") || s.include?("incomplete grade") ||
-          s.include?("pass/fail") || s.include?("grade change")
-      "deadline"
-    elsif t.include?("calendar announcement") then "academic"
-    elsif t.include?("meeting") then "meeting"
-    elsif t.include?("exhibit") || t.include?("showcase") then "exhibit"
-    elsif t.include?("announcement") then "announcement"
-    else "campus_event"
-    end
-  end
-
   def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish
-  end
-
-  def duration_hours
-    return nil if all_day
-
-    ((end_time - start_time) / 1.hour).round(1)
   end
 
   def formatted_holiday_summary
