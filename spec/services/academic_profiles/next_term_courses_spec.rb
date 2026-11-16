@@ -158,6 +158,19 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(program[:planned].map { |row| row[:courses].first[:prerequisites] }).to eq(%w[not_met met])
   end
 
+  it "counts an AP or transfer credit as passed with a C or better for a prerequisite (#1020)" do
+    item(subject_code: "WDGT", course_number: 2100)
+    item(subject_code: "WDGT", course_number: 2200)
+    requires("WDGT", 2100, course_leaf("WDGT", 1000, min_grade: "C"))
+    requires("WDGT", 2200, course_leaf("WDGT", 1100))
+    create(:transfer_credit, user: user, code: "WDGT 1000")
+
+    expect(program[:planned].map { |row| row[:courses].first.slice(:code, :prerequisites, :missing) }).to eq([
+      { code: "WDGT 2100", prerequisites: "met", missing: [] },
+      { code: "WDGT 2200", prerequisites: "not_met", missing: [ "WDGT 1100" ] }
+    ])
+  end
+
   it "does not count a course in the term or later for a prerequisite, and a minimum above C is unknown" do
     item(subject_code: "WDGT", course_number: 2100)
     item(subject_code: "WDGT", course_number: 2200)

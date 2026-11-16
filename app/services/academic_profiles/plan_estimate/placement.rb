@@ -185,8 +185,10 @@ module AcademicProfiles
         "load"
       end
 
-      # null when the row is in its planned term. A done or in-progress row
-      # is "taken". An open row that was behind is "behind". An open row in
+      # null when the row is in its planned term. A row that a transfer
+      # credit fills (#1020) has no term and is "transfer". A done or
+      # in-progress row is "taken". An open row that was behind is
+      # "behind". An open row in
       # an earlier term than planned moved for "load" (an earlier term has
       # room), or "co_op" for a co-op. An open row in a later term, or with
       # no term, has the first of its reasons in REASONS order.
@@ -195,6 +197,7 @@ module AcademicProfiles
         planned = row[:planned_term_uid]
         uid = @placed[index]
         return nil if planned.nil? || uid == planned
+        return "transfer" if row[:transfer]
         return "taken" if DONE.include?(row[:status])
         return "behind" if planned < first_term
         return co_op?(index) ? "co_op" : "load" if uid && uid < planned

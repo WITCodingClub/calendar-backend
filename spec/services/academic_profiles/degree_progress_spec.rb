@@ -1121,4 +1121,94 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(program[:expected_end]).to eq(term: "Fall 2025", estimated: false)
     end
   end
+
+  describe "AP and transfer credit (#1020)" do
+    def credit(code, **attributes) = create(:transfer_credit, user: user, code: code, **attributes)
+
+    it "fills a course row with an AP credit, with no term, and counts its credits as earned" do
+      item(subject_code: "ENGL", course_number: 1100)
+      item(subject_code: "ENGL", course_number: 1200)
+      credit("ENGL 1100", title: "English I", credits: 4, kind: "ap")
+
+      result = progress
+      program = result[:programs].sole
+
+      expect(program[:requirements].map { |row| row.slice(:code, :status, :course, :term, :transfer) }).to eq([
+        { code: "ENGL 1100", status: "done", course: "ENGL 1100", term: nil, transfer: true },
+        { code: "ENGL 1200", status: "open", course: nil, term: nil, transfer: false }
+      ])
+      expect(program[:summary][:credits]).to include(earned: 4, in_progress: 0)
+      expect(result[:courses]).to eq([
+        { code: "ENGL 1100", title: "English I", term: nil, term_uid: nil, crn: nil, credits: 4, status: "done",
+          outcome: nil, transfer: true, source: "transcript" }
+      ])
+      expect(result[:assumptions]).to include(a_string_including("approval from the program director"))
+    end
+
+    it "takes the title and credits of the catalog course when the credit has none" do
+      create(:catalog_course, subject_code: "ENGL", course_number: 1100, title: "English I", credit_hours: 3)
+      item(subject_code: "ENGL", course_number: 1100)
+      credit("ENGL 1100", title: nil, credits: nil, source: "student")
+
+      result = progress
+
+      expect(result[:courses].sole).to include(title: "English I", credits: 3, source: "student")
+      expect(result[:programs].sole[:summary][:credits][:earned]).to eq(3)
+    end
+
+    it "fills an HSS slot with an AP credit, as a course taken at WIT" do
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      item(:placeholder, label: "HSS Elective", elective_group: hss)
+      credit("HIST 1000", credits: 4)
+
+      program = progress[:programs].sole
+
+      expect(program[:requirements].sole).to include(status: "done", course: "HIST 1000", transfer: true,
+                                                     hss_category: "Humanities")
+      expect(program[:hss][:courses]).to contain_exactly(
+        a_hash_including(code: "HIST 1000", credits: 4, status: "done", category: "Humanities")
+      )
+    end
+
+    it "uses the course taken at WIT over a transfer credit for the same course, unless it was not passed" do
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1100)
+      take(current_term, "WDGT", 1000)
+      take(past_term, "WDGT", 1100, outcome: "failed")
+      credit("WDGT 1000")
+      credit("WDGT 1100")
+
+      result = progress
+
+      expect(result[:programs].sole[:requirements].map { |row| row.slice(:code, :status, :term, :transfer) }).to eq([
+        { code: "WDGT 1000", status: "in_progress", term: current_term.name, transfer: false },
+        { code: "WDGT 1100", status: "done", term: nil, transfer: true }
+      ])
+      # courses lists every attempt and every credit.
+      expect(result[:courses].pluck(:code, :transfer)).to eq([ [ "WDGT 1000", false ], [ "WDGT 1100", false ],
+                                                              [ "WDGT 1000", true ], [ "WDGT 1100", true ] ])
+    end
+
+    it "fills a row with a credit for an old code of the course" do
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT",
+                                 to_course_number: 1050)
+      item(subject_code: "WDGT", course_number: 1050)
+      credit("WDGT 105")
+
+      expect(progress[:programs].sole[:requirements].sole).to include(status: "done", course: "WDGT 105", transfer: true)
+    end
+
+    it "gives a row that a credit fills no term in the estimate" do
+      allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall))
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 2000, year_index: 2, season: "spring")
+      credit("WDGT 1000")
+
+      program = progress[:programs].sole
+
+      expect(program[:requirements].map { |row| row.values_at(:code, :expected_term, :moved) })
+        .to eq([ [ "WDGT 1000", nil, "transfer" ], [ "WDGT 2000", "Spring 2027", nil ] ])
+      expect(program[:timeline].pluck(:term)).to eq([ "Spring 2027" ])
+    end
+  end
 end

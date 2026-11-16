@@ -36,6 +36,12 @@ scope "user", as: :user do
   # Degree requirements next to the courses taken (#799)
   get "degree_progress", to: "degree_progresses#show"
 
+  # AP, test, and transfer credit from the transcript or the student (#1020)
+  get    "transfer_credits",       to: "transfer_credits#index"
+  put    "transfer_credits",       to: "transfer_credits#update"
+  post   "transfer_credits",       to: "transfer_credits#create"
+  delete "transfer_credits/:code", to: "transfer_credits#destroy", constraints: { code: /[^\/]+/ }
+
   # The plan courses of the term the student registers for next (#449)
   get "next_term_courses", to: "next_term_courses#show"
 

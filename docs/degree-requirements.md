@@ -309,7 +309,31 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 - It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
 - A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term and in progress in the current or a future term. The result lists these assumptions.
 - A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction.
+- AP, test, and transfer credit (`TransferCredit`, #1020) counts as a done course with no term. See [Transfer credit](#transfer-credit).
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. Among the slots, a list of courses goes first, then a subject list (HSS), then a free elective, so a broad slot does not use a course that a narrow one needs. A slot with no elective list, such as a "CONM Elective" whose page prints no list, stays open with `checkable: false`.
+
+### Transfer credit
+
+A student's AP, test, and transfer credit is in `TransferCredit` (#1020). Each row names the WIT course it counts as, such as `ENGL 1100`. `docs/academic-profile.md` gives the endpoints that store it.
+
+- `DegreeProgress#taken` adds each credit as a done course with no term (`term: null`, `term_uid: null`, `crn: null`), `transfer: true`, and its `source` (`transcript` or `student`). Courses taken at WIT have `transfer: false` and `source: null`.
+- A credit fills course rows, choices, elective slots, minor lists, and HSS categories the same way as a course taken at WIT. A row it fills has `transfer: true`. Other rows have `transfer: false`.
+- A course taken at WIT wins over a transfer credit for the same course (also through a `CourseCodeAlias`). The transfer credit counts only when no WIT attempt of the course passed or is in progress. `courses[]` still lists both.
+- Its credits count in `summary.credits.earned` when it fills a row, and in `not_counted.earned` when it does not. A credit with no credits takes the credit hours of its `CatalogCourse`, and a credit with no title takes the title of its `CatalogCourse`, or else its code.
+- `NextTermCourses`, `PrerequisiteCheck`, and `ElectiveCandidates` count it as passed with a C or better, before every term.
+- `PlanEstimate`: a row that a credit fills is done, has a null `expected_term`, and has `moved: "transfer"`. It uses no load in any term.
+- The result's `assumptions` say that transfer credit needs approval from the program director to count.
+
+```mermaid
+flowchart LR
+  LW[LeopardWeb transcript] -->|PUT transfer_credits| TC[(transfer_credits)]
+  S[Student] -->|POST transfer_credits| TC
+  TC --> T[DegreeProgress#taken: done, no term, transfer true]
+  E[Enrollments + CourseOutcome] --> T
+  T --> B{WIT attempt passed or in progress?}
+  B -->|yes| W[The WIT course counts]
+  B -->|no| X[The transfer credit counts]
+```
 
 ### Course details and program totals
 
@@ -411,7 +435,7 @@ Rules:
 - **Co-ops.** The rules come from the student (2026-11-12), not from the co-op office: "20 credits is max per semester without an overload code", and "you cant usually take classes during coop semester without approval". The spacing of co-ops follows the student's plan, and it is not a rule of the co-op office: "spacing is major dependent, the catalog site does outline the typical cadence, but as long as you meet the coop requirements you can do it whenever you like it". A co-op course row also waits for its own prerequisite tree, as a course does. `PlanEstimate::Rules` has each rule as one constant or method, so a later answer is a small change.
 - **A student who follows the plan exactly** gets `expected_term` equal to `planned_term` on every row, `moved: null`, and `expected_end.term` equal to `plan_end`. A plan semester with more than 20 credits of rows, a class row in a plan co-op semester, or a course whose prerequisite the plan puts in the same semester breaks this, because the estimate moves those rows.
 
-`moved` has one value. A done or in-progress row in another term is `taken`. An open row of a plan term before the walk starts is `behind`. An open row in an earlier term than planned is `load` (an earlier term has room), or `co_op` for a co-op. An open row in a later term, or with no term, has the first of its reasons in this order: `co_op` (its plan term is a co-op term, or for a co-op: the plan's gap or another co-op), `prerequisite`, `offered`, `load` (the term was full). The estimate notes a reason in the plan term of the row (any of the four), and in each later class term until the row has a term (only `prerequisite` or `offered`). So a spring-only course that a full spring term pushes out, and that then waits a year for the next spring, is `offered`.
+`moved` has one value. A row that a transfer credit fills (#1020) has no term and is `transfer`. A done or in-progress row in another term is `taken`. An open row of a plan term before the walk starts is `behind`. An open row in an earlier term than planned is `load` (an earlier term has room), or `co_op` for a co-op. An open row in a later term, or with no term, has the first of its reasons in this order: `co_op` (its plan term is a co-op term, or for a co-op: the plan's gap or another co-op), `prerequisite`, `offered`, `load` (the term was full). The estimate notes a reason in the plan term of the row (any of the four), and in each later class term until the row has a term (only `prerequisite` or `offered`). So a spring-only course that a full spring term pushes out, and that then waits a year for the next spring, is `offered`.
 
 The estimate makes no query. The prerequisite trees come from the `CatalogCourse` query of `CourseDetails`, which loads them with the details. The response does not send them.
 

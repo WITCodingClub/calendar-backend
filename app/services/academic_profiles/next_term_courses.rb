@@ -289,10 +289,11 @@ module AcademicProfiles
 
     # The courses from DegreeProgress that count, by [subject, number]: done
     # or in progress, in a term before the term. Banner does not let a
-    # course in the same term meet a prerequisite.
+    # course in the same term meet a prerequisite. A transfer credit (#1020)
+    # has no term and always counts.
     def taken_courses
       @taken_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
-                                           .select { |course| term_uid.nil? || course[:term_uid] < term_uid }
+                                           .select { |course| term_uid.nil? || course[:term_uid].nil? || course[:term_uid] < term_uid }
                                            .group_by { |course| CatalogCourse.parse_code(course[:code]) }
     end
 
