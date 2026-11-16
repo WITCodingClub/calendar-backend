@@ -43,10 +43,11 @@ module Faculties
     private
 
     def update_faculty_from_directory(faculty, directory_data)
-      if DirectoryMerge.apply(faculty, directory_data)
+      changes = DirectoryMerge.apply(faculty, directory_data)
+      if changes.any?
         Rails.logger.info({ message: "Faculties::DirectoryLookupJob updated faculty",
                             faculty_id: faculty.id, faculty_name: faculty.full_name,
-                            changes: faculty.previous_changes.keys, job_id: job_id }.to_json)
+                            changes: changes, job_id: job_id }.to_json)
       else
         Rails.logger.info({ message: "Faculties::DirectoryLookupJob no changes needed",
                             faculty_id: faculty.id, faculty_name: faculty.full_name, job_id: job_id }.to_json)

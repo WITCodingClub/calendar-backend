@@ -456,7 +456,10 @@ class Rack::Attack
   end
 
   def self.decode_user_id(req)
-    token = BearerToken.from(req.env["HTTP_AUTHORIZATION"])
+    header = req.env["HTTP_AUTHORIZATION"]
+    return nil unless header&.start_with?("Bearer ")
+
+    token = BearerToken.from(header)
     return nil unless token
 
     # Verify signature and expiration. A forged/unsigned token must not be able

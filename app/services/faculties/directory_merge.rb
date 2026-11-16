@@ -21,8 +21,9 @@ module Faculties
       end
     end
 
-    # Saves the card onto the faculty row. Returns true when the row changed.
-    # A new photo URL also downloads the photo.
+    # Saves the card onto the faculty row. Returns the names of the changed
+    # columns, empty when nothing changed. A new photo URL also downloads the
+    # photo.
     def self.apply(faculty, card)
       new(faculty, card).apply
     end
@@ -35,11 +36,13 @@ module Faculties
 
     def apply
       @faculty.assign_attributes(attributes)
-      return false unless @faculty.changed?
+      return [] unless @faculty.changed?
 
       @faculty.save!
+      # The photo download writes a column too, so read the changes first.
+      changed = @faculty.saved_changes.keys
       @faculty.update_photo_from_url!(@faculty.photo_url) if @faculty.saved_change_to_photo_url? && @faculty.photo_url.present?
-      true
+      changed
     end
 
     private

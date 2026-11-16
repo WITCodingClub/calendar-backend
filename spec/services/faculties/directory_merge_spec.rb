@@ -17,10 +17,19 @@ RSpec.describe Faculties::DirectoryMerge do
     it "keeps the longer name, updates a changed title, and fills a blank field once" do
       changed = described_class.apply(faculty, { display_name: "Alan Lovelace", title: "Professor", department: "Physics" })
 
-      expect(changed).to be(true)
+      expect(changed).to include("first_name", "last_name", "title", "employee_type")
+      expect(changed).not_to include("department")
       expect(faculty.reload).to have_attributes(first_name: "Alan", last_name: "Lovelace", title: "Professor",
                                                 department: "Math", employee_type: "faculty")
       expect(faculty.directory_last_synced_at).to be_present
+    end
+
+    it "returns the columns that changed before the photo download" do
+      allow(faculty).to receive(:update_photo_from_url!) { faculty.update_column(:photo_url, "https://wit.edu/x.jpg") } # rubocop:disable Rails/SkipsModelValidations
+
+      changed = described_class.apply(faculty, { display_name: "Al Lo", photo_url: "https://wit.edu/x.jpg" })
+
+      expect(changed).to include("photo_url", "directory_last_synced_at")
     end
 
     it "calls a title with no teaching word staff" do

@@ -55,7 +55,7 @@ module Faculties
         return
       end
 
-      if DirectoryMerge.apply(faculty, faculty_data)
+      if DirectoryMerge.apply(faculty, faculty_data).any?
         was_new ? stats[:created] += 1 : stats[:updated] += 1
       else
         stats[:skipped] += 1
