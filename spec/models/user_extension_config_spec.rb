@@ -87,7 +87,7 @@ RSpec.describe UserExtensionConfig, type: :model do
     end
   end
 
-  describe "sync_calendar_if_settings_changed" do
+  describe "syncing after a settings change" do
     it "enqueues a forced calendar sync when sync_university_events changes" do
       config.update!(sync_university_events: true)
 
