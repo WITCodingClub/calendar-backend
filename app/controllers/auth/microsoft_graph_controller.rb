@@ -32,18 +32,18 @@ module Auth
       token = token_client.exchange_code(code: params.require(:code),
                                          code_verifier: pending["code_verifier"],
                                          redirect_uri: redirect_uri)
-      credential  = save_credential(token)
-      calendar_id = MicrosoftGraph::CalendarProvider.new(@user, credential: credential)
-                                                 .create_or_get_course_calendar(placement: @state["placement"])
+      account     = account_from(token)
+      calendar_id = OauthCredentials::AccountLink.new(@user, MicrosoftGraph::CalendarProvider.provider_name)
+                                                 .connect!(**account, calendar: { placement: @state["placement"] })
 
-      CourseCalendars::SyncJob.perform_later(@user, force: true) if @user.enrollments.any?
-
-      redirect_to "/oauth/success?email=#{CGI.escape(credential.email)}&calendar_id=#{CGI.escape(calendar_id)}"
+      redirect_to oauth_success_path(email: account[:email], calendar_id: calendar_id)
     rescue WrongAccountError
-      redirect_to "/oauth/failure?error=#{CGI.escape("Sign in with your own WIT Microsoft account (#{@user.email}).")}"
+      redirect_to oauth_failure_path(error: "Sign in with your own WIT Microsoft account (#{@user.email}).")
+    rescue OauthCredentials::AccountLink::Conflict => e
+      redirect_to oauth_failure_path(error: e.message)
     rescue MicrosoftGraph::Error, ActionController::ParameterMissing, ActiveRecord::RecordInvalid => e
       Rails.error.report(e, handled: true, context: { user_id: @user&.id })
-      redirect_to "/oauth/failure?error=#{CGI.escape('Could not connect the Microsoft calendar. Please try again.')}"
+      redirect_to oauth_failure_path(error: "Could not connect the Microsoft calendar. Please try again.")
     end
 
     private
@@ -56,22 +56,14 @@ module Auth
       head :not_found
     end
 
-    def save_credential(token)
+    def account_from(token)
       claims = token.claims || {}
       uid    = claims["oid"].presence || claims["sub"].presence
       email  = claims["email"].presence || claims["preferred_username"].presence
       raise MicrosoftGraph::AuthError, "Microsoft returned no account id or email" if uid.blank? || email.blank?
       raise WrongAccountError unless own_account?(email)
 
-      credential = @user.oauth_credentials.find_or_initialize_by(provider: "microsoft", uid: uid)
-      credential.email            = email
-      credential.access_token     = token.access_token
-      credential.refresh_token    = token.refresh_token if token.refresh_token.present?
-      credential.token_expires_at = token.expires_at
-      # A new sign-in replaces a refresh token that Microsoft refused.
-      credential.metadata         = (credential.metadata || {}).except("token_revoked", "token_revoked_at", "revocation_reason")
-      credential.save!
-      credential
+      { uid: uid, email: email, access_token: token.access_token, refresh_token: token.refresh_token, expires_at: token.expires_at }
     end
 
     # The state names the person, but nothing proves that the browser at the

@@ -6,10 +6,9 @@ RSpec.describe GoogleSignIn::TokenVerifier do
   let(:client_id) { "wit-calendar.apps.googleusercontent.com" }
 
   def stub_tokeninfo(status:, body:)
-    response = instance_double(Faraday::Response, success?: status == 200, status: status, body: body)
-    connection = instance_double(Faraday::Connection, get: response)
-    allow_any_instance_of(described_class).to receive(:connection).and_return(connection)
-    allow_any_instance_of(described_class).to receive(:allowed_client_ids).and_return([ client_id ])
+    allow(GoogleCalendar).to receive(:client_ids).and_return([ client_id ])
+    stub_request(:get, described_class::TOKENINFO_URL).with(query: hash_including({}))
+      .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
   end
 
   it "fails when no token is provided" do

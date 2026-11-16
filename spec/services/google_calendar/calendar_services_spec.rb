@@ -72,4 +72,46 @@ RSpec.describe GoogleCalendar::CalendarServices do
       expect(credential.reload.access_token).to eq("synthetic-refreshed-token")
     end
   end
+
+  describe ".authorization" do
+    let(:google_token_url) { "https://oauth2.googleapis.com/token" }
+
+    def stub_google_token(status, body)
+      stub_request(:post, google_token_url)
+        .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
+    end
+
+    it "uses a token that has not expired without a refresh" do
+      credential = create(:oauth_credential, token_expires_at: 1.hour.from_now)
+
+      expect(described_class.authorization(credential).access_token).to eq(credential.access_token)
+      expect(a_request(:post, google_token_url)).not_to have_been_made
+    end
+
+    it "refreshes and saves an expired token" do
+      credential = create(:oauth_credential, refresh_token: "synthetic-refresh", token_expires_at: 1.minute.ago)
+      stub_google_token(200, { access_token: "synthetic-refreshed-token", expires_in: 3600, token_type: "Bearer" })
+
+      described_class.authorization(credential)
+
+      expect(credential.reload.access_token).to eq("synthetic-refreshed-token")
+      expect(credential.token_expires_at).to be > 50.minutes.from_now
+    end
+
+    it "marks the credential revoked when Google answers invalid_grant" do
+      credential = create(:oauth_credential, refresh_token: "synthetic-refresh", token_expires_at: 1.minute.ago)
+      stub_google_token(400, { error: "invalid_grant" })
+
+      expect { described_class.authorization(credential) }.to raise_error(Signet::AuthorizationError)
+      expect(credential.reload).to be_token_revoked
+    end
+
+    it "does not mark the credential revoked for another token error" do
+      credential = create(:oauth_credential, refresh_token: "synthetic-refresh", token_expires_at: 1.minute.ago)
+      stub_google_token(401, { error: "invalid_client" })
+
+      expect { described_class.authorization(credential) }.to raise_error(Signet::AuthorizationError)
+      expect(credential.reload).not_to be_token_revoked
+    end
+  end
 end

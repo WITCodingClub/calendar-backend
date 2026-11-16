@@ -43,10 +43,11 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
       stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars").to_return(graph_json_response("calendar_created"))
 
       get "/auth/microsoft_graph", params: { state: state }
-      get "/auth/microsoft_graph/callback", params: { state: state, code: "auth-code" }
+      expect { get "/auth/microsoft_graph/callback", params: { state: state, code: "auth-code" } }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
 
       expect(token).to have_been_requested
-      expect(response).to redirect_to("/oauth/success?email=student%40example.edu&calendar_id=AAMkSyntheticCalendarNew")
+      expect(response).to redirect_to("/oauth/success?calendar_id=AAMkSyntheticCalendarNew&email=student%40example.edu")
 
       credential = user.oauth_credentials.microsoft.sole
       expect(credential).to have_attributes(
@@ -54,6 +55,17 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
         access_token: "synthetic-access-token", refresh_token: "synthetic-refresh-token"
       )
       expect(credential.course_calendar).to have_attributes(provider: "microsoft", external_calendar_id: "AAMkSyntheticCalendarNew")
+    end
+
+    it "refuses a Microsoft account that another user already connected" do
+      create(:oauth_credential, :microsoft, uid: "00000000-0000-0000-0000-000000000001")
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_success"))
+
+      get "/auth/microsoft_graph", params: { state: state }
+      get "/auth/microsoft_graph/callback", params: { state: state, code: "auth-code" }
+
+      expect(CGI.unescape(response.location)).to include("That Microsoft account is already connected to another user")
+      expect(user.oauth_credentials).to be_empty
     end
 
     it "uses the primary calendar when the state asks for it" do

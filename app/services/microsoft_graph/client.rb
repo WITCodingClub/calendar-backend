@@ -9,7 +9,6 @@ module MicrosoftGraph
   # expire, and once more when Graph answers 401.
   class Client
     BASE_URL     = "https://graph.microsoft.com/v1.0"
-    OPEN_TIMEOUT = 5
     READ_TIMEOUT = 20
 
     RETRY_OPTIONS = {
@@ -82,15 +81,11 @@ module MicrosoftGraph
     end
 
     def parse(body)
-      return {} if body.blank?
-
-      JSON.parse(body)
-    rescue JSON::ParserError
-      {}
+      OauthCredentials::Http.parse(body)
     end
 
     def connection
-      @connection ||= Faraday.new(request: { open_timeout: OPEN_TIMEOUT, timeout: READ_TIMEOUT }) do |f|
+      @connection ||= OauthCredentials::Http.connection(read_timeout: READ_TIMEOUT) do |f|
         f.request :retry, RETRY_OPTIONS
       end
     end

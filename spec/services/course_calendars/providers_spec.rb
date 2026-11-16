@@ -80,4 +80,48 @@ RSpec.describe CourseCalendars::Providers do
       expect(described_class.syncs?(user)).to be(false)
     end
   end
+
+  describe ".invalid_grant?" do
+    it "is true for a Google refusal of the grant" do
+      expect(described_class.invalid_grant?(Signet::AuthorizationError.new('{"error": "invalid_grant"}'))).to be(true)
+    end
+
+    it "is true for a Microsoft refusal of the grant" do
+      error = MicrosoftGraph::AuthError.new("token request failed", status: 400, body: { "error" => "invalid_grant" })
+
+      expect(described_class.invalid_grant?(error)).to be(true)
+    end
+
+    it "is false for another token error or any other error" do
+      expect(described_class.invalid_grant?(Signet::AuthorizationError.new('{"error": "invalid_client"}'))).to be(false)
+      expect(described_class.invalid_grant?(MicrosoftGraph::AuthError.new("no refresh token"))).to be(false)
+      expect(described_class.invalid_grant?(StandardError.new("invalid_grant"))).to be(false)
+    end
+  end
+
+  describe "the error lists" do
+    it "joins the errors of every provider" do
+      expect(described_class.auth_errors).to include(Google::Apis::AuthorizationError, Signet::AuthorizationError, MicrosoftGraph::AuthError)
+      expect(described_class.rate_limit_errors).to eq([ Google::Apis::RateLimitError ])
+      expect(described_class.transient_errors).to include(Google::Apis::ServerError, MicrosoftGraph::Error)
+    end
+  end
+
+  describe "the connect paths" do
+    it "starts the Google connection at the OmniAuth path with a state for the user" do
+      path  = GoogleCalendar::Provider.connect_path(user, email: "linked@example.com")
+      state = Rack::Utils.parse_query(URI(path).query)["state"]
+
+      expect(path).to start_with("/auth/google_oauth2?state=")
+      expect(GoogleSignIn::OauthState.verify(state)).to include("user_id" => user.id, "email" => "linked@example.com")
+    end
+
+    it "starts the Microsoft connection at its route with the placement in the state" do
+      path  = MicrosoftGraph::CalendarProvider.connect_path(user, placement: "primary")
+      state = Rack::Utils.parse_query(URI(path).query)["state"]
+
+      expect(path).to start_with("/auth/microsoft_graph?state=")
+      expect(MicrosoftGraph::OauthState.verify(state)).to include("user_id" => user.id, "placement" => "primary")
+    end
+  end
 end

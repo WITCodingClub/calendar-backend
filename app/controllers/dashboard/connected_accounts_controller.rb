@@ -64,15 +64,13 @@ module Dashboard
 
     private
 
+    # No email: the person picks any Google account.
     def add_account_url
-      # No email: the person picks any Google account.
-      state = GoogleSignIn::OauthState.generate_state(user_id: current_user.id)
-      "/auth/google_oauth2?state=#{CGI.escape(state)}"
+      GoogleCalendar::Provider.connect_path(current_user)
     end
 
     def microsoft_connect_url
-      state = MicrosoftGraph::OauthState.generate(user_id: current_user.id)
-      microsoft_graph_auth_path(state: state)
+      MicrosoftGraph::CalendarProvider.connect_path(current_user)
     end
   end
 end

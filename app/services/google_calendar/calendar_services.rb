@@ -5,8 +5,7 @@ module GoogleCalendar
   #
   # The service account owns every calendar the app creates. A person's own
   # token writes the events and the person's calendar list. An expired token
-  # is refreshed and saved before the service is returned
-  # (OauthCredential#google_authorization).
+  # is refreshed and saved before the service is returned.
   module CalendarServices
     module_function
 
@@ -14,7 +13,6 @@ module GoogleCalendar
       build(service_account_credentials)
     end
 
-    # Uses the person's primary Google credential.
     def for_user(user)
       credential = user.google_credential
       raise "User has no Google credential" unless credential
@@ -24,7 +22,30 @@ module GoogleCalendar
 
     # Uses one linked Google account, for example a second email.
     def for_credential(credential)
-      build(credential.google_authorization)
+      build(authorization(credential))
+    end
+
+    # The Google authorization for one credential. An expired token (or any
+    # token, with refresh: true) is refreshed and saved first. A refused grant
+    # marks the credential revoked.
+    def authorization(credential, refresh: false)
+      authorization = Google::Auth::UserRefreshCredentials.new(
+        **GoogleCalendar.config.slice(:client_id, :client_secret),
+        scope:         [ GoogleCalendar::CALENDAR_SCOPE ],
+        access_token:  credential.access_token,
+        refresh_token: credential.refresh_token,
+        expires_at:    credential.token_expires_at
+      )
+      return authorization unless refresh || credential.token_expired?
+
+      begin
+        authorization.refresh!
+      rescue Signet::AuthorizationError => e
+        credential.mark_revoked!(e.message) if GoogleCalendar::Provider.invalid_grant?(e)
+        raise
+      end
+      credential.update!(access_token: authorization.access_token, token_expires_at: Time.zone.at(authorization.expires_at))
+      authorization
     end
 
     def build(authorization)
@@ -39,7 +60,7 @@ module GoogleCalendar
 
       Google::Auth::ServiceAccountCredentials.make_creds(
         json_key_io: StringIO.new(credentials_json),
-        scope:       Google::Apis::CalendarV3::AUTH_CALENDAR
+        scope:       GoogleCalendar::CALENDAR_SCOPE
       )
     end
   end

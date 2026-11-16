@@ -10,7 +10,28 @@ module MicrosoftGraph
   # the service looks the event up by iCalUId, stores the new id and carries on.
   # Only when neither id finds the event does it create the event again.
   class CalendarProvider < CourseCalendars::Provider
-    # The answers that CourseCalendars::Providers gives for Microsoft.
+    AUTH_ERRORS = [ MicrosoftGraph::AuthError ].freeze
+    # Graph answers a rate limit with a 429, which the client raises as a
+    # MicrosoftGraph::Error, so it is transient (#rate_limited?).
+    RATE_LIMIT_ERRORS = [].freeze
+    TRANSIENT_ERRORS  = [ MicrosoftGraph::Error ].freeze
+
+    def self.syncs_for?(user)
+      MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
+    end
+
+    # `placement` ("separate" or "primary") says where a first connection puts
+    # the course events.
+    def self.connect_path(user, placement: nil)
+      state = MicrosoftGraph::OauthState.generate(user_id: user.id, placement: placement)
+      Rails.application.routes.url_helpers.microsoft_graph_auth_path(state: state)
+    end
+
+    # invalid_grant means Microsoft will not take the refresh token again: the
+    # person revoked access, an admin removed consent, or the token expired.
+    def self.invalid_grant?(error)
+      error.is_a?(MicrosoftGraph::AuthError) && error.body.is_a?(Hash) && error.body["error"] == "invalid_grant"
+    end
 
     def self.delete_event_later(ref)
       MicrosoftGraph::EventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
@@ -51,9 +72,8 @@ module MicrosoftGraph
     def self.revoke_later(_credential); end
 
     def initialize(user, credential: nil, client: nil)
-      super(user)
-      @credential = credential
-      @client     = client
+      super(user, credential: credential)
+      @client = client
     end
 
     def credential
@@ -168,7 +188,6 @@ module MicrosoftGraph
                                     .map { |attendee| attendee.dig("emailAddress", "address").to_s.downcase }
     end
 
-    # Deletes one remote event. A missing event counts as deleted.
     def delete_calendar_event(event_id, ical_uid = nil)
       client.delete(event_path(event_id))
     rescue MicrosoftGraph::NotFoundError
@@ -221,7 +240,7 @@ module MicrosoftGraph
       }
 
       if calendar.nil?
-        calendar = CourseCalendar.create!(attributes.merge(provider: "microsoft", oauth_credential: credential))
+        calendar = CourseCalendar.create!(attributes.merge(provider: self.class.provider_name, oauth_credential: credential))
       elsif calendar.external_calendar_id != attributes[:external_calendar_id] || calendar.placement != placement
         calendar.update!(attributes.merge(last_synced_at: nil))
       end
@@ -231,7 +250,7 @@ module MicrosoftGraph
 
     def mark_meetings_removed(calendar, meeting_ids)
       gone = meeting_ids - calendar.calendar_events.friend_meetings_only.pluck(:friend_meeting_id)
-      FriendMeetingPublication.where(friend_meeting_id: gone, provider: "microsoft").find_each(&:mark_removed!)
+      FriendMeetingPublication.where(friend_meeting_id: gone, provider: self.class.provider_name).find_each(&:mark_removed!)
     end
 
     # One failed delete must not stop the others, so it is reported and the

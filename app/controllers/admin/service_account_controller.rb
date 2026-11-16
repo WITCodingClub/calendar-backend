@@ -20,11 +20,10 @@ module Admin
       callback_url = "#{app_base_url}/admin/oauth/callback"
 
       client = Signet::OAuth2::Client.new(
-        client_id: Rails.application.credentials.dig(:google, :client_id),
-        client_secret: Rails.application.credentials.dig(:google, :client_secret),
-        authorization_uri: "https://accounts.google.com/o/oauth2/auth",
-        token_credential_uri: "https://oauth2.googleapis.com/token",
-        scope: [ Google::Apis::CalendarV3::AUTH_CALENDAR ],
+        **google_client,
+        authorization_uri: GoogleCalendar::AUTHORIZE_URL,
+        token_credential_uri: GoogleCalendar::TOKEN_URL,
+        scope: [ GoogleCalendar::CALENDAR_SCOPE ],
         redirect_uri: callback_url,
         state: session[:oauth_state],
         additional_parameters: {
@@ -62,9 +61,8 @@ module Admin
       callback_url = "#{app_base_url}/admin/oauth/callback"
 
       client = Signet::OAuth2::Client.new(
-        client_id: Rails.application.credentials.dig(:google, :client_id),
-        client_secret: Rails.application.credentials.dig(:google, :client_secret),
-        token_credential_uri: "https://oauth2.googleapis.com/token",
+        **google_client,
+        token_credential_uri: GoogleCalendar::TOKEN_URL,
         redirect_uri: callback_url,
         code: params[:code]
       )
@@ -91,6 +89,10 @@ module Admin
     end
 
     private
+
+    def google_client
+      GoogleCalendar.config.slice(:client_id, :client_secret)
+    end
 
     def app_base_url
       if (host = Rails.configuration.x.application_host)

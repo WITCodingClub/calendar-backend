@@ -13,15 +13,11 @@ module Api
       email = params[:email].to_s.strip
 
       if email.present? && current_user.google_credential_for_email(email).present?
-        service     = GoogleCalendar::Provider.new(current_user)
-        calendar_id = service.create_or_get_course_calendar
+        calendar_id = GoogleCalendar::Provider.new(current_user).ensure_course_calendar
 
         render json: { message: "email already connected", calendar_id: calendar_id }, status: :ok
       else
-        state     = GoogleSignIn::OauthState.generate_state(user_id: current_user.id, email: email.presence)
-        oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
-
-        render json: { message: "OAuth required", email: email.presence, oauth_url: oauth_url }, status: :ok
+        render json: { message: "OAuth required", email: email.presence, oauth_url: connect_url(email.presence) }, status: :ok
       end
     end
 
@@ -38,17 +34,14 @@ module Api
         return
       end
 
-      credential = current_user.oauth_credentials.find_by(email: email, provider: "google")
+      credential = current_user.oauth_credentials.google.find_by(email: email)
 
       unless credential
-        state     = GoogleSignIn::OauthState.generate_state(user_id: current_user.id, email: email)
-        oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
-        render json: { message: "OAuth required for this email", email: email, oauth_url: oauth_url }, status: :ok
+        render json: { message: "OAuth required for this email", email: email, oauth_url: connect_url(email) }, status: :ok
         return
       end
 
-      service     = GoogleCalendar::Provider.new(current_user)
-      calendar_id = service.create_or_get_course_calendar
+      calendar_id = GoogleCalendar::Provider.new(current_user).ensure_course_calendar
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
     end
@@ -61,7 +54,7 @@ module Api
         return
       end
 
-      credential = current_user.oauth_credentials.find_by(email: email, provider: "google")
+      credential = current_user.oauth_credentials.google.find_by(email: email)
 
       if credential.nil?
         render_error "email not found or not associated with Google Calendar", status: :not_found
@@ -83,6 +76,12 @@ module Api
       end
 
       render json: { message: "email removed from Google Calendar association" }, status: :ok
+    end
+
+    private
+
+    def connect_url(email)
+      request.base_url + GoogleCalendar::Provider.connect_path(current_user, email: email)
     end
   end
 end
