@@ -25,7 +25,7 @@ The registrar changes the columns, the headers, and the page breaks of the PDF e
 - The row's CRNs are the five-digit numbers before the date. A chain such as `10001-10002` is the group of CRNs that take one exam together.
 - When the date line has no CRN, the row is tall and its cells wrap (Fall 2025). The CRNs then come from the lines next to it, up to the previous and the next date line. A chain that ends in `-` continues on the next line.
 - The room is the first cell after the time. A room that wraps to the lines above and below its row is joined.
-- `WENTW212` becomes `WENTW 212`, and `CEIS 414A/B` becomes `CEIS 414A / CEIS 414B`, so `FinalExam::ROOM_PATTERN` finds each room. `SEE FACULTY` (also `SEE FACULTY FOR DETAILS`), `ONLINE`, `VIRTUAL`, and `TBA` become `See Faculty`, `Online`, `Virtual`, and `TBA`. `#N/A` is a spreadsheet error, so it gives no location.
+- `WENTW212` becomes `WENTW 212`, and `CEIS 414A/B` becomes `CEIS 414A / CEIS 414B`, so `FinalsSchedules::ExamRooms::ROOM_PATTERN` finds each room. `SEE FACULTY` (also `SEE FACULTY FOR DETAILS`), `ONLINE`, `VIRTUAL`, and `TBA` become `See Faculty`, `Online`, `Virtual`, and `TBA`. `#N/A` is a spreadsheet error, so it gives no location.
 - When a few rows have a year that does not match their weekday (Fall 2026 has a fill-down error), the parser uses the year that most rows use and warns.
 
 A row with no date gets no exam, even when another CRN of its group has a date. The old `SpringFallParser` copied the date of that CRN. No PDF from 2022 to 2026 has such a row in its `-layout` text.

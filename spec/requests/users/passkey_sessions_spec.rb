@@ -85,6 +85,14 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
     expect(response).to have_http_status(:unauthorized)
   end
 
+  it "answers the shared expired text for a handle with no challenge" do
+    post "/users/passkey/callback",
+         params: { handle: "missing", credential: { type: "public-key", id: "x", response: {} } }, as: :json
+
+    expect(response).to have_http_status(:unauthorized)
+    expect(json["error"]).to eq("Sign-in expired. Start again.")
+  end
+
   it "refuses a credential this site never registered" do
     post "/users/passkey/options"
     handle    = json["handle"]

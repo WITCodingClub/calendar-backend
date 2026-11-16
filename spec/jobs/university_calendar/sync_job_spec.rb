@@ -30,12 +30,12 @@ RSpec.describe UniversityCalendar::SyncJob do
   end
 
   it "imports the feed and returns the import result, and leaves 25Live to its own job" do
-    allow(TwentyFiveLive::Client).to receive(:call)
+    allow(TwentyFiveLive::Client).to receive(:call!)
 
     expect(described_class.perform_now).to eq(import_result)
 
     expect(UniversityCalendar::IcsImport).to have_received(:call)
-    expect(TwentyFiveLive::Client).not_to have_received(:call)
+    expect(TwentyFiveLive::Client).not_to have_received(:call!)
   end
 
   it "belongs to the fixed concurrency group" do

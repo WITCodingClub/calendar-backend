@@ -32,6 +32,10 @@ RSpec.describe McpTools::SetNotifications do
     expect(user.notifications_disabled_until).to be > 50.years.from_now
   end
 
+  it "limits a pause to one year" do
+    expect(described_class::MAX_HOURS).to eq(8760)
+  end
+
   it "refuses a duration that is not positive or is too long" do
     expect(call(disabled: true, duration_hours: 0).error?).to be(true)
     expect(call(disabled: true, duration_hours: described_class::MAX_HOURS + 1).error?).to be(true)
