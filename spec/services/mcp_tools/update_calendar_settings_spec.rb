@@ -52,7 +52,12 @@ RSpec.describe McpTools::UpdateCalendarSettings do
     expect(CalendarPreference.count).to eq(0)
   end
 
-  it "queues a calendar sync for a user with a Microsoft calendar" do
+  # The sync reaches a Microsoft calendar only with the flag on
+  # (CourseCalendars::Providers.syncs?).
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
+
+  it "queues a calendar sync for a user with a Microsoft calendar", :microsoft_graph do
+    Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
     create(:course_calendar, :microsoft, user: user)
 
     expect { call(level: "all_classes", color: "sage") }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true)
