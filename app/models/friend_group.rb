@@ -68,12 +68,6 @@ class FriendGroup < ApplicationRecord
   validates :color, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
   validate :expires_at_in_future, if: :will_save_change_to_expires_at?
 
-  # The API routes and the dashboard UI for groups are off until the privacy
-  # policy update. Flipper matches the user on "User;<id>".
-  def self.enabled_for?(user)
-    user.present? && Flipper.enabled?(FeatureFlags::FRIEND_GROUPS, user)
-  end
-
   # Returns { friend user id => [groups] } for every group the user owns, in two
   # queries, so a friends list can show each friend's groups without one query
   # per friend.
@@ -116,7 +110,7 @@ class FriendGroup < ApplicationRecord
   # either.
   def shared_people
     visible = memberships_by_member.reject do |friend, membership|
-      membership.opted_out? || !FriendGroup.enabled_for?(friend)
+      membership.opted_out? || !Friendships::Features.groups?(friend)
     end
     [ user, *visible.keys ]
   end

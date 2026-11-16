@@ -207,29 +207,6 @@ RSpec.describe FriendGroup, type: :model do
     end
   end
 
-  describe ".enabled_for?" do
-    let(:user) { create(:user) }
-
-    after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
-
-    it "is off by default" do
-      expect(described_class.enabled_for?(user)).to be(false)
-    end
-
-    it "is on for a user the flag names" do
-      Flipper.enable_actor(FeatureFlags::FRIEND_GROUPS, user)
-
-      expect(described_class.enabled_for?(user)).to be(true)
-      expect(described_class.enabled_for?(create(:user))).to be(false)
-    end
-
-    it "is off without a user" do
-      Flipper.enable(FeatureFlags::FRIEND_GROUPS)
-
-      expect(described_class.enabled_for?(nil)).to be(false)
-    end
-  end
-
   describe ".by_friend_id_for" do
     let(:owner) { create(:user) }
 
