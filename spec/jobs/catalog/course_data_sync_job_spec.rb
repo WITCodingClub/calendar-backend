@@ -51,7 +51,7 @@ RSpec.describe Catalog::CourseDataSyncJob do
 
   def stub_leopard_web(meeting_times, faculty: [])
     allow(Catalog::LeopardWebClient).to receive(:get_active_terms)
-      .and_return({ success: true, terms: [ { code: term.uid.to_s, description: term.name } ] })
+      .and_return([ { code: term.uid.to_s, description: term.name } ])
     allow(Catalog::LeopardWebClient).to receive(:get_class_details)
       .with(term: term.uid, course_reference_number: course.crn)
       .and_return(class_details(meeting_times: meeting_times, faculty: faculty))

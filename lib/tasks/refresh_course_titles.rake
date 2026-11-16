@@ -24,14 +24,14 @@ namespace :courses do
       puts "\n#{"=" * 50}"
       puts "Fetching courses for term #{term.uid} from LeopardWeb..."
 
-      result = Catalog::LeopardWebClient.get_course_catalog(term: term.uid)
-
-      unless result[:success]
-        puts "Failed to fetch courses: #{result[:error]}"
+      begin
+        sections = Catalog::LeopardWebClient.get_course_catalog(term: term.uid)
+      rescue Catalog::LeopardWebClient::RequestError, Catalog::LeopardWebClient::SessionError, Faraday::Error => e
+        puts "Failed to fetch courses: #{e.message}"
         next
       end
 
-      puts "Fetched #{result[:courses].count} courses from LeopardWeb"
+      puts "Fetched #{sections.count} courses from LeopardWeb"
       courses_by_crn = term.courses.index_by(&:crn)
       updated = 0
       failed  = 0
@@ -39,7 +39,7 @@ namespace :courses do
 
       # One EXISTS query for each changed course, not one for each save.
       CourseChangeTrackable.with_enrollment_cache do
-        result[:courses].each do |course_data|
+        sections.each do |course_data|
           raw_title = course_data["courseTitle"]
           next if raw_title.blank?
 

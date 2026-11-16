@@ -41,8 +41,8 @@ module Catalog
       new(term: term, course_reference_number: course_reference_number).fetch_linked_sections
     end
 
-    # Every section of the term from the class search, as { success:, courses: }.
-    # A failed search is reported and answers success: false.
+    # Every section of the term from the class search, as Banner's JSON
+    # hashes. Raises RequestError or SessionError when the search fails.
     def self.get_course_catalog(term:)
       new(term: term).get_course_catalog
     end
@@ -89,17 +89,14 @@ module Catalog
 
     ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
 
-    # Banner's term list changes a few times a year. The admin catalog page,
-    # the reimport plan, and term date detection ask for it, and the request can take
-    # up to 30 seconds, so keep a good answer for ten minutes. A failed answer is
-    # not kept.
+    # Banner's terms, as { code:, description: }. Raises RequestError when
+    # Banner does not answer.
+    #
+    # The term list changes a few times a year. The admin catalog page, the
+    # reimport plan, and term date detection ask for it, and the request can
+    # take up to 30 seconds, so keep the list for ten minutes.
     def self.get_active_terms
-      cached = Rails.cache.read(ACTIVE_TERMS_CACHE_KEY)
-      return cached if cached
-
-      result = new.get_active_terms
-      Rails.cache.write(ACTIVE_TERMS_CACHE_KEY, result, expires_in: 10.minutes) if result[:success]
-      result
+      Rails.cache.fetch(ACTIVE_TERMS_CACHE_KEY, expires_in: 10.minutes) { new.get_active_terms }
     end
 
     # The subjects of one term, as { code:, description: }. Most descriptions
@@ -218,30 +215,10 @@ module Catalog
     end
 
     def get_active_terms
-      response = terms_connection.get("courseSearch/getTerms", {
-                                        searchTerm: "",
-                                        offset: 1,
-                                        max: 100
-                                      })
+      response = terms_connection.get("courseSearch/getTerms", { searchTerm: "", offset: 1, max: 100 })
+      handle_error(response) unless response.success?
 
-      if response.success?
-        terms = parse_json_response(response.body)
-        {
-          success: true,
-          terms: terms.map do |t|
-            {
-              code: t["code"],
-              description: t["description"]
-            }
-          end
-        }
-      else
-        {
-          success: false,
-          error: "Failed to fetch terms: #{response.status}",
-          terms: []
-        }
-      end
+      parse_json_response(response.body).map { |t| { code: t["code"], description: t["description"] } }
     end
 
     def get_subjects
@@ -265,47 +242,23 @@ module Catalog
 
       initialize_search_session!
 
-      all_courses = []
+      courses = []
       offset = 0
-      total_count = nil
       page_size = 500
-      first_response_data = nil
 
       loop do
         response = fetch_catalog_page(offset, page_size)
+        handle_error(response) unless response.success?
 
-        if response.success?
-          data = parse_json_response(response.body)
-          first_response_data ||= data
-          courses = data["data"] || []
-          total_count ||= data["totalCount"] || 0
+        data = parse_json_response(response.body)
+        page = data["data"] || []
+        courses.concat(page)
+        break if courses.length >= (data["totalCount"] || 0) || page.empty?
 
-          all_courses.concat(courses)
-
-          break if all_courses.length >= total_count || courses.empty?
-
-          offset += page_size
-        else
-          handle_error(response)
-        end
+        offset += page_size
       end
 
-      {
-        success: true,
-        courses: all_courses,
-        total_count: total_count,
-        raw_response: first_response_data
-      }
-    rescue ArgumentError
-      raise
-    rescue => e
-      Rails.error.report(e, handled: true, context: { term: term })
-      {
-        success: false,
-        error: e.message,
-        courses: [],
-        total_count: 0
-      }
+      courses
     end
 
     private

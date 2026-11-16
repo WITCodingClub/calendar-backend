@@ -54,15 +54,10 @@ module UniversityCalendar
     end
 
     def self.leopard_web_registration_open_date(year, season, term)
-      result = Catalog::LeopardWebClient.get_active_terms
-      return nil unless result[:success]
-
       target_uid = term&.uid || TermCode.for(year, season)
       return nil unless target_uid
 
-      active_term_found = Array(result[:terms]).any? do |active_term|
-        (active_term[:code] || active_term["code"]).to_i == target_uid
-      end
+      active_term_found = Catalog::LeopardWebClient.get_active_terms.any? { |active_term| active_term[:code].to_i == target_uid }
       return nil unless active_term_found
 
       existing_start_date = term&.start_date

@@ -97,6 +97,12 @@ RSpec.describe Catalog::SeatRefresh do
     expect(full.reload).to have_attributes(seats_capacity: 25, seats_available: 17, waitlist_capacity: nil)
   end
 
+  it "lets a Banner cooldown go up to the job" do
+    allow(Catalog::LeopardWebClient).to receive(:get_course_catalog).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    expect { described_class.call(term) }.to raise_error(Catalog::BannerThrottle::CooldownError)
+  end
+
   it "returns nil and writes nothing when Banner fails" do
     stub_request(:get, %r{searchResults/searchResults}).to_return(status: 404)
 

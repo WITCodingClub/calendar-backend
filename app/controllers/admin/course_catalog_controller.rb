@@ -5,8 +5,7 @@ module Admin
     def index
       authorize :course_catalog
 
-      api_result = Catalog::LeopardWebClient.get_active_terms
-      @api_terms = api_result[:success] ? api_result[:terms] : []
+      @api_terms = banner_terms
       @db_terms  = Term.reverse_chronological.index_by(&:uid)
 
       @combined_terms = build_combined_terms_list
@@ -24,8 +23,7 @@ module Admin
         return
       end
 
-      job = Catalog::ImportJob.perform_later(term.uid)
-      term.update!(catalog_importing: true, catalog_import_failed: false, catalog_import_job_id: job.job_id)
+      Catalog::ImportJob.enqueue(term)
       flash[:notice] = "Started importing courses for #{term.name} in the background."
       redirect_to admin_course_catalog_path
     end
@@ -55,6 +53,13 @@ module Admin
     end
 
     private
+
+    # The page still lists the stored terms when Banner does not answer.
+    def banner_terms
+      Catalog::LeopardWebClient.get_active_terms
+    rescue Catalog::LeopardWebClient::RequestError
+      []
+    end
 
     # Banner lists terms from long before the first catalog year that the
     # app reads.
