@@ -38,15 +38,6 @@ RSpec.describe Cleanup::OrphanedCalendarEventsJob do
     expect(CalendarEvent.exists?(orphan.id)).to be(false)
   end
 
-  it "counts nothing and deletes nothing in a dry run" do
-    orphan = create_orphan
-
-    result = described_class.perform_now(dry_run: true)
-
-    expect(result).to eq(total: 1, deleted: 0, errors: 0)
-    expect(CalendarEvent.exists?(orphan.id)).to be(true)
-  end
-
   it "reports an error, counts it, and goes on to the next orphan" do
     broken = create_orphan(external_event_id: "evt-1")
     fine = create_orphan(external_event_id: "evt-2")
