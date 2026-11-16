@@ -5,13 +5,8 @@ module Api
     module Catalog
       class InstructorsController < Api::V1::PublicController
         def index
-          page  = page_for(:instructors)
-          scope = ::Catalog::InstructorQuery.new.call(term_uid: params[:term_uid], q: params[:q], semantic: params[:semantic])
-
-          render_collection(
-            page.of(scope).map { |faculty| ::Catalog::InstructorSerializer.new(faculty).as_json },
-            meta: page.meta(scope.count)
-          )
+          list = list_request(:instructors)
+          render_collection(list.rows, meta: list.meta)
         end
 
         # The full record: Rate My Professors distribution, tags, and recent

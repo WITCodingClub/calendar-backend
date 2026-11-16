@@ -115,16 +115,10 @@ module Courses
 
             term = term_cache.fetch(course_data[:term].to_s)
 
-            schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
+            section = Catalog::BannerSection.from_class_details(detailed_course_info)
             meeting_times = meeting_times_by_key[key]
-
-            start_date = nil
-            end_date = nil
-            if meeting_times.any?
-              first_mt = meeting_times.first
-              start_date = parse_date(first_mt["startDate"])
-              end_date = parse_date(first_mt["endDate"])
-            end
+            start_date = meeting_times.first&.start_date
+            end_date = meeting_times.first&.end_date
 
             course = course_cache[[ course_data[:crn].to_s, term.id ]]
             if course.nil?
@@ -135,14 +129,11 @@ module Courses
               course.subject        = Catalog::SubjectLabels.for_term(detailed_course_info[:subject], course_data[:term],
                                                                      codes: subject_codes[course_data[:term].to_s])
               course.course_number  = course_data[:courseNumber]
-              course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
+              course.schedule_type  = section.schedule_type
               course.section_number = Catalog::SectionNumber.normalize(detailed_course_info[:section_number])
-              course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? nil : detailed_course_info[:credit_hours]
+              course.credit_hours   = section.schedule_type == "laboratory" ? nil : detailed_course_info[:credit_hours]
               course.grade_mode     = detailed_course_info[:grade_mode]
-              course.seats_available = detailed_course_info[:seats_available]
-              course.seats_capacity  = detailed_course_info[:seats_capacity]
-              course.waitlist_available = detailed_course_info[:waitlist_available]
-              course.waitlist_capacity  = detailed_course_info[:waitlist_capacity]
+              course.assign_attributes(section.counts)
               course.save!
               enrollment_flags[course.id] = false
             end
@@ -157,12 +148,7 @@ module Courses
                 update_attrs[:title] = new_title if course.title != new_title
               end
 
-              update_attrs[:seats_available] = detailed_course_info[:seats_available] unless detailed_course_info[:seats_available].nil?
-              update_attrs[:seats_capacity]  = detailed_course_info[:seats_capacity]  unless detailed_course_info[:seats_capacity].nil?
-              unless detailed_course_info[:waitlist_capacity].nil? || detailed_course_info[:waitlist_available].nil?
-                update_attrs[:waitlist_capacity]  = detailed_course_info[:waitlist_capacity]
-                update_attrs[:waitlist_available] = detailed_course_info[:waitlist_available]
-              end
+              update_attrs.merge!(section.counts)
 
               course.update!(update_attrs) if update_attrs.any?
             end
@@ -177,7 +163,7 @@ module Courses
             # Cleanup::OrphanedCalendarEventsJob.
             course_touched_ids = Catalog::MeetingTimesIngest.call(
               course: course,
-              raw_meeting_times: meeting_times,
+              meetings: meeting_times,
               locations: locations,
               existing_meeting_times: existing_meeting_times.fetch(course.id, [])
             )
@@ -369,7 +355,7 @@ module Courses
     # if structured data is unavailable.
     def meeting_times_for(course_meetings, detailed_course_info)
       if detailed_course_info[:meeting_times].present?
-        Catalog::MeetingTimesIngest.normalize_leopard_web(detailed_course_info[:meeting_times])
+        Catalog::BannerSection.from_class_details(detailed_course_info).meeting_times
       else
         time_groups = course_meetings.group_by do |meeting|
           start_value = meeting[:start] || meeting["start"]
@@ -423,7 +409,7 @@ module Courses
             "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || Building::TBD_NAME,
             "room"                => meetings.first[:room] || meetings.first["room"] || Building::TBD_ABBREVIATION
           }.merge(days)
-        end
+        end.map { |mt| Catalog::BannerSection::Meeting.from_search(mt) }
       end
     end
 
@@ -437,15 +423,6 @@ module Courses
       return [] if name.blank? || email.blank?
 
       [ { "displayName" => name.to_s.strip, "emailAddress" => email.to_s.strip, "primaryIndicator" => true } ]
-    end
-
-    def parse_date(date_string)
-      return nil if date_string.blank?
-
-      Date.strptime(date_string, "%m/%d/%Y")
-    rescue ArgumentError => e
-      Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
-      nil
     end
   end
 end

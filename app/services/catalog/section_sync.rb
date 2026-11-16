@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Catalog
-  # Brings one stored section up to date from Banner: the title and other
+  # Brings stored sections up to date from Banner: the title and other
   # details, the seats, the meeting times and rooms, the instructors, and the
   # lecture and lab pairs. It records the time in courses.banner_synced_at, so
   # Courses::Processor can skip Banner for a section that is current.
@@ -9,6 +9,35 @@ module Catalog
   # Catalog::CourseDataSyncJob calls it for every section of the active terms
   # each night, and Catalog::SectionRefreshJob for the sections of one schedule.
   class SectionSync
+    BATCH_SIZE = 50
+
+    # The enrollment flags and the calendar marks of the change trackers
+    # (CourseCalendars::SyncMarker) are loaded and sent once for each batch,
+    # and every section shares one Locations. Syncs the courses in the order
+    # of the ids. A CooldownError stops the run; any other error is reported,
+    # and the next section syncs. Returns { synced:, errors: }.
+    def self.call_many(course_ids)
+      sync = new
+      counts = { synced: 0, errors: 0 }
+
+      course_ids.each_slice(BATCH_SIZE) do |slice|
+        courses = Course.where(id: slice).includes(:term, meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
+                        .index_by(&:id).values_at(*slice).compact
+        flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
+        CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
+          courses.each do |course|
+            changed = BannerThrottle.report_unless_cooldown(fallback: :error, course_id: course.id, crn: course.crn) do
+              sync.call(course, course.term.uid)
+            end
+            counts[:errors] += 1 if changed == :error
+            counts[:synced] += 1 if changed == true
+          end
+        end
+      end
+
+      counts
+    end
+
     # Sections share buildings and rooms, so callers pass one Locations for a
     # whole run.
     def initialize(locations: Catalog::MeetingTimesIngest::Locations.new)
@@ -18,22 +47,19 @@ module Catalog
     # Returns true when Banner changed the section, false when nothing changed
     # or Banner returned nothing.
     def call(course, term_uid)
-      fresh_data = fetch_fresh_course_data(course.crn, term_uid)
-      return false unless fresh_data
-
-      if fresh_data[:subject]
-        fresh_data[:subject] = Catalog::SubjectLabels.for_term(fresh_data[:subject], term_uid, stored: course.subject)
+      details = BannerThrottle.report_unless_cooldown(crn: course.crn, term_uid: term_uid) do
+        Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: course.crn)
       end
+      return false unless details
 
-      course_changed = if course_data_changed?(course, fresh_data)
-                         update_course_from_fresh_data(course, fresh_data)
-                         true
-      else
-                         update_enrollment_counts(course, fresh_data)
-      end
-
-      meeting_times_changed = sync_meeting_times(course, fresh_data)
-      faculty_changed       = sync_faculty(course, fresh_data)
+      section = BannerSection.from_class_details(details)
+      course_changed        = sync_section(course, section, term_uid)
+      meeting_times_changed = sync_meeting_times(course, section)
+      # The registrar reassigns sections after the term starts, and the
+      # extension only posts a schedule when the student's course list
+      # changes. Without this the calendar keeps naming the instructor who
+      # taught the section on the day it was first imported.
+      faculty_changed = Faculties::Ingest.call(course: course, raw_faculty: section.faculty)
       # The registrar can change which lab goes with which lecture.
       Catalog::SectionLinksSync.call(course) if course.is_section_linked
 
@@ -47,24 +73,29 @@ module Catalog
 
     private
 
-    # The registrar reassigns sections after the term starts, and the extension
-    # only posts a schedule when the student's course list changes. Without this
-    # the calendar keeps naming the instructor who taught the section on the day
-    # it was first imported.
-    def sync_faculty(course, fresh_data)
-      Faculties::Ingest.call(course: course, raw_faculty: fresh_data[:faculty])
+    # A value Banner did not send keeps the stored one. An unknown schedule
+    # type also keeps the stored one.
+    def sync_section(course, section, term_uid)
+      attrs = section.attributes.merge(section.counts)
+      attrs[:subject] = Catalog::SubjectLabels.for_term(attrs[:subject], term_uid, stored: course.subject) if attrs[:subject]
+      attrs[:schedule_type] = section.schedule_type if section.schedule_type
+
+      course.assign_attributes(attrs)
+      return false unless course.changed?
+
+      course.save!
+      true
     end
 
     # The registrar moves sections between rooms after registration opens, and the
     # extension only posts a schedule when the student's course list changes. So
     # the sync is the only thing that notices a room or time change, and it has to
     # write the new meeting times itself.
-    def sync_meeting_times(course, fresh_data)
-      raw = fresh_data[:meeting_times]
-      # An empty payload means Banner told us nothing, not that the section stopped
+    def sync_meeting_times(course, section)
+      # No meetings means Banner told us nothing, not that the section stopped
       # meeting. Pruning on it would delete every meeting time and strand the
-      # Google Calendar events that point at them.
-      return false if raw.blank?
+      # calendar events that point at them.
+      return false if section.meeting_times.empty?
 
       # The batch preloads meeting times with their rooms and buildings, so the
       # first fingerprint sends no query.
@@ -72,7 +103,7 @@ module Catalog
 
       touched_ids = Catalog::MeetingTimesIngest.call(
         course: course,
-        raw_meeting_times: Catalog::MeetingTimesIngest.normalize_leopard_web(raw),
+        meetings: section.meeting_times,
         locations: @locations,
         existing_meeting_times: course.meeting_times.to_a
       )
@@ -95,79 +126,6 @@ module Catalog
           mt.rooms.map { |r| [ r.building.abbreviation, r.number ] }.sort
         ]
       }.sort_by(&:to_s)
-    end
-
-    def fetch_fresh_course_data(crn, term_uid)
-      Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
-    rescue Catalog::BannerThrottle::CooldownError
-      raise
-    rescue => e
-      Rails.error.report(e, handled: true, context: { crn: crn, term_uid: term_uid })
-      nil
-    end
-
-    def course_data_changed?(course, fresh_data)
-      fresh_title           = fresh_data[:title].present? ? Course.normalize_value_for(:title, fresh_data[:title].strip) : nil
-      fresh_grade_mode      = fresh_data[:grade_mode]&.strip
-      fresh_subject         = fresh_data[:subject]&.strip
-      fresh_section_number  = Catalog::SectionNumber.normalize(fresh_data[:section_number])
-      fresh_schedule_type   = extract_schedule_type(fresh_data[:schedule_type])
-
-      [
-        course.title          != fresh_title,
-        course.grade_mode     != fresh_grade_mode,
-        course.subject        != fresh_subject,
-        course.section_number != fresh_section_number,
-        fresh_schedule_type && course.schedule_type != fresh_schedule_type
-      ].any?
-    end
-
-    # Credit hours are not taken from getClassDetails. Its "Credit Hours" is the
-    # course's credits, so it gives a lab the lecture's 4. The import keeps the
-    # section's own credits (Catalog::Importer.credit_hours_for), which are nil
-    # for a lab.
-    def update_course_from_fresh_data(course, fresh_data)
-      attrs = {}
-      attrs[:title]          = Course.normalize_value_for(:title, fresh_data[:title].strip) if fresh_data[:title].present?
-      attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
-      attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
-      attrs[:section_number] = Catalog::SectionNumber.normalize(fresh_data[:section_number]) if fresh_data[:section_number]
-
-      schedule_type = extract_schedule_type(fresh_data[:schedule_type])
-      attrs[:schedule_type] = schedule_type if schedule_type
-
-      attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-      attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-      attrs.merge!(waitlist_counts(fresh_data))
-
-      course.update!(attrs) if attrs.any?
-    end
-
-    def update_enrollment_counts(course, fresh_data)
-      attrs = {}
-      attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-      attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-      attrs.merge!(waitlist_counts(fresh_data))
-
-      course.update!(attrs) if attrs.any?
-      attrs.any?
-    end
-
-    # Both counts or neither, so a section never shows half of a waitlist.
-    def waitlist_counts(fresh_data)
-      return {} if fresh_data[:waitlist_capacity].nil? || fresh_data[:waitlist_available].nil?
-
-      fresh_data.slice(:waitlist_capacity, :waitlist_available)
-    end
-
-    # The enum key of Banner's schedule type, "Lecture (LEC)" or "LEC", or nil
-    # when Banner sends text with no known code, such as "No Section specified
-    # schedule type, ...". A nil keeps the stored type.
-    def extract_schedule_type(raw)
-      return nil if raw.blank?
-
-      match = raw.to_s.match(/\(([^)]+)\)/)
-      Course::ScheduleType.key_for_code(match ? match[1].strip : raw.strip)
     end
   end
 end

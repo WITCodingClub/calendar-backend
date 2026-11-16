@@ -44,7 +44,7 @@ RSpec.describe Catalog::ReviewQuery do
 
     it "rejects an id that belongs to no instructor" do
       expect { results(instructor: "fac_nobody") }
-        .to raise_error(described_class::FilterError, /Unknown instructor/)
+        .to raise_error(Catalog::FilterError, /Unknown instructor/)
     end
   end
 
@@ -58,7 +58,7 @@ RSpec.describe Catalog::ReviewQuery do
     end
 
     it "rejects a sentiment it does not know" do
-      expect { results(sentiment: "grumpy") }.to raise_error(described_class::FilterError, /Unknown sentiment/)
+      expect { results(sentiment: "grumpy") }.to raise_error(Catalog::FilterError, /Unknown sentiment/)
     end
   end
 
@@ -104,6 +104,6 @@ RSpec.describe Catalog::ReviewQuery do
   end
 
   it "rejects a filter it does not know" do
-    expect { results(nonsense: true) }.to raise_error(described_class::FilterError, /Unknown filter/)
+    expect { results(nonsense: true) }.to raise_error(Catalog::FilterError, /Unknown filter/)
   end
 end

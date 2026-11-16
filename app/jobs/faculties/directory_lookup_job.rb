@@ -4,11 +4,15 @@ module Faculties
   class DirectoryLookupJob < ApplicationJob
     queue_as :low
 
+    # A directory read this recent, of this person or of everyone
+    # (Faculties::DirectorySyncJob), needs no lookup.
+    FRESH_FOR = 24.hours
+
     def perform(faculty_id)
       faculty = Faculty.find_by(id: faculty_id)
       return unless faculty
 
-      if faculty.directory_last_synced_at.present? && faculty.directory_last_synced_at > 24.hours.ago
+      if faculty.directory_last_synced_at.present? && faculty.directory_last_synced_at > FRESH_FOR.ago
         Rails.logger.info({ message: "Faculties::DirectoryLookupJob skipped - recently synced",
                             faculty_id: faculty.id, faculty_name: faculty.full_name,
                             last_synced_at: faculty.directory_last_synced_at.iso8601 }.to_json)

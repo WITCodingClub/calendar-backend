@@ -5,8 +5,6 @@ module Catalog
   # courses. The REST controller and the MCP tool list_term_electives use
   # this object. docs/term-electives.md describes the data.
   class TermElectiveQuery
-    class FilterError < ::Catalog::FilterError; end
-
     Match = Data.define(:list, :courses)
 
     # The lists of the term, by school and then title. With a filter, each

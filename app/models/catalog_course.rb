@@ -101,7 +101,6 @@ class CatalogCourse < ApplicationRecord
     ].compact_blank.join("\n")
   end
 
-  # The entry from the newest catalog year that lists this course.
   def newest_catalog_entry
     catalog_year_courses.max_by { |entry| entry.catalog_year.start_year }
   end

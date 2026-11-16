@@ -31,7 +31,6 @@ module Embeddable
   end
 
   class_methods do
-    # The rows closest to a query vector, nearest first.
     def nearest_to(vector, limit:)
       return none if vector.blank?
 

@@ -41,7 +41,7 @@ module Catalog
       return [] unless Term.synced_uids.include?(term_uid.to_i)
 
       ids = Course.joins(:term).where(terms: { uid: term_uid }, crn: crns).where.not(status: :cancelled)
-                  .where("courses.banner_synced_at IS NULL OR courses.banner_synced_at < ?", FRESH_FOR.ago)
+                  .banner_synced_before(FRESH_FOR.ago)
                   .limit(LIMIT).pluck(:id)
       queue(ids)
     end

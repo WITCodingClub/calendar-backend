@@ -11,6 +11,25 @@ The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it 
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
 | Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
 
+## From a Banner answer to a section row
+
+Banner describes a section in two answers with different key names: the class search (500 sections in one request) and `getClassDetails` (one section). `Catalog::BannerSection` reads either one and gives the values the `courses` table stores: the details, the schedule type, the seat, waitlist, and cross-list counts, the meetings (`Catalog::BannerSection::Meeting`), and the instructors. Each count pair is written together or not at all, and a negative count (an over-enrolled section) is kept. `Catalog::MeetingTimesIngest` writes the meetings as meeting time rows.
+
+```mermaid
+flowchart LR
+  Search["Class search"] --> BS["Catalog::BannerSection"]
+  Details["getClassDetails"] --> BS
+  BS --> Importer["Catalog::Importer"]
+  BS --> Seats["Catalog::SeatRefresh (counts only)"]
+  BS --> Sync["Catalog::SectionSync"]
+  BS --> Processor["Courses::Processor"]
+  Importer --> Ingest["Catalog::MeetingTimesIngest"]
+  Sync --> Ingest
+  Processor --> Ingest
+```
+
+`Catalog::SectionSync.call_many` syncs a list of sections in batches of 50: it loads each batch with its meeting times and rooms, and sends the calendar marks of the change trackers once for each batch. The nightly sync and `Catalog::SectionRefreshJob` both call it. A Banner cooldown stops the run, so the job retries after the cooldown. Any other error is reported, and the next section syncs (`Catalog::BannerThrottle.report_unless_cooldown`).
+
 ## Where a schedule's sections come from
 
 `POST /api/process_courses` (`Courses::Processor`) does not ask Banner about a section that Banner confirmed in the last 36 hours. The nightly sync and each Banner fetch record that time in `courses.banner_synced_at`. Such a section comes from the catalog, and the request needs no Banner call. A new section, or one that the sync has not confirmed in 36 hours, goes to Banner as before. If the nightly sync stops, every section goes to Banner after 36 hours.

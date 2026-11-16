@@ -36,12 +36,12 @@ RSpec.describe Catalog::SectionQuery do
 
     it "rejects an id that does not decode, rather than returning nothing" do
       expect { crns_for(pub_ids: [ "crs_not-a-hash" ]) }
-        .to raise_error(described_class::FilterError, /Unknown pub_id/)
+        .to raise_error(Catalog::FilterError, /Unknown pub_id/)
     end
 
     it "rejects the public id of another model" do
       expect { crns_for(pub_ids: [ "fac_kw7coe30" ]) }
-        .to raise_error(described_class::FilterError, /Unknown pub_id/)
+        .to raise_error(Catalog::FilterError, /Unknown pub_id/)
     end
   end
 
@@ -212,7 +212,7 @@ RSpec.describe Catalog::SectionQuery do
 
     it "raises for an unknown type" do
       expect { query.call(schedule_types: "NOPE") }
-        .to raise_error(described_class::FilterError, /Unknown schedule_type/)
+        .to raise_error(Catalog::FilterError, /Unknown schedule_type/)
     end
   end
 
@@ -282,7 +282,7 @@ RSpec.describe Catalog::SectionQuery do
   describe "unknown filters" do
     it "raises rather than ignoring them silently" do
       expect { query.call(sort_by: "title") }
-        .to raise_error(described_class::FilterError, /Unknown filter\(s\): sort_by/)
+        .to raise_error(Catalog::FilterError, /Unknown filter\(s\): sort_by/)
     end
   end
 

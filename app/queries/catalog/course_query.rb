@@ -4,7 +4,15 @@ module Catalog
   # Finds catalog courses (one row per course, across terms). The REST
   # controller, the GraphQL schema, and the MCP tools use this object.
   class CourseQuery
-    def call(q: nil, subject: nil, term_uid: nil)
+    extend Filters
+
+    filter :q, :string, "A course code, such as \"COMP 2350\", or words in the title."
+    filter :subject, :strings, "Subject codes, for example COMP or MATH."
+    filter :term_uid, :integer, "Only courses with a section in this term."
+
+    def call(**filters)
+      self.class.check_filters!(filters)
+      q, subject, term_uid = filters.values_at(:q, :subject, :term_uid)
       relation = CatalogCourse.all
       codes    = Array(subject).map { |code| code.to_s.strip.upcase }.compact_blank
       relation = relation.where(subject_code: codes) if codes.any?

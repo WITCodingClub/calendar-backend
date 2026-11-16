@@ -13,8 +13,6 @@ module Catalog
   # Catalog::ScheduleRules has the rules and the totals, which
   # Catalog::ScheduleOptions shares.
   class ScheduleCheck
-    class TermNotFoundError < ::Catalog::FilterError; end
-
     MAX_CRNS = 30
 
     def initialize(term_uid:, crns:)
@@ -41,7 +39,7 @@ module Catalog
     private
 
     def term
-      @term ||= Term.find_by(uid: @term_uid) || raise(TermNotFoundError, "Unknown term_uid #{@term_uid.inspect}")
+      @term ||= Term.find_by(uid: @term_uid) || raise(FilterError, "Unknown term_uid #{@term_uid.inspect}")
     end
 
     def found

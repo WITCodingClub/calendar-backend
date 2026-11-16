@@ -59,7 +59,7 @@ module Catalog
       enqueue_details_sync(terms)
 
       Rails.logger.info "[Catalog::CourseDataSyncJob] Completed sync for #{terms.length} terms: " \
-                        "#{counts[:synced]} synced, #{counts[:errors]} errors"
+                        "#{counts[:synced]} changed, #{counts[:errors]} errors"
     end
 
     private
@@ -81,39 +81,10 @@ module Catalog
     end
 
     def sync_courses(terms)
-      counts = { synced: 0, errors: 0 }
-      uids = terms.to_h { |term| [ term.id, term.uid ] }
-
-      # find_in_batches ignores an order, so take the ids in order first.
-      ids = Course.where(term_id: uids.keys)
-                  .where(banner_synced_at: nil).or(Course.where(term_id: uids.keys, banner_synced_at: ...FRESH_FOR.ago))
+      ids = Course.where(term_id: terms.map(&:id)).banner_synced_before(FRESH_FOR.ago)
                   .order(Course.arel_table[:banner_synced_at].asc.nulls_first, :id)
                   .pluck(:id)
-
-      # Courses share buildings and rooms, so one SectionSync (and its
-      # Locations) serves them all. Enrollment flags are loaded and marks are
-      # sent once for each batch of courses, not once for each course.
-      section_sync = Catalog::SectionSync.new
-
-      ids.each_slice(BATCH_SIZE) do |slice|
-        courses = Course.where(id: slice).includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
-                        .index_by(&:id).values_at(*slice).compact
-        flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
-        CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
-          courses.each do |course|
-            # Catalog::BannerThrottle paces the Banner requests, so there is no
-            # sleep here.
-            counts[:synced] += 1 if section_sync.call(course, uids.fetch(course.term_id))
-          rescue Catalog::BannerThrottle::CooldownError
-            raise
-          rescue => e
-            counts[:errors] += 1
-            Rails.error.report(e, handled: true, context: { course_id: course.id, crn: course.crn })
-          end
-        end
-      end
-
-      counts
+      Catalog::SectionSync.call_many(ids)
     end
   end
 end

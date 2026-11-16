@@ -40,7 +40,8 @@ RSpec.describe "Catalog GraphQL courses" do
     node = result.dig("data", "sections", "nodes").find { |n| n["crn"] == section.crn }
     expect(node["course"]).to eq("code" => "COMP 2000")
     expect(node["description"]).to eq(comp2000.description)
-    expect(node["prerequisites"]).to include("code" => "COMP 1050")
+    # The tree as Banner gives it, as in the REST section (section.course.prerequisites).
+    expect(node["prerequisites"]).to eq(comp2000.prerequisites.as_json)
   end
 
   it "gives the seat and waitlist counts of a section" do

@@ -15,6 +15,19 @@ module Catalog
       "#{CourseCode.format(course.prefix, course.course_number)}-#{course.section_number}"
     end
 
+    # Enrollment numbers from Banner. The catalog import writes them, and
+    # Catalog::CourseDataSyncJob and Catalog::SeatRefreshJob refresh them
+    # (Catalog::Freshness), so they are not a real-time count. Null when
+    # Banner gave no enrollment data for the section.
+    def seats(course)
+      { capacity: course.seats_capacity, available: course.seats_available }
+    end
+
+    # The waitlist counts, from the same Banner data and jobs as seats.
+    def waitlist(course)
+      { capacity: course.waitlist_capacity, available: course.waitlist_available }
+    end
+
     # Sections of other courses that meet with this one, such as an
     # undergraduate and a graduate studio. The seats count the whole group.
     # Nil when the section is not cross-listed.

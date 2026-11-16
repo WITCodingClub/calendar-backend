@@ -60,14 +60,10 @@ module Catalog
       cached = Rails.cache.read(cache_key)
       return cached if cached
 
-      codes = LeopardWebClient.get_subjects(term: term_uid).to_h { |s| [ s[:description].to_s.strip, s[:code].to_s.strip.upcase ] }
+      subjects = BannerThrottle.report_unless_cooldown(fallback: [], term_uid: term_uid) { LeopardWebClient.get_subjects(term: term_uid) }
+      codes = subjects.to_h { |s| [ s[:description].to_s.strip, s[:code].to_s.strip.upcase ] }
       Rails.cache.write(cache_key, codes, expires_in: CACHE_TTL) if codes.any?
       codes
-    rescue BannerThrottle::CooldownError
-      raise
-    rescue => e
-      Rails.error.report(e, handled: true, context: { term_uid: term_uid })
-      {}
     end
 
     # "Computer Science (COMP)" ends with a code. "Graduate Internship

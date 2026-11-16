@@ -31,10 +31,6 @@ module Catalog
     #   and they must hold its pinned CRNs. Otherwise the lab would be in two
     #   entries, and no schedule could fit.
     class Candidates
-      class TermNotFoundError < ::Catalog::FilterError; end
-
-      LAB_TYPES = %w[laboratory online_sync_lab rotating_lab].freeze
-
       # A course entry with its units. index is its place in the request.
       # section_ids are the ids of its offered sections, pinned its pinned
       # sections.
@@ -47,7 +43,7 @@ module Catalog
       end
 
       def call
-        @term = Term.find_by(uid: @input.term_uid) || raise(TermNotFoundError, "Unknown term_uid #{@input.term_uid}")
+        @term = Term.find_by(uid: @input.term_uid) || raise(FilterError, "Unknown term_uid #{@input.term_uid}")
         check_known_codes!
 
         @not_offered = []
@@ -185,7 +181,7 @@ module Catalog
         end.sort_by(&:crns)
       end
 
-      def lab?(course) = LAB_TYPES.include?(course.schedule_type)
+      def lab?(course) = Course::ScheduleType.lab?(course.schedule_type)
 
       def merge_partner_entries(entries)
         entries.each_with_object([]) do |entry, kept|

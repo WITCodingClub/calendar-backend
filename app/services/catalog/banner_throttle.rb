@@ -5,8 +5,8 @@ module Catalog
   # Faraday middleware. Catalog::LeopardWebClient adds it to each connection.
   #
   # On 2026-10-14 Banner answered HTTP 500 to every searchResults request after
-  # about 40 requests in a minute, and worked again a few minutes later. So the
-  # middleware does four things:
+  # about FAILED_AFTER_PER_MINUTE requests in a minute, and worked again a few
+  # minutes later. So the middleware does four things:
   #
   # 1. Pacing. A token bucket for each kind of caller (BUCKETS): a burst of
   #    requests at once, then a fixed rate. Web requests and jobs have separate
@@ -26,10 +26,12 @@ module Catalog
   # inside it), so the memory is shared by the web requests and the jobs. With
   # more processes, move the bucket and the cooldown to a shared store.
   class BannerThrottle < Faraday::Middleware
+    FAILED_AFTER_PER_MINUTE = 40
+
     Bucket = Data.define(:burst, :rate_per_second)
     # The job rate spreads the nightly sync for two terms (about 8,000
-    # requests) over about 27 minutes. On 2026-10-14 Banner failed after about
-    # 40 searchResults requests in a minute, so the job bucket stays slow. A
+    # requests) over about 27 minutes. Banner fails after about
+    # FAILED_AFTER_PER_MINUTE requests in a minute, so the job bucket stays slow. A
     # web request sends getClassDetails and two small reads, which Banner
     # answered 48 at a time in a test on 2026-10-17.
     BUCKETS = {
@@ -137,6 +139,19 @@ module Catalog
 
       def with_budget(name, &)
         ActiveSupport::ExecutionContext.set(banner_budget: name, &)
+      end
+
+      # Runs the block for one item of a longer Banner run. A CooldownError
+      # goes up, so the job stops and retries after the cooldown
+      # (Catalog::BannerCooldownRetry). Any other error is reported with the
+      # context, and the answer is the fallback, so the run goes on.
+      def report_unless_cooldown(fallback: nil, **context)
+        yield
+      rescue CooldownError
+        raise
+      rescue StandardError => e
+        Rails.error.report(e, handled: true, context: context)
+        fallback
       end
 
       # Specs replace this, so they do not wait.

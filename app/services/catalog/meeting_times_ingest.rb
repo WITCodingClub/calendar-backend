@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 module Catalog
+  # Writes a section's meetings (Catalog::BannerSection::Meeting) as meeting
+  # time rows, one for each day, with their rooms.
   class MeetingTimesIngest < ApplicationService
-    attr_reader :course, :raw_meeting_times
+    attr_reader :course, :meetings
 
     # Buildings and rooms by key, shared by the ingests of several courses.
-    # A caller that ingests many courses calls preload once with the meeting
-    # times of all of them and passes the same object to each ingest. Each
-    # course then sends no query for a building or room that is already here.
+    # A caller that ingests many courses calls preload once with the meetings
+    # of all of them and passes the same object to each ingest. Each course
+    # then sends no query for a building or room that is already here.
     class Locations
       attr_reader :buildings, :rooms
 
@@ -16,49 +18,46 @@ module Catalog
         @rooms = {}
       end
 
-      # Loads the buildings and rooms that the meeting times name, in one query
-      # each, and creates the ones that do not exist. A meeting time with no
-      # building is skipped: it gets the TBD building or none, which depends on
-      # whether its course is online.
-      def preload(raw_meeting_times)
-        entries = Array(raw_meeting_times).filter_map do |mt|
-          abbr = (mt["building"] || mt[:building]).to_s.strip
-          next if abbr.blank?
-
-          [ abbr, (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip, (mt["room"] || mt[:room]).to_s.strip ]
-        end
-        load(entries)
+      # Loads the buildings and rooms that the meetings name, in one query
+      # each, and creates the ones that do not exist. A meeting with no
+      # building is skipped: it gets the TBD building or none, which depends
+      # on whether its course is online.
+      def preload(meetings)
+        load(Array(meetings).filter_map { |meeting| [ meeting.building, meeting.building_name, meeting.room_numbers ] if meeting.building.present? })
       end
 
-      # Each entry is [building abbreviation, building description, room string].
+      # Each entry is [building abbreviation, building name, room numbers].
       # Sends queries only for the buildings and rooms that are not loaded yet.
       def load(entries)
         missing_abbrs = entries.map(&:first).uniq - buildings.keys
         if missing_abbrs.any?
           Building.where(abbreviation: missing_abbrs).each { |b| buildings[b.abbreviation] = b }
 
-          entries.uniq(&:first).each do |abbr, desc, _room|
+          entries.uniq(&:first).each do |abbr, name, _rooms|
             # Insert first: the query above found no row, so a lookup would only repeat it.
             buildings[abbr] ||= Building.create_or_find_by!(abbreviation: abbr) do |b|
-              b.name = desc.presence || abbr
+              b.name = name.presence || abbr
             end
           end
         end
 
-        missing_rooms = entries.flat_map { |abbr, _desc, room|
-          building = buildings[abbr]
-          Catalog::MeetingTimesIngest.parse_room_numbers(room).map { |room_num| [ room_num, building ] }
-        }.uniq { |room_num, building| [ room_num, building.id ] }
-                               .reject { |room_num, building| rooms.key?([ room_num, building.id ]) }
+        missing_rooms = entries.flat_map { |abbr, _name, numbers| numbers.map { |number| [ number, buildings[abbr] ] } }
+                               .uniq { |number, building| [ number, building.id ] }
+                               .reject { |number, building| rooms.key?([ number, building.id ]) }
         return if missing_rooms.empty?
 
         Room.where(building_id: missing_rooms.map { |_, building| building.id }.uniq, number: missing_rooms.map(&:first).uniq)
             .includes(:building)
             .each { |r| rooms[[ r.number, r.building_id ]] = r }
 
-        missing_rooms.each do |room_num, building|
-          rooms[[ room_num, building.id ]] ||= Room.create!(number: room_num, building: building)
+        missing_rooms.each do |number, building|
+          rooms[[ number, building.id ]] ||= Room.create!(number: number, building: building)
         end
+      end
+
+      def rooms_for(abbr, numbers)
+        building = buildings.fetch(abbr)
+        numbers.map { |number| rooms.fetch([ number, building.id ]) }
       end
     end
 
@@ -66,273 +65,83 @@ module Catalog
     # - locations: a Locations object shared with the ingests of other courses.
     # - existing_meeting_times: the course's meeting times, loaded by the caller
     #   with their meeting_time_rooms. Without it, the ingest loads them itself.
-    def initialize(course:, raw_meeting_times:, **options)
+    def initialize(course:, meetings:, **options)
       @course = course
-      @raw_meeting_times = Array(raw_meeting_times)
-      @compute_hours_week = options.fetch(:compute_hours_week, true)
+      @meetings = Array(meetings)
       @locations = options[:locations] || Locations.new
       @existing_meeting_times = options[:existing_meeting_times]
       super()
     end
 
-    # "112/114" names two rooms. A blank room string means room "0".
-    def self.parse_room_numbers(room_str)
-      return [ Room::TBD_NUMBER ] if room_str.blank?
-
-      parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
-      parts.empty? ? [ Room::TBD_NUMBER ] : parts
-    end
-
-    # Banner's getFacultyMeetingTimes payload uses its own key names. Reshape it
-    # into the keys ingest_one reads, so every caller that pulls from LeopardWeb
-    # feeds this service the same shape.
-    def self.normalize_leopard_web(meeting_times)
-      Array(meeting_times).map do |lw_mt|
-        {
-          "startDate"           => lw_mt["startDate"],
-          "endDate"             => lw_mt["endDate"],
-          "beginTime"           => lw_mt["startTime"],
-          "endTime"             => lw_mt["endTime"],
-          "building"            => lw_mt["building"],
-          "buildingDescription" => lw_mt["building_description"],
-          "room"                => lw_mt["room"],
-          "monday"              => lw_mt.dig("days", "monday"),
-          "tuesday"             => lw_mt.dig("days", "tuesday"),
-          "wednesday"           => lw_mt.dig("days", "wednesday"),
-          "thursday"            => lw_mt.dig("days", "thursday"),
-          "friday"              => lw_mt.dig("days", "friday"),
-          "saturday"            => lw_mt.dig("days", "saturday"),
-          "sunday"              => lw_mt.dig("days", "sunday")
-        }
-      end
-    end
-
     # Upserts meeting times in place and returns the IDs of every row that was
     # created or updated, so callers can prune stale rows without touching the rest.
     def call
-      preload_buildings_and_rooms
-      @touched_meeting_time_ids = []
-      raw_meeting_times.each do |mt|
-        ingest_one(mt)
+      places = meetings.to_h { |meeting| [ meeting, place_of(meeting) ] }
+      @locations.load(places.values.compact)
+
+      existing = @existing_meeting_times || Course::MeetingTime.where(course_id: course.id).includes(:meeting_time_rooms)
+      @meeting_time_cache = existing.index_by { |mt| [ mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week ] }
+
+      meetings.select(&:complete?).flat_map do |meeting|
+        abbr, _name, numbers = places[meeting]
+        abbr ? ingest_one(meeting, @locations.rooms_for(abbr, numbers)) : []
       end
-      @touched_meeting_time_ids
     end
 
     private
 
-    ONLINE_SCHEDULE_TYPES = %w[online online_blended online_sync_lab online_sync_lecture].freeze
+    # [building abbreviation, building name, room numbers], or nil for an
+    # online section with no building. Any other meeting with no building
+    # gets the TBD building, and the TBD building gets its full name.
+    def place_of(meeting)
+      abbr = meeting.building
+      if abbr.blank?
+        return nil if Course::ScheduleType.online?(course.schedule_type)
 
-    # Banner schedule codes whose meetings are labs (Course::ScheduleType).
-    LAB_SCHEDULE_CODES = %w[LAB OLB RLB].freeze
-
-    def preload_buildings_and_rooms
-      entries = @raw_meeting_times.filter_map do |mt|
-        abbr = (mt["building"] || mt[:building]).to_s.strip
-        desc = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
-        next if abbr.blank? && online_course?
-
-        abbr = Building::TBD_ABBREVIATION if abbr.blank?
-        desc = Building::TBD_NAME if abbr == Building::TBD_ABBREVIATION && desc.blank?
-        [ abbr, desc, (mt["room"] || mt[:room]).to_s.strip ]
+        abbr = Building::TBD_ABBREVIATION
       end
-      @locations.load(entries)
-
-      existing = @existing_meeting_times || Course::MeetingTime.where(course_id: course.id).includes(:meeting_time_rooms)
-      @meeting_time_cache = existing.index_by { |mt| [ mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast ] }
+      name = meeting.building_name.presence || (Building::TBD_NAME if abbr == Building::TBD_ABBREVIATION)
+      [ abbr, name, meeting.room_numbers ]
     end
 
-    def ingest_one(mt)
-      start_date_str = mt["startDate"] || mt[:startDate] || mt["meetingStartDate"] || mt[:meetingStartDate]
-      end_date_str   = mt["endDate"]   || mt[:endDate]   || mt["meetingEndDate"]   || mt[:meetingEndDate]
-      begin_time_str = mt["beginTime"] || mt[:beginTime]
-      end_time_str   = mt["endTime"]   || mt[:endTime]
+    def ingest_one(meeting, rooms)
+      start_dt = meeting.start_date.in_time_zone.beginning_of_day
+      end_dt   = meeting.end_date.in_time_zone.change(hour: 23, min: 59, sec: 59)
 
-      start_dt = parse_date_to_beginning_of_day(start_date_str)
-      end_dt   = parse_date_to_end_of_day(end_date_str)
-      begin_hhmm = to_hhmm_format(begin_time_str)
-      end_hhmm   = to_hhmm_format(end_time_str)
-
-      return if start_dt.nil? || end_dt.nil? || begin_hhmm.nil? || end_hhmm.nil?
-
-      days_map = {
-        sunday: 0,
-        monday: 1,
-        tuesday: 2,
-        wednesday: 3,
-        thursday: 4,
-        friday: 5,
-        saturday: 6
-      }
-
-      active_days = days_map.select do |day_name, _day_num|
-        to_boolean(mt[day_name.to_s] || mt[day_name])
-      end
-
-      return if active_days.empty?
-
-      building_abbr = (mt["building"] || mt[:building]).to_s.strip
-      building_name = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
-
-      if building_abbr.blank?
-        return if online_course?
-        building_abbr = Building::TBD_ABBREVIATION
-        building_name = Building::TBD_NAME
-      end
-
-      building = @locations.buildings[building_abbr] ||= Building.find_or_create_by!(abbreviation: building_abbr) do |b|
-        b.name = building_name.presence || building_abbr
-      end
-
-      room_str = (mt["room"] || mt[:room]).to_s.strip
-      rooms_for_mt = self.class.parse_room_numbers(room_str).map { |room_num|
-        cache_key = [ room_num, building.id ]
-        @locations.rooms[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
-      }
-
-      meeting_schedule_type = map_schedule_type(
-        mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType] || course_schedule_code
-      )
-      meeting_type          = map_meeting_type(mt["meetingType"] || mt[:meetingType])
-
-      hours_per_day = if @compute_hours_week
-                        compute_hours_per_day(begin_hhmm, end_hhmm)
-      else
-                        nil
-      end
-
-      active_days.each_value do |day_num|
-        lookup_attrs = {
-          course: course,
-          start_date: start_dt,
-          end_date: end_dt,
-          begin_time: begin_hhmm,
-          end_time: end_hhmm,
-          day_of_week: day_num
-        }
-
-        update_attrs = {
-          meeting_schedule_type: meeting_schedule_type,
-          meeting_type: meeting_type,
-          hours_week: hours_per_day
-        }
-
-        cache_key = [ start_dt, end_dt, begin_hhmm, end_hhmm, day_num ]
-        meeting_time = @meeting_time_cache[cache_key] || Course::MeetingTime.new(lookup_attrs)
-        meeting_time.assign_attributes(update_attrs)
+      meeting.days.map do |day|
+        cache_key = [ start_dt, end_dt, meeting.begin_time, meeting.end_time, day ]
+        meeting_time = @meeting_time_cache[cache_key] ||
+                       Course::MeetingTime.new(course: course, start_date: start_dt, end_date: end_dt,
+                                               begin_time: meeting.begin_time, end_time: meeting.end_time, day_of_week: day)
+        meeting_time.assign_attributes(meeting_schedule_type: lab?(meeting) ? :laboratory : :lecture,
+                                       meeting_type: :class_meeting,
+                                       hours_week: meeting.hours)
         meeting_time.save!
-
-        # A meeting time created just now has no rooms yet, so skip the query.
-        desired_rooms = rooms_for_mt.index_by(&:id)
-        existing_links = meeting_time.previously_new_record? ? [] : meeting_time.meeting_time_rooms.to_a
-
-        existing_links.reject { |link| desired_rooms.key?(link.room_id) }.each(&:destroy)
-        (desired_rooms.keys - existing_links.map(&:room_id)).each do |rid|
-          meeting_time.meeting_time_rooms.create!(room: desired_rooms[rid])
-        end
+        link_rooms(meeting_time, rooms)
 
         @meeting_time_cache[cache_key] = meeting_time
-        @touched_meeting_time_ids << meeting_time.id
+        meeting_time.id
       end
     end
 
-    def parse_date_to_beginning_of_day(value)
-      date = parse_date(value)
-      return nil unless date
+    def link_rooms(meeting_time, rooms)
+      # A meeting time created just now has no rooms yet, so skip the query.
+      desired = rooms.index_by(&:id)
+      existing = meeting_time.previously_new_record? ? [] : meeting_time.meeting_time_rooms.to_a
 
-      Time.zone.local(date.year, date.month, date.day, 0, 0, 0)
-    end
-
-    def parse_date_to_end_of_day(value)
-      date = parse_date(value)
-      return nil unless date
-
-      Time.zone.local(date.year, date.month, date.day, 23, 59, 59)
-    end
-
-    def parse_date(value)
-      return nil if value.nil? || value.to_s.strip.empty?
-
-      str = value.to_s.strip
-      Date.iso8601(str)
-    rescue ArgumentError
-      begin
-        Date.strptime(str, "%m/%d/%Y")
-      rescue ArgumentError
-        nil
+      existing.reject { |link| desired.key?(link.room_id) }.each(&:destroy)
+      (desired.keys - existing.map(&:room_id)).each do |room_id|
+        meeting_time.meeting_time_rooms.create!(room: desired[room_id])
       end
     end
 
-    def to_hhmm_format(value)
-      return nil if value.nil? || value.to_s.strip.empty?
+    # getClassDetails meetings carry no schedule type, and the nightly sync
+    # re-ingests them. Without the section's type every lab meeting went back
+    # to "lecture" each night. A section's meetings share its schedule type.
+    def lab?(meeting)
+      return Course::ScheduleType.lab?(Course::ScheduleType.key_for_code(meeting.schedule_code)) if meeting.schedule_code
 
-      str = value.to_s.strip
-      case str
-      when /\A(\d{1,2}):(\d{2})\s*(AM|PM)\z/i
-        h = Regexp.last_match(1).to_i
-        m = Regexp.last_match(2).to_i
-        meridian = Regexp.last_match(3).upcase
-        h = (h % 12) + (meridian == "PM" ? 12 : 0)
-        (h * 100) + m
-      when /\A(\d{1,2}):(\d{2})\z/
-        h = Regexp.last_match(1).to_i
-        m = Regexp.last_match(2).to_i
-        return nil if h > 23 || m > 59
-
-        (h * 100) + m
-      when /\A\d{3,4}\z/
-        # Banner returns beginTime/endTime as bare integers (e.g. 800, 1315, 0800)
-        hhmm = str.to_i
-        h = hhmm / 100
-        m = hhmm % 100
-        return nil if h > 23 || m > 59
-
-        hhmm
-      else
-        nil
-      end
-    end
-
-    def to_boolean(val)
-      case val
-      when true, "true", "TRUE", "Y", "y", 1, "1"
-        true
-      else
-        false
-      end
-    end
-
-    def map_schedule_type(val)
-      LAB_SCHEDULE_CODES.include?(val.to_s.strip.upcase) ? 2 : 1
-    end
-
-    # getClassDetails meeting times (normalize_leopard_web) carry no schedule
-    # type, and the nightly sync re-ingests them. Without this fallback every
-    # lab meeting went back to "lecture" each night. A section's meetings share
-    # its schedule type.
-    def course_schedule_code
-      Course::ScheduleType.new(course.schedule_type).code if course.schedule_type.present?
-    rescue ArgumentError
-      nil
-    end
-
-    def map_meeting_type(_val)
-      1
-    end
-
-    def online_course?
-      ONLINE_SCHEDULE_TYPES.include?(course.schedule_type.to_s)
-    end
-
-    def compute_hours_per_day(begin_hhmm, end_hhmm)
-      begin_h = begin_hhmm / 100
-      begin_m = begin_hhmm % 100
-      begin_decimal = begin_h + (begin_m / 60.0)
-
-      end_h = end_hhmm / 100
-      end_m = end_hhmm % 100
-      end_decimal = end_h + (end_m / 60.0)
-
-      [ end_decimal - begin_decimal, 0 ].max.round
+      Course::ScheduleType.lab?(course.schedule_type)
     end
   end
 end

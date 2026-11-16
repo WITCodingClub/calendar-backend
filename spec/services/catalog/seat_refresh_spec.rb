@@ -80,6 +80,15 @@ RSpec.describe Catalog::SeatRefresh do
     expect(full.reload).to have_attributes(cross_list_capacity: 24, cross_list_available: 0)
   end
 
+  it "clears the group identifier and counts of a section that left its cross-list group" do
+    full.update!(cross_list_identifier: "01", cross_list_capacity: 24, cross_list_available: 4)
+    stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: 25, seatsAvailable: 17 } ] }.to_json)
+
+    described_class.call(term)
+
+    expect(full.reload).to have_attributes(cross_list_identifier: nil, cross_list_capacity: nil, cross_list_available: nil)
+  end
+
   # The database checks that seats_available is not more than seats_capacity.
   it "writes neither count when Banner sends only one" do
     stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: nil, seatsAvailable: 0 } ] }.to_json)
