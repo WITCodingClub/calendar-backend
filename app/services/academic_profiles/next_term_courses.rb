@@ -182,21 +182,21 @@ module AcademicProfiles
       }
     end
 
-    # The courses of the term that fill a row of the program (#1019). The
-    # student registered for them, so their rows are in neither planned nor
-    # behind. Each course once, in plan order.
+    # The registered courses of the term (#1019) whose code, or an alias of
+    # it, is the course of a row of the program. Their rows are in neither
+    # planned nor behind. A retake counts too: the row keeps the best
+    # attempt, such as a D in an earlier term, and the retake is in the
+    # term. Each course once, in plan order.
     def registered_json(entry)
-      return [] if term_uid.nil?
-
-      entry[:requirements].select { |row| row[:course] && COUNTED.include?(row[:status]) && TermCode.parse(row[:term]) == term_uid }
-                          .map { |row| row[:course] }.uniq
-                          .map { |code| { code: code, title: term_titles[code], crns: term_crns.fetch(code, []) } }
+      codes = entry[:requirements].filter_map { |row| row[:course] if COUNTED.include?(row[:status]) }
+      codes.flat_map { |code| term_registered.select { |course| equivalent_codes(code).include?(course[:code]) } }
+           .uniq { |course| course[:code] }
+           .map { |course| { code: course[:code], title: course[:title], crns: term_crns.fetch(course[:code], []) } }
     end
 
-    # The section title of each course the student takes in the term.
-    def term_titles
-      @term_titles ||= progress[:courses].select { |course| course[:term_uid] == term_uid }
-                                         .to_h { |course| [ course[:code], course[:title] ] }
+    # The courses of DegreeProgress with the registered status in the term.
+    def term_registered
+      @term_registered ||= progress[:courses].select { |course| course[:term_uid] == term_uid && course[:status] == "registered" }
     end
 
     # The CRNs of the student's sections in the term, by course code. A

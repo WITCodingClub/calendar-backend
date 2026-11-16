@@ -531,6 +531,28 @@ RSpec.describe "MCP tool output schemas" do
                                                 hss_category: "Social Sciences" } ])
     end
 
+    it "matches degree progress and the next term courses with a registered course in a later term (#1019)" do
+      create(:term, uid: 202710, year: 2026, season: :fall, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 20))
+      spring = create(:term, uid: 202720, year: 2027, season: :spring, start_date: Date.new(2027, 1, 12))
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      plan = create(:program_plan, requirement_set: set)
+      create(:program_plan_item, program_plan: plan, year_index: 1, season: "spring", subject_code: "WDGT", course_number: 2000)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202710)
+      create(:enrollment, user: user, course: create(:course, term: spring, subject: "WDGT", course_number: 2000, credit_hours: 4))
+      minor = create(:degree_program, :minor, slug: "gear-minor", parent_program: nil)
+      list = create(:elective_group, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year),
+                                     min_courses: 1)
+      create(:elective_group_course, elective_group: list, subject_code: "WDGT", course_number: 2000)
+
+      program = expect_valid(McpTools::MyDegreeProgress)[:programs].first
+      expect(program[:requirements].pluck(:status)).to eq(%w[registered])
+      expect(program[:summary][:credits]).to include(registered: 4)
+      expect(expect_valid(McpTools::MyDegreeProgress, program: "gear-minor")[:programs].first[:requirements].first)
+        .to include(status: "registered")
+      next_term = expect_valid(McpTools::MyNextTermCourses, term: "Spring 2027")
+      expect(next_term[:programs].first[:registered]).to contain_exactly(include(code: "WDGT 2000", crns: [ Integer ]))
+    end
+
     it "matches the next term courses with a course, a choice, and an elective slot" do
       past = create(:term, uid: 202610, year: 2025, season: :fall, end_date: Date.new(2025, 12, 20))
       spring = create(:term, uid: 202720, year: 2027, season: :spring)

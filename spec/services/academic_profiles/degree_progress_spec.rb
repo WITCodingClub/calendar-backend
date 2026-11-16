@@ -93,6 +93,17 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(result[:assumptions]).to include(a_string_including("term after the current term counts as registered"))
     end
 
+    it "reads the start date first, so a term that started is in progress before Term.current reaches it" do
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1100)
+      started = create(:term, year: 2026, season: :summer, start_date: Date.new(2026, 11, 1), end_date: Date.new(2027, 8, 1))
+      take(started, "WDGT", 1000)
+      next_term.update!(start_date: Date.new(2027, 1, 12))
+      take(next_term, "WDGT", 1100)
+
+      expect(statuses(progress)).to eq([ [ "WDGT 1000", "in_progress" ], [ "WDGT 1100", "registered" ] ])
+    end
+
     it "keeps in_progress for a later term when there is no current term" do
       item(subject_code: "WDGT", course_number: 1100)
       take(next_term, "WDGT", 1100)

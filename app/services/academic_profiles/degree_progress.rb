@@ -653,9 +653,14 @@ module AcademicProfiles
       "in_progress"
     end
 
-    # A term after the current term (#1019). With no current term, no term
-    # is later, so a course keeps in_progress.
+    # A term after the current term (#1019): a term that has not started.
+    # Term.current picks the term by month, so a summer term that started in
+    # May is not current yet, and the start date decides first. A term with
+    # no start date is later when it is after the current term. With no
+    # current term, such a term is not later, so a course keeps in_progress.
     def later?(term)
+      return term.start_date > @today if term.start_date
+
       current = current_term
       current.present? && term.uid > current.uid
     end

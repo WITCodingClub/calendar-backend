@@ -218,6 +218,17 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       expect(result(term_uid: 202810)[:programs].first[:registered]).to eq([])
     end
 
+    it "lists a registered retake of a course passed with a D, and no course of the current term" do
+      item(year: 1, season: "fall", subject_code: "WDGT", course_number: 1000)
+      item(year: 2, season: "fall", subject_code: "WDGT", course_number: 2000)
+      take(past_term, "WDGT", 1000, outcome: "passed_below_c")
+      take(spring, "WDGT", 1000)
+      take(current_term, "WDGT", 2000)
+
+      expect(program[:registered].pluck(:code)).to eq([ "WDGT 1000" ])
+      expect(result(term_uid: 202710)[:programs].first[:registered]).to eq([])
+    end
+
     def progress_course(code)
       AcademicProfiles::DegreeProgress.new(user, course_details: false, today: today).call[:courses].find { |course| course[:code] == code }
     end
