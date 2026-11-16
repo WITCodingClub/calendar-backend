@@ -82,11 +82,6 @@ RSpec.describe GoogleCalendar::Provider do
     end
 
     it "deletes the new event when a concurrent sync already tracks it" do
-      # create_event rescues only RecordNotUnique. When the other sync's row
-      # is there before the uniqueness validation runs, create! raises
-      # RecordInvalid, the sync fails, and the new event stays as a duplicate.
-      pending "create_event does not rescue RecordInvalid for a taken university_calendar_event"
-
       # The other sync tracks the event while this one waits for Google.
       stub_request(:post, events_url).to_return do
         create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,

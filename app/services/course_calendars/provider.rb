@@ -122,14 +122,7 @@ module CourseCalendars
       return nil unless calendar
 
       remote = insert_friend_meeting(calendar, meeting, invite: invite)
-      calendar.calendar_events.create!(row_attributes(meeting.calendar_event).merge(remote).merge(friend_meeting: meeting))
-    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
-      raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
-
-      # A concurrent publish already tracks this meeting, so the event just
-      # created is a duplicate.
-      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
-      nil
+      track_new_event(calendar, remote, row_attributes(meeting.calendar_event).merge(remote).merge(friend_meeting: meeting))
     end
 
     # Writes the meeting's current title, place, time, and (with attendees:
@@ -213,16 +206,28 @@ module CourseCalendars
 
     def create_event(calendar, event)
       remote = insert_event(calendar, event)
-      row    = calendar.calendar_events.create!(row_attributes(event).merge(event.source_key.first => event.source.id).merge(remote))
-      event_created(row, event)
+      row    = track_new_event(calendar, remote, row_attributes(event).merge(event.source_key.first => event.source.id).merge(remote))
+      event_created(row, event) if row
       row
-    rescue ActiveRecord::RecordNotUnique
-      # A concurrent sync already created the tracking row for this event, so
-      # the insert above made a duplicate remote event.
-      Rails.logger.warn({ message: "Duplicate event race, removing the extra remote event", user_id: user.id,
-                          calendar_id: calendar.id, external_event_id: remote&.dig(:external_event_id) }.to_json)
-      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
+    end
+
+    # Saves the row that tracks an event the provider just made. When a
+    # concurrent sync already tracks the same source, the event is a
+    # duplicate: it is deleted and the result is nil. The other sync's row
+    # can be committed before the uniqueness validation runs (RecordInvalid
+    # with :taken) or only before the insert (RecordNotUnique).
+    def track_new_event(calendar, remote, attributes)
+      calendar.calendar_events.create!(attributes)
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+      raise if e.is_a?(ActiveRecord::RecordInvalid) && !source_taken?(e.record)
+
+      Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_id: calendar.id })
+      delete_duplicate_event(calendar, remote[:external_event_id])
       nil
+    end
+
+    def source_taken?(row)
+      CalendarEvent::SOURCE_COLUMNS.values.any? { |column| row.errors.of_kind?(column, :taken) }
     end
 
     # A hook for the work a provider does after the row of a new event exists.
