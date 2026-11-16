@@ -25,8 +25,6 @@ module Api
       render json: { pathway:  ProgramPathwaySerializer.new(pathway).as_json,
                      programs: programs.map { |program| StudentProgramSerializer.new(program, timeline: timelines.fetch(program)).as_json } },
              status: :created
-    rescue AcademicProfiles::InvalidProfileError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
 
     # id is the pathway slug.

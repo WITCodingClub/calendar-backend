@@ -57,8 +57,8 @@ module DegreeRequirements
           []
         else
           CatalogCourse.where(subject_code: codes.map(&:first).uniq, course_number: codes.map(&:last).uniq)
-                       .select { |course| codes.include?([ course.subject_code, course.course_number ]) }
-                       .sort_by { |course| [ course.subject_code, course.course_number ] }
+                       .select { |course| codes.include?(course.key) }
+                       .sort_by(&:key)
                        .map { |course| row(nil, course) }
         end
       end
@@ -86,9 +86,9 @@ module DegreeRequirements
         year_courses = catalog_year.catalog_year_courses.order(:subject_code, :course_number).to_a
         banner = CatalogCourse.where(subject_code: year_courses.map(&:subject_code).uniq,
                                      course_number: year_courses.map(&:course_number).uniq)
-                              .index_by { |course| [ course.subject_code, course.course_number ] }
+                              .index_by(&:key)
         year_courses.filter_map do |course|
-          match = banner[[ course.subject_code, course.course_number ]]
+          match = banner[course.key]
           [ course, match ] if match
         end
       end
@@ -99,9 +99,9 @@ module DegreeRequirements
     # subject as Banner labels it, "Computer Science (COMP)", so the code is
     # read from the label the same way CatalogCourse rows get it.
     def codes_offered_in_year
-      terms = TermCode.catalog_year_codes(catalog_year.start_year).map { |code| Term.where(TermCode.year_and_season(code)) }.reduce(:or)
+      terms = Term.where(uid: TermCode.catalog_year_codes(catalog_year.start_year))
       Course.where(term_id: terms.select(:id)).distinct.pluck(:subject, :course_number)
-            .to_set { |subject, number| [ Catalog::CourseDetailsSync.prefix_of(subject), number ] }
+            .to_set { |subject, number| [ CourseCode.subject_of(subject), number ] }
     end
 
     def normalize(title)

@@ -13,9 +13,7 @@ module UniversityCalendar
     def initialize(ics_url: ICS_FEED_URL)
       @ics_url = ics_url
       all_terms = Term.all.to_a
-      @term_cache = all_terms.index_by do |term|
-        [ term.year, term.season.to_sym ]
-      end
+      @term_cache = all_terms.index_by(&:uid)
       @terms_with_dates = all_terms.select { |t| t.start_date && t.end_date }
       @term_by_date_cache = {}
       super()
@@ -279,16 +277,9 @@ module UniversityCalendar
         event.term ||= find_term_by_date_cached(attrs[:start_time])
       end
 
-      if event.term && event.academic_term.present? && attrs[:category] == "term_dates"
-        ics_season = case event.academic_term.downcase
-        when /fall/   then :fall
-        when /spring/ then :spring
-        when /summer/ then :summer
-        end
-
-        if ics_season && ics_season != event.term.season
-          event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
-        end
+      if event.term && event.academic_term.present? && attrs[:category] == "term_dates" &&
+         names_other_term?(event.academic_term, event.term)
+        event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
       end
 
       content_changed = event.changed? && (event.changed - [ "last_fetched_at" ]).any?
@@ -449,20 +440,15 @@ module UniversityCalendar
         return infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
       end
 
-      season = case academic_term_str.to_s.downcase
-      when /fall/   then :fall
-      when /spring/ then :spring
-      when /summer/ then :summer
-      end
-
+      season = TermCode.season_in(academic_term_str)
       return nil unless season
 
       # A year in the term name wins. Without one, guess it from the event date.
       named_year = academic_term_str.to_s[/\b(20\d{2})\b/, 1]
       year = named_year&.to_i || event_date.year
-      year -= 1 if named_year.nil? && season == :fall && event_date.month < 6
+      year -= 1 if named_year.nil? && season == "fall" && event_date.month < 6
 
-      @term_cache[[ year, season ]]
+      @term_cache[TermCode.for(year, season)]
     end
 
     def find_term_by_date_cached(date)
@@ -471,36 +457,35 @@ module UniversityCalendar
     end
 
     def infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
-      inferred_season = case event_date.month
-      when 1..5  then :spring
-      when 6..7  then :summer
-      when 8..12 then :fall
-      end
+      inferred = TermCode.for_date(event_date)
+      claimed_season = TermCode.season_in(academic_term_str)
 
-      year = event_date.year
-
-      claimed_season = case academic_term_str.to_s.downcase
-      when /fall/   then :fall
-      when /spring/ then :spring
-      when /summer/ then :summer
-      end
-
-      if claimed_season && claimed_season != inferred_season
+      if claimed_season && claimed_season != TermCode.season(inferred)
         Rails.logger.warn(
           "Term mismatch detected for '#{summary}': " \
-          "ICS claims '#{academic_term_str}' but date #{event_date.to_date} suggests #{inferred_season.to_s.capitalize} #{year}. " \
+          "ICS claims '#{academic_term_str}' but date #{event_date.to_date} suggests #{TermCode.label(inferred)}. " \
           "Using date-based inference."
         )
       end
 
-      @term_cache[[ year, inferred_season ]]
+      @term_cache[inferred]
+    end
+
+    # The ICS term name and the term of the event date differ: a name with a
+    # year must name the same term, and a name without one the same season.
+    def names_other_term?(academic_term, term)
+      named = TermCode.read(academic_term)
+      return named != term.uid if named
+
+      season = TermCode.season_in(academic_term)
+      season.present? && season != term.season
     end
 
     def fix_summary_term_reference(summary, incorrect_term, correct_term)
       return summary if incorrect_term.blank? || correct_term.nil?
 
       year_match       = incorrect_term.match(/\d{4}/)
-      correct_term_str = "#{correct_term.season.to_s.capitalize} #{correct_term.year}"
+      correct_term_str = correct_term.name
 
       corrected = summary.dup
       corrected = corrected.gsub(/for\s+(Fall|Spring|Summer)\s+\d{4}/i) { "for #{correct_term_str}" }

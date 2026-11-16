@@ -23,9 +23,6 @@ module DegreeRequirements
                 2016 => :list, 2017 => :list, 2018 => :list,
                 2025 => :courseleaf }.freeze
 
-    # The first year with an HTML catalog. Older years come only from a PDF.
-    FIRST_HTML_YEAR = 2019
-
     # One plan of study as a PDF prints it. `title` is the heading over it,
     # such as "COMPUTER NETWORKING (BSCN)", and `code` the program code in
     # it. `page` is the 1-based PDF page the plan starts on.
@@ -55,6 +52,6 @@ module DegreeRequirements
       end
     end
 
-    def pdf_only?(start_year) = start_year < FIRST_HTML_YEAR && FILES.key?(start_year)
+    def pdf_only?(start_year) = start_year < CatalogYear::FIRST_HTML_START_YEAR && FILES.key?(start_year)
   end
 end

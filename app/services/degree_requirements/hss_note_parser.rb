@@ -39,8 +39,8 @@ module DegreeRequirements
     end
 
     def self.base_categories
-      [ { "name" => "Humanities", "subject_codes" => SharedElectives::HUMANITIES, "courses" => [] },
-        { "name" => "Social Sciences", "subject_codes" => SharedElectives::SOCIAL_SCIENCES, "courses" => [] } ]
+      [ { "name" => "Humanities", "subject_codes" => SharedElectiveList::HUMANITIES, "courses" => [] },
+        { "name" => "Social Sciences", "subject_codes" => SharedElectiveList::SOCIAL_SCIENCES, "courses" => [] } ]
     end
 
     def initialize(html)
@@ -125,7 +125,7 @@ module DegreeRequirements
         position = match.end(0)
       end
       # Only HSS courses: a footnote after the list can name MATH courses.
-      hss = SharedElectives::HSS.subject_codes
+      hss = SharedElectiveList::HSS.subject_codes
       groups.map { |codes| codes.select { |code| hss.include?(code[0, 4]) }.uniq }.reject(&:empty?)
             .map { |codes| { "name" => "Directed: #{codes.first}", "subject_codes" => [], "courses" => codes } }
     end

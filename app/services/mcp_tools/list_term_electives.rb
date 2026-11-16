@@ -36,8 +36,6 @@ module McpTools
 
       { term:  { uid: term.uid, name: term.name },
         lists: matches.map { |match| Catalog::TermElectiveListSerializer.new(match.list, courses: match.courses).as_json } }
-    rescue Catalog::FilterError => e
-      raise ToolError, e.message
     end
   end
 end

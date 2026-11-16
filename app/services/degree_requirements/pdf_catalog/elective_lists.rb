@@ -148,7 +148,7 @@ module DegreeRequirements
             # Elective courses": a second part of the list before it.
             if (last = lists.last) && last[:group].name == list[:group].name && list[:start] - last[:end] <= CONTEXT_LINES &&
                no_plan_between?(last[:end], list[:start])
-              courses = (last[:group].courses + list[:group].courses).uniq { |c| [ c.subject_code, c.course_number ] }
+              courses = (last[:group].courses + list[:group].courses).uniq(&:key)
               lists[-1] = last.merge(end: list[:end], group: last[:group].with(courses: courses))
             else
               lists << list

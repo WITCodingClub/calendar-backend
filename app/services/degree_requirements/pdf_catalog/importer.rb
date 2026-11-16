@@ -172,7 +172,7 @@ module DegreeRequirements
 
       def group_row(group)
         [ group.name, group.min_courses, group.min_credits,
-          group.courses.map { |course| [ course.subject_code, course.course_number ] } ]
+          group.courses.map(&:key) ]
       end
 
       def log(message)

@@ -40,28 +40,11 @@ module McpTools
 
     def perform(catalog_year: nil, kind: nil, level: nil, q: nil, parent_program: nil)
       query = Catalog::ProgramQuery.new
-      year = find_catalog_year(query, catalog_year)
+      year = query.catalog_year!(catalog_year)
       programs = query.call(catalog_year: year, kind: kind, level: level, q: q, parent: parent_program)
 
       { catalog_year: year.name, catalog_years: query.catalog_years.map(&:name),
         programs: programs.map { |set| Catalog::ProgramSerializer.summary(set) } }
-    rescue Catalog::FilterError => e
-      raise ToolError, e.message
     end
-
-    # The same lookup for degree_requirements.
-    def self.find_catalog_year(query, value)
-      year = query.catalog_year(value)
-      return year if year
-
-      years = query.catalog_years.map(&:name)
-      raise ToolError, "WIT Calendar has no degree program data yet." if years.empty?
-
-      raise ToolError, "No #{value} catalog. WIT Calendar has these catalog years: #{years.join(', ')}."
-    end
-
-    private
-
-    def find_catalog_year(query, value) = self.class.find_catalog_year(query, value)
   end
 end

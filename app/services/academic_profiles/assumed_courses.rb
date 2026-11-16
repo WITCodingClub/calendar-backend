@@ -31,7 +31,7 @@ module AcademicProfiles
       raise InvalidCodesError, "assume takes at most #{MAX_CODES} course codes" if codes.size > MAX_CODES
 
       codes.map do |code|
-        CourseKeys.parse(code) ||
+        CourseCode.parse(code) ||
           raise(InvalidCodesError, "assume must be course codes such as COMP3350, separated by commas")
       end.uniq
     end
@@ -61,7 +61,7 @@ module AcademicProfiles
     end
 
     def to_h
-      { courses: pairs.map { |pair| CourseKeys.format(pair) }, from_plans: from_plans }
+      { courses: pairs.map { |pair| CourseCode.format(*pair) }, from_plans: from_plans }
     end
 
     private
@@ -72,7 +72,7 @@ module AcademicProfiles
     def plan_pairs
       @plan_pairs ||= if @plans && @term_uid && @current_term_uid
         RegistrationPlan.where(user: @user, term_uid: (@current_term_uid + 1)...@term_uid).order(:term_uid).to_h do |plan|
-          [ plan.term_uid, plan.course_codes.filter_map { |code| CourseKeys.parse(code) } ]
+          [ plan.term_uid, plan.course_codes.filter_map { |code| CourseCode.parse(code) } ]
         end
       else
         {}

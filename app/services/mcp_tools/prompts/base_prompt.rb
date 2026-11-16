@@ -34,8 +34,6 @@ module McpTools
                 "tell me to confirm the plan with my #{Policy::PLAN_CONFIRMERS} before I register, " \
                 "drop a course, or change my plan."
 
-      SEASONS = Term.seasons.keys.freeze
-
       # The separators of a list of course codes in the courses argument.
       # McpTools::Completions splits on the same ones.
       COURSE_SEPARATORS = /[,;\n]/
@@ -60,20 +58,8 @@ module McpTools
         # A term by uid (202710) or by name ("Spring 2027"), or nil.
         # McpTools::Completions uses it for the term in the completion context.
         def find_term(value)
-          case value.to_s.strip
-          when /\A\d{6}\z/ then Term.find_by(uid: value.to_i)
-          when /\A(#{SEASONS.join('|')})\s+(\d{4})\z/io
-            Term.find_by(season: ::Regexp.last_match(1).downcase, year: ::Regexp.last_match(2).to_i)
-          end
-        end
-
-        # The next fall or spring term after the current term, as
-        # [season, year]: the term students register for. Summer is left
-        # out, because in March a student registers for fall, not summer.
-        def planning_season_and_year(current = Term.current)
-          return nil unless current
-
-          current.fall? ? [ "spring", current.year + 1 ] : [ "fall", current.year ]
+          uid = TermCode.read(value)
+          uid && Term.find_by(uid: uid)
         end
 
         def template(args, server_context: nil)
@@ -134,14 +120,16 @@ module McpTools
           "Call list_terms and ask me which term I mean."
       end
 
+      # The next fall or spring term is the term students register for.
       def default_term_text
-        season, year = self.class.planning_season_and_year
-        unless season
+        current = Term.current
+        unless current
           return "Term: I did not name one. Call list_terms, then ask me which term I mean before you search."
         end
 
-        name = "#{season.capitalize} #{year}"
-        term = Term.find_by(season: season, year: year)
+        uid = TermCode.next_regular_term(current.uid)
+        name = TermCode.label(uid)
+        term = Term.find_by(uid: uid)
         if term
           "Term: I did not name one. Use #{name} (term_uid #{term.uid}), the next fall or spring term, " \
             "but first ask me to confirm the term. I can mean the summer term or a later term."
@@ -153,10 +141,7 @@ module McpTools
 
       # The course codes in the courses argument, as "COMP 2350".
       def course_codes
-        args["courses"].to_s.split(COURSE_SEPARATORS).filter_map do |part|
-          subject, number = CatalogCourse.parse_code(part)
-          "#{subject} #{number}" if subject
-        end.uniq
+        args["courses"].to_s.split(COURSE_SEPARATORS).filter_map { |part| CourseCode.normalize(part) }.uniq
       end
     end
   end

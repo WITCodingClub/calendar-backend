@@ -6,11 +6,10 @@
 # link_catalog_courses.
 module CatalogCourseLinkable
   extend ActiveSupport::Concern
+  include CourseCode::Record
 
   included do
     belongs_to :catalog_course, optional: true
-
-    scope :by_codes, ->(pairs) { pairs.empty? ? none : where([ :subject_code, :course_number ] => pairs.uniq) }
 
     before_validation { self.subject_code = subject_code&.strip&.upcase.presence }
     # A new code makes the old link wrong. link_catalog_courses sets it again.
@@ -33,9 +32,5 @@ module CatalogCourseLinkable
       where("#{table_name}.catalog_course_id IS DISTINCT FROM #{matching_id}")
         .update_all("catalog_course_id = #{matching_id}")
     end
-  end
-
-  def code
-    CourseCode.format(subject_code, course_number) if subject_code && course_number
   end
 end

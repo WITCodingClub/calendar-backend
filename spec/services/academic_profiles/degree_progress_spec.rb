@@ -208,7 +208,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
   end
 
   describe "the HSS requirement of the major" do
-    let(:hss) { create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes) }
+    let(:hss) { create(:elective_group, :subjects, requirement_set: set, subject_codes: SharedElectiveList::HSS.subject_codes) }
 
     def hss_rows(result) = result[:programs].first[:requirements].map { |row| row.slice(:status, :course, :hss_category) }
 
@@ -649,7 +649,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
     it "sums the credits of the courses that fill a row and counts the co-op semesters" do
       set.update!(total_credits: 132, school_name: "School of Widgets", department_name: "Widget Design")
-      co_op = create(:elective_group, requirement_set: set, name: DegreeRequirements::SharedElectives::CO_OP.name)
+      co_op = create(:elective_group, requirement_set: set, name: SharedElectiveList::CO_OP.name)
       create(:elective_group_course, elective_group: co_op, subject_code: "COOP", course_number: 3500)
       item(subject_code: "COOP", course_number: 2500)
       item(subject_code: "WDGT", course_number: 1000)
@@ -984,7 +984,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
         slot(free, 2, "spring", label: "Free Elective")
         slot(free, 3, "fall", label: "Free Elective")
         slot(free, 3, "summer", label: "Free Elective")
-        co_op = create(:elective_group, requirement_set: set, name: DegreeRequirements::SharedElectives::CO_OP.name)
+        co_op = create(:elective_group, requirement_set: set, name: SharedElectiveList::CO_OP.name)
         slot(co_op, 2, "summer", label: "Co-op Semester")
         item(subject_code: "WDGT", course_number: 4000, year_index: 4, season: "spring")
         list("Required Mathematics", [ 1750, 2100 ], min_courses: nil)
@@ -1233,7 +1233,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     end
 
     it "fills an HSS slot with an AP credit, as a course taken at WIT" do
-      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: SharedElectiveList::HSS.subject_codes)
       item(:placeholder, label: "HSS Elective", elective_group: hss)
       credit("HIST 1000", credits: 4)
 

@@ -137,7 +137,7 @@ module Catalog
         parsed_start = parse_date(first_meeting["startDate"])
         parsed_end = parse_date(first_meeting["endDate"])
 
-        if dates_valid_for_term?(parsed_start, parsed_end, term)
+        if term.section_dates?(parsed_start, parsed_end)
           start_date = parsed_start
           end_date = parsed_end
         else
@@ -327,16 +327,6 @@ module Catalog
     rescue ArgumentError => e
       Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
       nil
-    end
-
-    def dates_valid_for_term?(start_date, end_date, term)
-      return false if start_date.nil? || end_date.nil?
-
-      term_year = term.year
-      start_year_valid = start_date.year.between?(term_year - 1, term_year)
-      end_year_valid = end_date.year.between?(term_year, term_year + 1)
-
-      start_year_valid && end_year_valid
     end
 
     def deduplicate_meeting_times(raw_meeting_times)

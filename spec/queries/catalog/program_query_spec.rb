@@ -42,6 +42,16 @@ RSpec.describe Catalog::ProgramQuery do
     it "raises a filter error for a value that is not a catalog year" do
       expect { described_class.new.catalog_year("2024-2030") }.to raise_error(Catalog::FilterError, /Spring 2024/)
     end
+
+    it "names the imported years when catalog_year! finds none" do
+      expect { described_class.new.catalog_year!("2025-2026") }
+        .to raise_error(described_class::UnknownCatalogYearError, "No 2025-2026 catalog. WIT Calendar has these catalog years: 2024-2025, 2023-2024.")
+    end
+  end
+
+  it "says catalog_year! has no data before an import" do
+    expect { described_class.new.catalog_year!(nil) }
+      .to raise_error(described_class::UnknownCatalogYearError, "WIT Calendar has no degree program data yet.")
   end
 
   describe "#call and #find" do

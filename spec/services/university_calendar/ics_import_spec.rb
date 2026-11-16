@@ -194,6 +194,13 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
         expect(event.summary).to eq("Classes End for Fall 2026")
       end
 
+      it "rewrites a term in the title when the date belongs to the same season of another year" do
+        event = event_for("classes-end-last-year@example.test")
+
+        expect(event.term).to eq(fall_term)
+        expect(event.summary).to eq("Classes End for Fall 2026")
+      end
+
       it "keeps a title that does not name a term, even when the date belongs to another season" do
         event = event_for("classes-begin-spring@example.test")
 

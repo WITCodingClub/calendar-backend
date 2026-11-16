@@ -24,7 +24,7 @@ module AcademicProfiles
     # start_term_uid and current_term_uid: Banner codes. prerequisites:
     # answers prerequisites([subject, number]) (CourseDetails). taken: the
     # [subject, number] keys of the courses the student did or takes.
-    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys: CourseKeys.new, taken: [])
+    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys:, taken: [])
       @start = start_term_uid
       @current = current_term_uid
       @prerequisites = prerequisites
@@ -74,7 +74,7 @@ module AcademicProfiles
     # has the rows the plan puts in it, and no other. estimate: any other
     # term.
     def basis_of(uid, term_rows, rows)
-      return TAKEN if term_rows.all? { |row| Placement::DONE.include?(row[:status]) }
+      return TAKEN if term_rows.all? { |row| CourseHistory.counted?(row[:status]) }
 
       planned = rows.select { |row| row[:planned_term_uid] == uid }
       planned.size == term_rows.size && term_rows.all? { |row| row[:planned_term_uid] == uid } ? PLAN : ESTIMATE

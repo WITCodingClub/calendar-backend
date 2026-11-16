@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
-# The code of a course, such as COMP 2350: a subject code and a number.
+# The code of a course, such as COMP 2350: a subject code and a number. A
+# course key is the pair, ["COMP", 2350]. Code and key are the only two forms
+# of a course name: CourseCode.parse makes the key of a code, and
+# CourseCode.format the code of a key.
 #
 # Banner stores a section's subject as a label, "Computer Science (COMP)",
 # and some old rows as the bare code, "COMP". The subject code is the code in
@@ -23,7 +26,40 @@ module CourseCode
     match && [ match[1].upcase, match[2].to_i ]
   end
 
+  # "COMP 2350", the form of every code in a response. Takes the two parts,
+  # or a key: format(*key).
   def format(subject_code, course_number) = "#{subject_code} #{course_number}"
+
+  # "comp2350" as "COMP 2350", or nil when the text is not a course code.
+  def normalize(text)
+    key = parse(text)
+    key && format(*key)
+  end
+
+  # The key of a JSON course reference, such as a prerequisite node or an
+  # option of a choice: { "subject_code" => "COMP", "course_number" => 2350 }.
+  def key_of(hash) = [ hash["subject_code"], hash["course_number"].to_i ]
+
+  # The key and code of a record or value with subject_code and
+  # course_number.
+  module Named
+    def key = [ subject_code, course_number ]
+
+    def code
+      CourseCode.format(subject_code, course_number) if subject_code && course_number
+    end
+  end
+
+  # A table with subject_code and course_number columns.
+  module Record
+    extend ActiveSupport::Concern
+    include Named
+
+    included do
+      # Keys, such as [["COMP", 2350]].
+      scope :by_codes, ->(keys) { keys.empty? ? none : where([ :subject_code, :course_number ] => keys.uniq) }
+    end
+  end
 
   # "Computer Science (COMP)", "COMP", or "comp" to "COMP". A subject with
   # no code, such as "Climate Resilience", stays as it is.

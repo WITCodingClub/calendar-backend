@@ -11,6 +11,8 @@ module AcademicProfiles
     # The statuses of a course that fills a requirement (#1019).
     STATUSES = %w[done in_progress registered].freeze
 
+    def self.counted?(status) = STATUSES.include?(status)
+
     # A course the student took or takes. term is the Term. credits are the
     # credit hours of its sections, or nil. status is done, in_progress,
     # registered (a term after the current term, #1019), or not_passed. A
@@ -18,8 +20,7 @@ module AcademicProfiles
     # and its source (transcript or student). source is nil for a WIT course.
     Taken = Struct.new(:subject_code, :course_number, :title, :term, :crn, :credits, :status, :outcome, :transfer,
                        :source) do
-      def key = [ subject_code, course_number ]
-      def code = CourseKeys.format(key)
+      include CourseCode::Named
 
       def as_json(*)
         { code: code, title: title, term: term&.name, term_uid: term&.uid, crn: crn, credits: credits,
@@ -89,7 +90,7 @@ module AcademicProfiles
         # A section stores the subject as Banner's label, "Computer Science
         # (COMP)". The requirements name a course by its subject code.
         sections = enrollments.map(&:course).uniq
-                              .group_by { |course| [ course.term_id, Course.prefix_of(course.subject).upcase, course.course_number ] }
+                              .group_by { |course| [ course.term_id, CourseCode.subject_of(course.subject).upcase, course.course_number ] }
         sections.map do |(_, subject_code, _), group|
           section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
           failed = section_outcomes.find { |_, outcome| CourseOutcome::PASSED.exclude?(outcome) }

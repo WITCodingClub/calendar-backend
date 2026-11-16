@@ -75,7 +75,7 @@ module DegreeRequirements
       @term_ids ||= begin
         last = @catalog_year.start_year
         codes = ((last - RECENT_YEARS + 1)..last).flat_map { |year| TermCode.catalog_year_codes(year) }
-        codes.map { |code| Term.where(TermCode.year_and_season(code)) }.reduce(:or).ids
+        Term.where(uid: codes).ids
       end
     end
 

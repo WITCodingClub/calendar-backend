@@ -28,7 +28,7 @@ module Catalog
         catalog_year:    @set.catalog_year.name,
         total_credits:   @set.total_credits,
         parent_program:  program.parent_program&.slug,
-        catalog_url:     @set.catalog_url,
+        catalog_url:     DegreeRequirements.page_url(@set),
         listed:          @set.listed?
       }
       return json if @summary
@@ -92,7 +92,7 @@ module Catalog
     end
 
     def course_json(subject_code, course_number)
-      { code: "#{subject_code} #{course_number}", title: title_for(subject_code, course_number) }
+      { code: CourseCode.format(subject_code, course_number), title: title_for(subject_code, course_number) }
     end
 
     def title_for(subject_code, course_number)
@@ -103,7 +103,7 @@ module Catalog
     def titles
       @titles ||= begin
         codes = (@set.program_plans.flat_map(&:items).flat_map { |item| item_codes(item) } +
-                 @set.elective_groups.flat_map(&:courses).map { |course| [ course.subject_code, course.course_number ] }).uniq
+                 @set.elective_groups.flat_map(&:courses).map(&:key)).uniq
         if codes.empty?
           {}
         else
@@ -118,8 +118,8 @@ module Catalog
     end
 
     def item_codes(item)
-      codes = item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] }
-      item.course? ? codes << [ item.subject_code, item.course_number ] : codes
+      codes = item.options.map { |option| CourseCode.key_of(option) }
+      item.course? ? codes << item.key : codes
     end
   end
 end

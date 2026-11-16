@@ -34,6 +34,7 @@ flowchart LR
 
 - The extension keeps sending LeopardWeb data while the flag is off, so the data is ready when the flag turns on.
 - The MCP tools `my_programs`, `my_degree_progress`, `my_next_term_courses` and `update_my_planned_programs` have the same flag (`requires_flag`). While it is off, a call gets a tool error. They also need the `programs:read` or `programs:write` scope. `tools/list` still lists them, because that list is the same for every token.
+- Every error that the student must see is an `AcademicProfiles::Error` with a `code` (`PlanningError`, `InvalidProfileError`, and `CourseOutcomes::InvalidOutcomesError`). A service raises it, and no API controller or MCP tool rescues it (the dashboard HTML controllers do, to show the message on the page): `Api::DomainErrors` answers 422 with `{ error, code }`, and `McpTools::BaseTool` gives the message as a tool error.
 - Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`). The extension can read it as `degreePlanning` from `GET /api/user/feature_flags`.
 
 ## What we do not store
@@ -50,7 +51,7 @@ We do not store letter grades, GPA, or W numbers. The extension converts each le
 
 ## Terms
 
-LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` (`app/lib/term_code.rb`) converts a label to a Banner term code (Fall 2025 is `202610`), and owns all term code arithmetic: the next term, the catalog year of a term, and the term of a plan semester. The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
+LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` (`app/lib/term_code.rb`) converts a label to a Banner term code (Fall 2025 is `202610`), and owns all term code arithmetic: the next term, the term of a date, the season a text names, the catalog year of a term and its name ("2025-2026"), and the term of a plan semester. The rest of the app finds a `terms` row by its code (`Term.find_by(uid:)`), and `Term` orders rows by the code, because the codes sort in time order. The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
 
 ## Profile sync
 

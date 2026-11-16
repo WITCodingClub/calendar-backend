@@ -36,7 +36,7 @@ FactoryBot.define do
     min_courses { 2 }
     sequence(:position)
 
-    # A shared list from DegreeRequirements::SharedElectives.
+    # A shared list (SharedElectiveList).
     trait :subjects do
       name { "HSS Electives" }
       heading { "Humanities or social science elective" }

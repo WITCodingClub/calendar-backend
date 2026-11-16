@@ -42,7 +42,7 @@ module Catalog
     def course_filter(code)
       return if code.blank?
 
-      subject_code, course_number = CatalogCourse.parse_code(code)
+      subject_code, course_number = CourseCode.parse(code)
       raise FilterError, "course must be a course code, such as COMP2000" if subject_code.nil?
 
       ->(row) { row.subject_code == subject_code && row.course_number == course_number }

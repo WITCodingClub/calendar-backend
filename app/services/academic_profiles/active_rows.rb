@@ -28,7 +28,7 @@ module AcademicProfiles
 
     def of(entry)
       @rows_of[entry] ||= entry[:requirements].filter_map do |row|
-        keys = @course_keys.expand([ *self.class.keys(row), CourseKeys.parse(row[:course]) ].compact)
+        keys = @course_keys.expand([ *self.class.keys(row), CourseCode.parse(row[:course]) ].compact)
         Row.new(keys.to_set, row[:planned_term], row[:planned_term_uid]) if keys.any?
       end
     end
@@ -45,7 +45,7 @@ module AcademicProfiles
 
     # The keys a requirement row names: its code and the options of a choice.
     def self.keys(row)
-      [ row[:code], *row[:options] ].compact.filter_map { |code| CourseKeys.parse(code) }
+      [ row[:code], *row[:options] ].compact.filter_map { |code| CourseCode.parse(code) }
     end
   end
 end

@@ -23,9 +23,9 @@ RSpec.describe AcademicProfiles::CourseDetails do
   it "loads every code in one query, and none for no code" do
     create(:catalog_course, subject_code: "WDGT", course_number: 1000)
     create(:catalog_course, subject_code: "GEAR", course_number: 2000)
-    details = described_class.new([ [ "WDGT", 1000 ], [ "GEAR", 2000 ] ])
+    details = described_class.new([ [ "WDGT", 1000 ], [ "GEAR", 2000 ] ], AcademicProfiles::CourseKeys.new({}))
 
     expect(queries { details.for([ "WDGT", 1000 ]) && details.for([ "GEAR", 2000 ]) }).to eq(1)
-    expect(queries { described_class.new([]).for([ "WDGT", 1000 ]) }).to eq(0)
+    expect(queries { described_class.new([], AcademicProfiles::CourseKeys.new({})).for([ "WDGT", 1000 ]) }).to eq(0)
   end
 end

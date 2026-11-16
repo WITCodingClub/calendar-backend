@@ -49,9 +49,8 @@ module AcademicProfiles
                    today: Time.zone.today)
       @user = user
       # A query string can be an array or a hash, so each value becomes text.
-      @program = program.presence&.to_s
-      @catalog_year = catalog_year.presence&.to_s
-      @plan_name = plan.presence&.to_s
+      @selection = ProgramSelection.new(user, program: program.presence&.to_s, catalog_year: catalog_year.presence&.to_s,
+                                              plan: plan.presence&.to_s, include_planned: include_planned)
       @include_planned = include_planned
       @with_details = course_details
       @today = today
@@ -70,7 +69,7 @@ module AcademicProfiles
 
     # Raises NoProgramError, or Catalog::FilterError for a bad catalog year.
     def call
-      entries = requirement_sets
+      entries = @selection.entries
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
       @course_details = CourseDetails.new(@with_details ? detail_codes(entries) : [], course_keys)
@@ -106,13 +105,11 @@ module AcademicProfiles
       HssDetails.with_open_slots(entry)
     end
 
-    # The estimate needs a start term, a current term with a Banner code, a
-    # plan of study, and the course details (credits, terms offered,
-    # prerequisites). A planned program and a program argument keep the
-    # fields of #990 only.
+    # The estimate needs a start term, a current term, a plan of study, and
+    # the course details (credits, terms offered, prerequisites). A planned
+    # program and a program argument keep the fields of #990 only.
     def estimate?(entry, row, start)
-      @with_details && row&.status == "active" && start && entry[:plan] &&
-        current_term&.uid.to_s.match?(TermCode::CODE)
+      @with_details && row&.status == "active" && start && entry[:plan] && current_term
     end
 
     def estimate(entry, start)
@@ -126,80 +123,10 @@ module AcademicProfiles
       @admit_term_uid = @user.academic_profile&.admit_term_uid
     end
 
-    # The requirement sets to check, each with its plan name and the
-    # student's row (nil for the program argument): the program argument, or
-    # each active (and with include_planned, planned) program of the student
-    # with a catalog link. The plan name is the plan argument, or the plan
-    # the student picked (#867), or nil for the standard plan.
-    def requirement_sets
-      if @program
-        set = find_argument_set(Catalog::ProgramQuery.new)
-        return [ [ set, argument_plan_name(set), nil ] ]
-      end
-
-      statuses = @include_planned ? %w[active planned] : %w[active]
-      rows = @user.student_programs.where(status: statuses).where.not(degree_program_id: nil)
-                  .includes(:catalog_year).order(:id).select { |row| row.catalog_year&.imported? }
-      sets = linked_sets(rows)
-
-      rows.filter_map do |row|
-        set = sets[[ row.degree_program_id, row.catalog_year_id ]]
-        [ set, @plan_name || row.plan_name.presence, row ] if set
-        # A planned row can have the same program as a later active row, for
-        # example a minor the student then declared. Each keeps its entry.
-      end.uniq { |set, _, row| [ set.id, row.status ] }
-    end
-
-    # The requirement set of each row, with what Catalog::ProgramQuery#find
-    # loads, in one query for every row.
-    def linked_sets(rows)
-      return {} if rows.empty?
-
-      RequirementSet.where(degree_program_id: rows.map(&:degree_program_id).uniq,
-                           catalog_year_id: rows.map(&:catalog_year_id).uniq)
-                    .includes(:catalog_year, degree_program: :parent_program,
-                              program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan])
-                    .index_by { |set| [ set.degree_program_id, set.catalog_year_id ] }
-    end
-
-    def find_argument_set(query)
-      year = @catalog_year ? query.catalog_year(@catalog_year) : own_catalog_year(query)
-      raise Catalog::FilterError, "No #{@catalog_year || 'imported'} catalog in WIT Calendar" if year.nil?
-
-      query.find(@program, catalog_year: year) ||
-        raise(Catalog::FilterError, "No program #{@program} in the #{year.name} catalog. Call list_programs to find the slug.")
-    end
-
-    # The catalog year of the student's own program with this slug, or the
-    # newest catalog year.
-    def own_catalog_year(query)
-      own = own_program&.catalog_year
-      own&.imported? ? own : query.catalog_year(nil)
-    end
-
-    # The student's active row of the program argument, or nil.
-    def own_program
-      return @own_program if defined?(@own_program)
-
-      @own_program = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
-                          .find_by(degree_programs: { slug: DegreeProgram.current_slug(@program.to_s.strip.downcase) })
-    end
-
-    # The plan for the program argument: the plan argument, or the plan the
-    # student picked for their own row of that program in the same catalog
-    # year (#867).
-    def argument_plan_name(set)
-      return @plan_name if @plan_name
-
-      own = own_program
-      own.plan_name.presence if own && own.catalog_year_id == set.catalog_year_id
-    end
-
     def program_json(set, plan_name, row)
-      plan = pick_plan(set, plan_name)
-      pool = attempts
+      plan = @selection.plan(set, plan_name)
       # counted: the courses that fill a row of this program (#1012).
-      requirements, hss, counted = plan ? plan_requirements(set, plan, pool) : list_requirements(set, pool)
+      requirements, hss, counted = plan ? plan_requirements(set, plan) : list_requirements(set)
       open = requirements.reject { |requirement| requirement[:status] == "done" }
 
       {
@@ -223,161 +150,48 @@ module AcademicProfiles
       }
     end
 
-    # The plan the student follows: the plan argument, or the plan the
-    # student picked for the program (#867). Without one, the standard plan.
-    # A picked plan that a later import renamed falls back to the standard
-    # plan. An unknown plan argument raises FilterError.
-    def pick_plan(set, plan_name)
-      picked = plan_name && set.plan_named(plan_name)
-      return picked if picked
-
-      if @plan_name
-        raise Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{set.program_plans.map(&:name).join(', ')}"
-      end
-
-      set.standard_plan
-    end
-
-    # Rows of a plan of study. Course rows take a course first, then choice
-    # rows, then elective slots. Returns the rows, the HSS entry, and the
+    # Rows of a plan of study. Returns the rows, the HSS entry, and the
     # courses that fill the rows.
-    def plan_requirements(set, plan, pool)
-      groups = set.elective_groups.index_by(&:id)
-      items = plan.items.to_a
-      results = {}
-      used = []
-
-      items.select(&:course?).each do |item|
-        results[item.id] = take(pool, used, [ [ item.subject_code, item.course_number ] ])
-      end
-      items.select(&:choice?).each do |item|
-        results[item.id] = take(pool, used, item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] })
-      end
-      # A slot with a list of courses goes first, then a slot with a list of
-      # subjects (an HSS elective), then a free elective. A broad slot then
-      # does not use a course that a narrow one needs.
-      slots = items.select(&:placeholder?).filter_map { |item| [ item, groups[item.elective_group_id] ] if item.elective_group_id }
-      hss_slots, slots = slots.partition { |_, group| group.shared_kind == :hss }
-      needs = {}
-      narrow, broad = slots.partition { |_, group| !group.any_course }
-      narrow.sort_by.with_index { |(_, group), index| [ breadth(group), width(group), index ] }.each do |item, group|
-        results[item.id] = take_for(pool, used, group)
-      end
-      hss = hss_progress(set, items, groups, results, pool, used)
-      assign_hss(hss, hss_slots, results, needs, pool, used)
-      broad.each { |item, group| results[item.id] = take_for(pool, used, group) }
-
-      rows = items.map { |item| item_json(item, results[item.id], needs[item.id]) }
-      [ rows, hss_json(hss, items, groups, results), results.values.compact.uniq ]
-    end
-
-    # What counts toward the HSS requirement before the "HSS Elective" slots
-    # take a course: the courses in the other HSS slots (Humanities Elective,
-    # a directed course), the required course rows in an HSS category
-    # (ECON4102 in Construction Management, PHIL4525 in Applied AI), and a
-    # third English course, which the notes let count as Humanities. nil for
-    # a program with no HSS requirement and no HSS slot.
-    def hss_progress(set, items, groups, results, pool, used)
-      slots = items.any? { |item| groups[item.elective_group_id]&.hss_list? }
-      return nil if set.hss_requirement.blank? && !slots
-
-      categories = HssMatcher.categories(set)
-      rows = items.reject(&:placeholder?).filter_map { |item| results[item.id] }
-                  .select { |course| categories.any? { |category| hss_matcher.in_category?(category, course) } }
-      english = take_where(pool, used) { |candidate| english_sequence?(candidate) } if english_slots_full?(items, groups, results)
-      { categories: categories, min_credits: set.hss_requirement&.dig("min_credits"), english_humanities: english,
-        met: hss_courses(items, groups, results) + rows + [ english ].compact, rows: rows }
-    end
-
-    def english_sequence?(course)
-      DegreeRequirements::SharedElectives::ENGLISH_SEQUENCE.any? { |code| course_keys.same?(code, course.key) }
-    end
-
-    def english_slots_full?(items, groups, results)
-      slots = english_items(items, groups)
-      slots.any? && slots.all? { |item| results[item.id] }
-    end
-
-    # The HSS slots of a plan, such as "HSS Elective", take courses so that
-    # the major's categories are met: one humanities course, one social
-    # science course, an Ethics course, ... (RequirementSet#hss_requirement).
-    # A course in another HSS slot (Humanities Elective, a directed course)
-    # already counts. Each slot takes a course for the first category that
-    # no course meets yet, or stays open for it, and names it in needs.
-    # With every category met, a slot takes any HSS course.
-    def assign_hss(hss, slots, results, needs, pool, used)
-      return if slots.empty? || hss.nil?
-
-      met = hss[:met].dup
-      categories = hss[:categories].select { |category| HssMatcher.checkable?(category) }
-      slots.each do |item, group|
-        category = categories.find do |candidate|
-          met.none? { |course| hss_matcher.in_category?(candidate, course, english_humanities: hss[:english_humanities]) } &&
-            needs.values.exclude?(candidate["name"])
-        end
-        if category
-          needs[item.id] = category["name"]
-          course = take_where(pool, used) { |candidate| hss_matcher.in_category?(category, candidate) }
-        else
-          course = take_for(pool, used, group)
-        end
-        results[item.id] = course
-        met << course if course
-      end
-    end
-
-    # The courses in the HSS slots of a plan.
-    def hss_courses(items, groups, results)
-      items.select { |item| item.placeholder? && groups[item.elective_group_id]&.hss_list? }.filter_map { |item| results[item.id] }
-    end
-
-    def english_items(items, groups) = items.select { |item| groups[item.elective_group_id]&.shared_kind == :english }
-
-    def hss_matcher
-      @hss_matcher ||= HssMatcher.new(course_keys)
+    def plan_requirements(set, plan)
+      fill = requirement_fill.plan(set, plan)
+      rows = plan.items.map { |item| item_json(item, fill.courses[item.id], fill.needs[item.id]) }
+      [ rows, hss_json(fill), fill.counted ]
     end
 
     # The HSS requirement of the major (HssDetails).
-    def hss_json(hss, items, groups, results)
-      return nil if hss.nil?
+    def hss_json(fill)
+      return nil if fill.hss.nil?
 
-      english = english_items(items, groups).filter_map { |item| results[item.id] }
-      HssDetails.new(hss, english: english, slot_courses: hss_courses(items, groups, results), matcher: hss_matcher,
-                          credits: @credits).call
+      HssDetails.new(fill.hss, english: fill.english, slot_courses: fill.hss_slots, matcher: hss_matcher, credits: @credits).call
     end
 
-    def breadth(group)
-      return 2 if group.any_course
-      return 1 if group.subject_codes.any?
-
-      0
+    # A program with no plan of study, such as a minor: each elective list
+    # with its minimum. Returns the rows, no HSS entry, and the courses the
+    # lists count.
+    def list_requirements(set)
+      lists, counted = requirement_fill.lists(set)
+      rows = lists.map do |list|
+        list.courses ? list_json(list.group, list.courses, list.needed) : unchecked_list_json(list.group)
+      end
+      [ rows, nil, counted ]
     end
 
-    # Among lists of one kind, the shorter list first: "Humanities" before
-    # "HSS".
-    def width(group) = group.subject_codes.any? ? group.subject_codes.size : group.courses.size
-
-    # The best unused course that meets an elective list (ElectiveListRule):
-    # a course on the list, a course in one of its subjects, or any course
-    # for degree credit.
-    def take_for(pool, used, group)
-      rule = list_rule(group)
-      take_where(pool, used) { |candidate| rule.accepts?(candidate.key) }
+    def requirement_fill
+      @requirement_fill ||= RequirementFill.new(attempts, course_keys: course_keys, credits: @credits, hss_matcher: hss_matcher)
     end
 
-    def list_rule(group)
-      @list_rules ||= {}
-      @list_rules[group.id] ||= ElectiveListRule.new(group, course_keys)
+    def hss_matcher
+      @hss_matcher ||= HssMatcher.new(course_keys)
     end
 
     # The open elective slots of an active program that a course of a planned
     # minor can fill (#998): the open plan rows with an elective list, without
     # the co-op slots. An HSS slot that stands for a category (hss_category)
     # takes only a course of that category. The rows are in the order of the
-    # plan items, so each row has its item. pick_plan gives the same plan as
-    # program_json, also when two plans have the same name.
+    # plan items, so each row has its item. ProgramSelection#plan gives the
+    # same plan as program_json, also when two plans have the same name.
     def fit_slots(set, plan_name, entry)
-      plan = pick_plan(set, plan_name)
+      plan = @selection.plan(set, plan_name)
       return [] if plan.nil? || plan.items.size != entry[:requirements].size
 
       groups = set.elective_groups.index_by(&:id)
@@ -388,7 +202,7 @@ module AcademicProfiles
 
         category = row[:hss_category] && HssMatcher.categories(set).find { |found| found["name"] == row[:hss_category] }
         MinorFit::Slot.new(label: row[:label], term: row[:planned_term], term_uid: row[:planned_term_uid],
-                           rule: list_rule(group), category: category)
+                           rule: requirement_fill.list_rule(group), category: category)
       end
     end
 
@@ -401,7 +215,7 @@ module AcademicProfiles
         kind:          item.kind,
         code:          item.code,
         label:         item.label,
-        options:       item.options.map { |option| CourseKeys.format([ option["subject_code"], option["course_number"] ]) },
+        options:       item.options.map { |option| CourseCode.format(option["subject_code"], option["course_number"]) },
         elective_list: item.elective_group&.name,
         hss_category:  hss_category,
         # A slot with no elective list, such as a "CONM Elective" whose page
@@ -423,7 +237,7 @@ module AcademicProfiles
       if item.course?
         # A course with no CatalogCourse row keeps the title of the section
         # that meets the row.
-        details = @course_details.for([ item.subject_code, item.course_number ])
+        details = @course_details.for(item.key)
         return json.merge(details, title: details[:title] || course&.title)
       end
 
@@ -449,7 +263,7 @@ module AcademicProfiles
     def detail_codes(entries)
       rows = entries.flat_map { |set, _, _| set.program_plans.flat_map(&:items) }.select(&:course?)
       lists = entries.flat_map { |set, _, _| set.program_plans.empty? ? set.elective_groups.flat_map(&:courses) : [] }
-      (rows + lists).map { |course| [ course.subject_code, course.course_number ] } + taken.map(&:key)
+      (rows + lists).map(&:key) + taken.map(&:key)
     end
 
     # The program totals (#989, #1012). credits sums the credits of the
@@ -484,27 +298,6 @@ module AcademicProfiles
       @credits.sum(courses.select { |course| course.status == status })
     end
 
-    # A program with no plan of study, such as a minor: each elective list
-    # with its minimum. Returns the rows, no HSS entry, and the courses the
-    # lists count.
-    def list_requirements(set, pool)
-      used = []
-      rows = set.elective_groups.map do |group|
-        codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
-        next unchecked_list_json(group) unless countable?(group)
-
-        needed = group.min_courses || (group.min_credits ? nil : codes.size)
-        courses = []
-        while (course = take(pool, used, codes))
-          courses << course
-          break if needed && courses.size >= needed
-          break if needed.nil? && @credits.sum(courses) >= group.min_credits
-        end
-        list_json(group, courses, needed)
-      end
-      [ rows, nil, used ]
-    end
-
     def list_json(group, courses, needed)
       met = needed ? courses.size >= needed : @credits.sum(courses) >= group.min_credits
       # A met list has the status of its latest course: registered when one
@@ -526,30 +319,9 @@ module AcademicProfiles
       }
     end
 
-    # A list with no minimum that is not a "Required ..." list cannot be
-    # checked.
-    def countable?(group)
-      group.min_courses || group.min_credits || group.every_course_required?
-    end
-
     def unchecked_list_json(group)
       { kind: "elective_list", elective_list: group.name, min_courses: nil, min_credits: nil, checkable: false,
         status: "open", courses: [] }
-    end
-
-    # The best unused course that meets one of the codes: a done course
-    # before one in progress. Marks it used.
-    def take(pool, used, codes)
-      keys = course_keys.expand(codes)
-      take_where(pool, used) { |candidate| keys.include?(candidate.key) }
-    end
-
-    def take_where(pool, used)
-      course = pool.reject { |candidate| used.include?(candidate) }
-                   .select { |candidate| yield candidate }
-                   .min_by { |candidate| CourseHistory::RANK.fetch(candidate.status) }
-      used << course if course
-      course
     end
 
     def course_keys

@@ -7,14 +7,15 @@ module TermElectives
   # read the layout. It finds each course code and the nearest heading above
   # it.
   class PdfParser
-    Result = Data.define(:title, :season, :year, :courses)
+    # term_uid: the term the title names, or nil.
+    Result = Data.define(:title, :term_uid, :courses)
     Course = Data.define(:subject_code, :course_number, :heading)
 
     # "COMP2000", "ECON 4102", "ARCH3800-02".
     CODE = /\b([A-Z]{4}) ?(\d{4})\b/
     # "Economics (ECON)      4102" in a table with a subject column.
     PAREN_CODE = /\(([A-Z]{4})\)\s+(\d{4})\b/
-    TERM = /\b(spring|summer|fall)\s+(\d{4})\b/i
+    TERM = /\b#{TermCode::LABEL_TEXT}\b/
     # The header row of a table, such as "Area  Course  Title  Course Times".
     COLUMN_HEADER = /\bcourse\b.*\btitle\b/i
     TERM_LINES = 8
@@ -32,8 +33,7 @@ module TermElectives
     end
 
     def parse
-      season, year = term
-      Result.new(title: title, season: season, year: year, courses: courses)
+      Result.new(title: title, term_uid: term_uid, courses: courses)
     end
 
     private
@@ -47,10 +47,10 @@ module TermElectives
     # Undergrad Electives.pdf" is for Spring 2027. The body can name other
     # terms, such as "for students who took it in Fall 2026", so a term
     # further down is not read, and a title with two terms gives none.
-    def term
+    def term_uid
       top = @lines.reject { |line| line.strip.empty? }.first(TERM_LINES).join("\n")
-      terms = top.scan(TERM).map { |season, year| [ season.downcase, year.to_i ] }.uniq
-      terms.first if terms.one?
+      uids = top.scan(TERM).map { |season, year| TermCode.for(year.to_i, season) }.uniq
+      uids.first if uids.one?
     end
 
     def courses

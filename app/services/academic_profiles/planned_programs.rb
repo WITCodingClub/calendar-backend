@@ -35,7 +35,7 @@ module AcademicProfiles
       raise InvalidProfileError, "catalog_year must be a string" unless catalog_year.nil? || catalog_year.is_a?(String)
 
       query = Catalog::ProgramQuery.new
-      year = find_catalog_year(query, catalog_year)
+      year = catalog_year!(query, catalog_year)
       set = query.find(program.to_s, catalog_year: year)
       raise InvalidProfileError.new("No program #{program} in the #{year.name} catalog", code: "unknown_program") if set.nil?
 
@@ -57,7 +57,7 @@ module AcademicProfiles
 
       check_bachelors!(record)
 
-      year = find_catalog_year(Catalog::ProgramQuery.new, catalog_year)
+      year = catalog_year!(Catalog::ProgramQuery.new, catalog_year)
       steps = record.steps.reject { |step| held_program_ids.include?(step.degree_program_id) }
       sets = year.requirement_sets.includes(:degree_program).where(degree_program_id: steps.map(&:degree_program_id))
                  .index_by(&:degree_program_id)
@@ -189,14 +189,10 @@ module AcademicProfiles
                                 .pluck(:degree_program_id).to_set
     end
 
-    def find_catalog_year(query, value)
-      year = query.catalog_year(value)
-      return year if year
-
-      raise InvalidProfileError.new("WIT Calendar has no degree program data yet", code: "unknown_catalog_year") if value.blank?
-
-      raise InvalidProfileError.new("No #{value} catalog. WIT Calendar has these catalog years: " \
-                                    "#{query.catalog_years.map(&:name).join(', ')}", code: "unknown_catalog_year")
+    def catalog_year!(query, value)
+      query.catalog_year!(value)
+    rescue Catalog::ProgramQuery::UnknownCatalogYearError => e
+      raise InvalidProfileError.new(e.message, code: "unknown_catalog_year")
     rescue Catalog::FilterError => e
       raise InvalidProfileError.new(e.message, code: "invalid_catalog_year")
     end

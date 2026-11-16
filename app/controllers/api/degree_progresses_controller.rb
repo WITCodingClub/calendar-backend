@@ -19,8 +19,6 @@ module Api
         include_planned: params[:include_planned].to_s == "true"
       )
       render json: request.call(current_user)
-    rescue AcademicProfiles::PlanningError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     rescue Catalog::FilterError => e
       render_error e.message, status: :unprocessable_content
     end

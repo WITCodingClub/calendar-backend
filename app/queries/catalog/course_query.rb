@@ -40,7 +40,7 @@ module Catalog
       end
 
       relation.order(:subject_code, :course_number).limit(limit)
-              .pluck(:subject_code, :course_number).map { |subject, number| "#{subject} #{number}" }
+              .pluck(:subject_code, :course_number).map { |subject, number| CourseCode.format(subject, number) }
     end
 
     private

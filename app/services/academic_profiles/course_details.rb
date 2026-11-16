@@ -27,7 +27,7 @@ module AcademicProfiles
     end
 
     # keys: the [subject_code, course_number] keys to load.
-    def initialize(keys, course_keys = CourseKeys.new)
+    def initialize(keys, course_keys)
       @keys = keys.compact.uniq
       @course_keys = course_keys
     end
@@ -56,7 +56,7 @@ module AcademicProfiles
               .reduce(:or)
               .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered,
                       :details_fetched_at, :prerequisites)
-              .index_by { |row| [ row.subject_code, row.course_number ] }
+              .index_by(&:key)
         end
       end
     end

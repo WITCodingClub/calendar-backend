@@ -105,7 +105,7 @@ module Catalog
 
         refs.each do |item, list|
           list.each do |subject, number, required|
-            code = "#{subject} #{number}"
+            code = CourseCode.format(subject, number)
             unless @nodes.key?(code)
               if @nodes.size - 1 >= MAX_PREREQUISITES
                 @truncated = true
@@ -228,7 +228,7 @@ module Catalog
         SELECT DISTINCT id FROM walk
       SQL
 
-      CatalogCourse.select(*SUMMARY_COLUMNS).where(id: ids).index_by { |found| [ found.subject_code, found.course_number ] }
+      CatalogCourse.select(*SUMMARY_COLUMNS).where(id: ids).index_by(&:key)
     end
 
     # Moving left from the course, sort each column by the mean position of

@@ -3,9 +3,6 @@
 module Api
   module V1
     module Catalog
-      # GET /api/v1/catalog/programs
-      # GET /api/v1/catalog/programs/:slug
-      #
       # Degree programs from the academic catalog, for one catalog year
       # (docs/degree-requirements.md). Without catalog_year, the newest
       # imported year.
@@ -34,11 +31,9 @@ module Api
         def query = @query ||= ::Catalog::ProgramQuery.new
 
         def find_catalog_year
-          catalog_year = query.catalog_year(params[:catalog_year])
-          return catalog_year if catalog_year
-
-          raise ActiveRecord::RecordNotFound,
-                params[:catalog_year].present? ? "No catalog year #{params[:catalog_year]}" : "No catalog year is imported"
+          query.catalog_year!(params[:catalog_year])
+        rescue ::Catalog::ProgramQuery::UnknownCatalogYearError => e
+          raise ActiveRecord::RecordNotFound, e.message
         end
       end
     end

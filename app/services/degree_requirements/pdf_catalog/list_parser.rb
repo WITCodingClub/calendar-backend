@@ -271,7 +271,7 @@ module DegreeRequirements
       # The credits of a course, or of a choice whose options all have the
       # same credits, from the other plans.
       def credits_of(item, known)
-        codes = item.kind == "choice" ? item.options.map { |o| [ o["subject_code"], o["course_number"] ] } : [ [ item.subject_code, item.course_number ] ]
+        codes = item.kind == "choice" ? item.options.map { |option| CourseCode.key_of(option) } : [ item.key ]
         return nil if item.kind == "placeholder"
 
         credits = codes.map { |code| known[code] }.uniq
@@ -285,7 +285,7 @@ module DegreeRequirements
         seen = Hash.new { |hash, key| hash[key] = Set.new }
         programs.each do |program|
           program[:semesters].each do |items, _|
-            items.each { |item| seen[[ item.subject_code, item.course_number ]] << item.min_credits if item.kind == "course" && item.min_credits }
+            items.each { |item| seen[item.key] << item.min_credits if item.kind == "course" && item.min_credits }
           end
         end
         @lines.each_with_index do |line, index|

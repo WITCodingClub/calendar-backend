@@ -81,7 +81,7 @@ module Admin
     def codes
       refs = PrerequisiteTree.new(prerequisites).courses + corequisites + mutual_exclusions
       refs.map { |ref| [ ref["subject_code"].to_s.upcase, ref["course_number"].to_i ] } +
-        unlocks.map { |unlocked| [ unlocked.subject_code, unlocked.course_number ] }
+        unlocks.map(&:key)
     end
   end
 end

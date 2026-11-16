@@ -8,7 +8,7 @@ module AcademicProfiles
   # (additional). COOP 2500 is a normal course row.
   module CoOpRows
     # The codes of a co-op semester, as "COOP 3500".
-    CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
+    CODES = SharedElectiveList::CO_OP_TERMS.map { |key| CourseCode.format(*key) }.freeze
 
     module_function
 
@@ -16,7 +16,7 @@ module AcademicProfiles
     # or a choice of co-op courses. Most plans list a co-op semester as a
     # course row with no elective list.
     def co_op?(row)
-      return true if DegreeRequirements::SharedElectives.kind_of(row[:elective_list]) == :co_op
+      return true if SharedElectiveList.kind_of(row[:elective_list]) == :co_op
 
       codes = [ row[:code], *row[:options] ].compact
       codes.any? && codes.all? { |code| CODES.include?(code) }

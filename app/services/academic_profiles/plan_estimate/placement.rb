@@ -7,7 +7,6 @@ module AcademicProfiles
     # each term either one co-op or a load of classes. See
     # docs/degree-requirements.md for the rules and a flow chart.
     class Placement
-      DONE = CourseHistory::STATUSES
       # When an open row moved later for more than one reason, moved is the
       # first of these.
       REASONS = %w[co_op prerequisite offered load].freeze
@@ -197,7 +196,7 @@ module AcademicProfiles
         uid = @placed[index]
         return nil if planned.nil? || uid == planned
         return "transfer" if row[:transfer]
-        return "taken" if DONE.include?(row[:status])
+        return "taken" if CourseHistory.counted?(row[:status])
         return "behind" if planned < first_term
         return co_op?(index) ? "co_op" : "load" if uid && uid < planned
 
@@ -237,7 +236,7 @@ module AcademicProfiles
       end
 
       def fixed
-        @rows.each_index.select { |index| DONE.include?(@rows[index][:status]) }
+        @rows.each_index.select { |index| CourseHistory.counted?(@rows[index][:status]) }
       end
 
       # The rows with a plan semester, in plan order.
@@ -256,7 +255,7 @@ module AcademicProfiles
       # A slot or a choice names no single course, so it never waits.
       def blocked?(index, uid)
         row = @rows[index]
-        return false unless row[:kind] == "course" && (pair = CourseKeys.parse(row[:code]))
+        return false unless row[:kind] == "course" && (pair = CourseCode.parse(row[:code]))
 
         tree = @prerequisites.prerequisites(pair)
         return false if tree.nil?
@@ -293,7 +292,7 @@ module AcademicProfiles
       def keys(index)
         row = @rows[index]
         codes = row[:kind] == "choice" ? Array(row[:options]) : [ row[:code] ]
-        @course_keys.expand(codes.filter_map { |code| CourseKeys.parse(code) if code })
+        @course_keys.expand(codes.filter_map { |code| CourseCode.parse(code) if code })
       end
 
       def co_op?(index) = CoOpRows.co_op?(@rows[index])

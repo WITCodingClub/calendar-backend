@@ -23,4 +23,21 @@ module DegreeRequirements
   # pages; this is the capture time to ask for. Each page still has to name
   # the right catalog year (CatalogPage#start_year).
   WAYBACK_TIMESTAMPS = { 2025 => "20260301000000" }.freeze
+
+  # A path of the catalog site in the Wayback capture of a catalog year. raw
+  # gives the page as it was saved, for the import. Without it, the URL opens
+  # the capture page for a person.
+  def self.wayback_url(start_year, path, raw: false)
+    "https://web.archive.org/web/#{WAYBACK_TIMESTAMPS.fetch(start_year)}#{'id_' if raw}/#{SITE_URL}#{path}"
+  end
+
+  # The program page a requirement set came from, or nil. A set from the
+  # Wayback Machine links to the capture, because the catalog site has no
+  # copy of that year.
+  def self.page_url(set)
+    return nil if set.path.blank?
+
+    start_year = set.catalog_year.start_year
+    set.source_wayback? && WAYBACK_TIMESTAMPS.key?(start_year) ? wayback_url(start_year, set.path) : "#{SITE_URL}#{set.path}"
+  end
 end

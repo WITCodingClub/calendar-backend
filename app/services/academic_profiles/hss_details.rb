@@ -41,7 +41,7 @@ module AcademicProfiles
     def self.with_open_slots(entry)
       return entry if entry[:hss].nil?
 
-      slots = entry[:requirements].select { |row| row[:status] == "open" && DegreeRequirements::SharedElectives.hss_list?(row[:elective_list]) }
+      slots = entry[:requirements].select { |row| row[:status] == "open" && SharedElectiveList.hss?(row[:elective_list]) }
       entry.merge(hss: entry[:hss].merge(open_slots: slots.map { |row| row.slice(:label, :planned_term, :planned_term_uid, :hss_category) }))
     end
 

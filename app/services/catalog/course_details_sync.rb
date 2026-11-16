@@ -55,9 +55,6 @@ module Catalog
       prefix.match?(CourseCode::BARE_SUBJECT)
     end
 
-    # DegreeRequirements::CourseComparison still calls this.
-    def self.prefix_of(subject) = CourseCode.subject_of(subject)
-
     # The degree requirements and the term elective lists name courses by
     # code. A course that Banner lists for the first time gets its links here
     # (docs/degree-requirements.md, docs/term-electives.md).

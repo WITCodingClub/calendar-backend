@@ -8,22 +8,18 @@ module Api
 
     authenticate_with_token
 
-    # GET /api/user/academic_profile
     def show
       authorize current_user, :show?
 
       render json: AcademicProfileSerializer.new(current_user).as_json
     end
 
-    # PUT /api/user/academic_profile
     def update
       authorize current_user, :update?
 
       AcademicProfiles::Sync.new(current_user, params.to_unsafe_h.slice(*PAYLOAD_KEYS)).call
 
       render json: AcademicProfileSerializer.new(current_user.reload).as_json
-    rescue AcademicProfiles::InvalidProfileError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
   end
 end

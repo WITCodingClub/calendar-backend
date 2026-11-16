@@ -6,9 +6,11 @@ module Catalog
   # use this object. docs/degree-requirements.md describes the data.
   class ProgramQuery
     class FilterError < ::Catalog::FilterError; end
+    # No imported catalog year matches. The message lists the years there
+    # are.
+    class UnknownCatalogYearError < FilterError; end
 
     YEAR_SPAN = /\A(\d{4})(?:\s*[-\u2013\u2014]\s*(\d{2}|\d{4}))?\z/
-    TERM_NAME = /\A(fall|spring|summer)\s+(\d{4})\z/i
 
     # The first year of a catalog year, from "2024", "2024-2025", "2024-25",
     # or a term name: a catalog year starts in the fall, so "Spring 2024" is
@@ -16,9 +18,8 @@ module Catalog
     # follow each other.
     def self.start_year(value)
       text = value.to_s.strip
-      if (term = TERM_NAME.match(text))
-        year = term[2].to_i
-        return term[1].casecmp?("fall") ? year : year - 1
+      if (term = TermCode::LABEL.match(text))
+        return TermCode.catalog_start_year(TermCode.for(term[2].to_i, term[1]))
       end
 
       match = YEAR_SPAN.match(text)
@@ -33,7 +34,6 @@ module Catalog
       ending == start + 1 ? start : nil
     end
 
-    # The imported catalog years, newest first.
     def catalog_years
       CatalogYear.where(status: "imported").order(start_year: :desc)
     end
@@ -52,6 +52,18 @@ module Catalog
       catalog_years.find_by(start_year: start_year)
     end
 
+    # catalog_year, or UnknownCatalogYearError when no imported year matches.
+    def catalog_year!(value)
+      year = catalog_year(value)
+      return year if year
+
+      names = catalog_years.map(&:name)
+      raise UnknownCatalogYearError, "WIT Calendar has no degree program data yet." if names.empty?
+
+      raise UnknownCatalogYearError, "No #{value.presence || 'imported'} catalog. WIT Calendar has these catalog years: " \
+                                     "#{names.join(', ')}."
+    end
+
     # The programs that the last import of the year saw. A program that left
     # the catalog keeps its stored set, so the list leaves it out.
     #
@@ -60,7 +72,7 @@ module Catalog
     # parent is the slug of a major, for its concentrations.
     def call(catalog_year:, kind: nil, level: nil, q: nil, parent: nil)
       relation = catalog_year.requirement_sets.joins(:degree_program).includes(:catalog_year, degree_program: :parent_program)
-      relation = relation.where(last_seen_at: RequirementSet.listed_since(catalog_year)..) if catalog_year.imported_at
+      relation = relation.merge(RequirementSet.listed_in(catalog_year))
       relation = relation.where(degree_programs: { kind: validated(kind, DegreeProgram::KINDS, "kind") }) if kind.present?
       relation = relation.where(degree_programs: { level: validated(level, DegreeProgram::LEVELS, "level") }) if level.present?
       relation = relation.where(degree_programs: { parent_program_id: parent_id(parent) }) if parent.present?
@@ -76,10 +88,7 @@ module Catalog
     # also finds a program that left the catalog (ProgramSerializer gives
     # listed: false), so a student on that program still gets its plan.
     def find(program, catalog_year:)
-      relation = catalog_year.requirement_sets.joins(:degree_program).includes(
-        :catalog_year, degree_program: :parent_program,
-        program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan]
-      )
+      relation = catalog_year.requirement_sets.joins(:degree_program).with_requirements
       key = program.to_s.strip.downcase
       relation.find_by(degree_programs: { slug: DegreeProgram.current_slug(key) }) ||
         relation.where("lower(requirement_sets.name) = ?", key).order(:id).first

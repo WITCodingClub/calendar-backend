@@ -56,18 +56,6 @@ RSpec.describe CatalogCourse do
   it { is_expected.to validate_presence_of(:course_number) }
   it { is_expected.to validate_uniqueness_of(:course_number).scoped_to(:subject_code) }
 
-  describe ".parse_code" do
-    it "reads the common spellings" do
-      expect(described_class.parse_code(" comp 2350 ")).to eq([ "COMP", 2350 ])
-      expect(described_class.parse_code("COMP-128")).to eq([ "COMP", 128 ])
-    end
-
-    it "returns nil for anything else" do
-      expect(described_class.parse_code("2350")).to be_nil
-      expect(described_class.parse_code("COMP 23500")).to be_nil
-    end
-  end
-
   describe ".by_codes" do
     it "finds the courses with the given codes" do
       other = create(:catalog_course)

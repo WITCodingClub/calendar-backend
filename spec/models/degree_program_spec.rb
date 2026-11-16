@@ -82,12 +82,4 @@ RSpec.describe DegreeProgram do
       expect(build(:degree_program, slug: slug)).to be_valid, slug
     end
   end
-
-  it "finds its requirement set for a catalog year" do
-    catalog_year = create(:catalog_year)
-    requirement_set = create(:requirement_set, degree_program: subject, catalog_year: catalog_year)
-    create(:requirement_set, degree_program: subject)
-
-    expect(subject.requirement_set_for(catalog_year)).to eq(requirement_set)
-  end
 end

@@ -25,7 +25,7 @@ module DegreeRequirements
         banner = CatalogCourse.where.not(credit_hours: nil).pluck(:subject_code, :course_number, :credit_hours)
         years = CatalogYearCourse.joins(:catalog_year).where.not(min_credits: nil)
                                  .where("catalog_year_courses.min_credits = catalog_year_courses.max_credits")
-                                 .where(catalog_years: { start_year: FIRST_HTML_YEAR.. })
+                                 .where(catalog_years: { start_year: CatalogYear::FIRST_HTML_START_YEAR.. })
                                  .pluck("catalog_years.start_year", :subject_code, :course_number, :min_credits)
         build(start_year, banner, years, unanimous(grid_plan_rows))
       end

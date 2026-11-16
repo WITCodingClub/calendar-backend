@@ -31,7 +31,7 @@ module DegreeRequirements
     private
 
     def row_for(result)
-      subject_code, course_number = CatalogCourse.parse_code(result["code"])
+      subject_code, course_number = CourseCode.parse(result["code"])
       return nil if subject_code.nil?
 
       details = fetch_details(result["code"])

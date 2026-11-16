@@ -1,14 +1,10 @@
 # frozen_string_literal: true
 
 module AcademicProfiles
-  # A profile payload the backend cannot store. The controller
-  # renders it as a 422 with the code.
-  class InvalidProfileError < StandardError
-    attr_reader :code
-
-    def initialize(message, code: "invalid_profile")
-      @code = code
-      super(message)
+  # A profile, transfer credit, or planned program the backend cannot store.
+  class InvalidProfileError < Error
+    def initialize(message = nil, code: "invalid_profile")
+      super
     end
   end
 end

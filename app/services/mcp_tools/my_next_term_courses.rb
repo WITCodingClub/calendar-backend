@@ -52,8 +52,6 @@ module McpTools
 
       AcademicProfiles::NextTermRequest.new(term: term, assume: assume, assume_plans: assume_plans == true,
                                             include_candidates: include_candidates == true).call(user)
-    rescue AcademicProfiles::PlanningError => e
-      raise ToolError, e.message
     end
   end
 end

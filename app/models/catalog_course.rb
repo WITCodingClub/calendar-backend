@@ -49,6 +49,7 @@
 #  fk_rails_...  (source_term_id => terms.id)
 #
 class CatalogCourse < ApplicationRecord
+  include CourseCode::Record
   include Embeddable
 
   # Learning objectives can run to several pages. The vector keeps the start,
@@ -73,25 +74,15 @@ class CatalogCourse < ApplicationRecord
 
   before_validation { self.subject_code = subject_code&.strip&.upcase }
 
-  # [subject_code, course_number] pairs, such as [["COMP", 2350]].
-  scope :by_codes, ->(pairs) { pairs.empty? ? none : where([ :subject_code, :course_number ] => pairs.uniq) }
-
-  # The degree code still calls this; new code calls CourseCode.parse.
-  def self.parse_code(code) = CourseCode.parse(code)
-
   def self.find_by_code(code)
     subject_code, course_number = CourseCode.parse(code)
     subject_code && find_by(subject_code: subject_code, course_number: course_number)
   end
 
-  # The catalog courses of some sections, keyed by [subject_code,
-  # course_number], in one query.
+  # The catalog courses of some sections by key, in one query.
   def self.for_sections(sections)
-    by_codes(sections.map { |section| [ section.prefix, section.course_number ] })
-      .index_by { |course| [ course.subject_code, course.course_number ] }
+    by_codes(sections.map { |section| [ section.prefix, section.course_number ] }).index_by(&:key)
   end
-
-  def code = CourseCode.format(subject_code, course_number)
 
   # What the course teaches, in the words a student would search with. One
   # vector stands for every section of the course (docs/embeddings.md).

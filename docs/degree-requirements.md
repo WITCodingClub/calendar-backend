@@ -225,7 +225,7 @@ flowchart TD
 
 ## Shared elective lists
 
-Most elective slots name a list that is not on the program page. The catalog defines these once, for every program, on its policy pages. `DegreeRequirements::SharedElectives` links them. `PlanWriter` runs it after each HTML or PDF import, and `bin/rails degree_requirements:shared_electives` runs it on every stored set.
+Most elective slots name a list that is not on the program page. The catalog defines these once, for every program, on its policy pages. `SharedElectiveList` (a model-layer table) holds each list with its kind, and `DegreeRequirements::SharedElectives` links the slots to them. Degree progress reads a list's kind (`ElectiveGroup#shared_kind`), not its display name. `PlanWriter` runs the linker after each HTML or PDF import, and `bin/rails degree_requirements:shared_electives` runs it on every stored set.
 
 | Slot label | Shared list | What counts |
 |---|---|---|
@@ -304,13 +304,23 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 
 `AcademicProfiles::DegreeProgress` is a help for planning, not a degree audit. The official audit is Stellic.
 
+It runs in three parts. `ProgramSelection` picks the requirement sets and the plan of each. `RequirementFill` decides which course fills which row. `DegreeProgress` builds the JSON, then adds the terms (`PlanTerms`, `PlanEstimate`), the HSS slots (`HssDetails`), and the overlap (`ProgramOverlap`).
+
+```mermaid
+flowchart LR
+  S[ProgramSelection: sets and plans] --> F[RequirementFill: course of each row]
+  F --> J[DegreeProgress: row JSON, summary, HSS]
+  J --> T[PlanTerms and PlanEstimate]
+  T --> O[ProgramOverlap]
+```
+
 - It checks each active `StudentProgram` that links to a `DegreeProgram` in an imported catalog year, or the `program` argument. Without a linked program it answers with a message that says how to add one, and does not guess.
 - With `include_planned` (`GET /api/user/degree_progress?include_planned=true`), it also checks the planned programs. Each program in the result has `status`: `active` or `planned` (null for the `program` argument). The My programs dashboard page uses this to show the courses that a planned program adds (#867).
 - It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
 - A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term, `in_progress` in the current term, and `registered` in a term that has not started (#1019): the student registered for it. The term's `start_date` decides, because `Term.current` picks a term by month, and a summer term starts in May. A term with no `start_date` is later when its uid is after the current term. With no current term, such a course stays `in_progress`. The result lists these assumptions.
 - The statuses of a row, `filled_course`, `hss.courses[]`, `lists[].courses[]`, and `courses[]` are `done`, `in_progress`, `registered`, and `open` (`not_passed` only in `courses[]`, and no `open` there). `counts` has `done`, `in_progress`, `registered`, and `open`. A met list of a minor is `done` when each of its courses is done, `registered` when one of its courses is registered, and otherwise `in_progress`.
 - For prerequisites, a registered course counts as a course in progress counts: as passed with a C or better, in the terms after its term.
-- A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction. `AcademicProfiles::CourseKeys` holds this rule, and every degree planning service reads it, `NextTermCourses` and `ElectiveCandidates` too. It loads the checked aliases once for each request (`Current`).
+- A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction. `AcademicProfiles::CourseKeys` holds this rule, and every degree planning service reads it, `NextTermCourses`, `ElectiveCandidates` and the schedule finder (`Catalog::ScheduleOptions::Candidates`) too. It loads the checked aliases once for each request (`Current`).
 - AP, test, and transfer credit (`TransferCredit`, #1020) counts as a done course with no term. See [Transfer credit](#transfer-credit).
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. Among the slots, a list of courses goes first, then a subject list (HSS), then a free elective, so a broad slot does not use a course that a narrow one needs. A slot with no elective list, such as a "CONM Elective" whose page prints no list, stays open with `checkable: false`.
 
@@ -375,7 +385,7 @@ Each program in the result also gives its plan against real terms (#990). `Acade
 - `timeline` has one entry for each plan semester, in plan order: `term`, `uid`, `year`, `season`, `when`, `estimated`, and `co_op`. It is empty without a start term, or for a program with no plan of study (a minor).
 - `when` compares the Banner code with `Term.current`, as `NextTermCourses` does. `past` is before the current term. `current` is the current term. `registering` is the default term of `NextTermCourses`: the next fall or spring term after the current term. `future` is every later term. A summer term between the current term and the registering term is `future`, because the registering term is never a summer term. `when` is null when WIT Calendar has no current term.
 - `estimated` is true for each semester after plan year 2. A co-op or a summer class can move these terms. The timeline keeps the order of the plan.
-- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`DegreeRequirements::SharedElectives::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row. `AcademicProfiles::CoOpRows.co_op?` is the one test for a co-op row. `PlanTerms`, `PlanEstimate`, and `summary.co_ops` use it. `COOP 2500` is a normal course row.
+- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`SharedElectiveList::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row. `AcademicProfiles::CoOpRows.co_op?` is the one test for a co-op row. `PlanTerms`, `PlanEstimate`, and `summary.co_ops` use it. `COOP 2500` is a normal course row.
 - `expected_end` is `{ term, estimated }` of the last semester of the timeline, or null when the timeline is empty.
 - For an active program, `PlanEstimate` then replaces `timeline` and `expected_end` with the estimate (see the next section). The fields below keep their meaning.
 - Each requirement row has `planned_term` (such as `Fall 2027`) and `planned_term_uid`. Both are null for a row with no plan semester (an elective list of a minor) and for a program with no start term.
@@ -515,7 +525,7 @@ Example. The major plans MATH 1750 (Fall 2025), MATH 2500 (Fall 2026), and MATH 
 ```
 
 - **The slots:** the open elective slots (placeholder rows with `status: open`) in the plans of the active programs. A planned program that the student also declared as active does not count. A co-op slot never takes a course of a minor. A slot with no elective list (`checkable: false`) is not a slot here.
-- **Which courses a slot takes:** the rule of `DegreeProgress#take_for`, which `AcademicProfiles::ElectiveListRule` holds for both. A free elective (a list of any course) takes any course for degree credit. A program elective takes only the courses on its list, or the courses of its subjects. An HSS slot takes a course of its subjects, and when the slot stands for a category (`hss_category`, such as Humanities), only a course of that category.
+- **Which courses a slot takes:** the rule of `RequirementFill#take_for`, which `AcademicProfiles::ElectiveListRule` holds for both. A free elective (a list of any course) takes any course for degree credit. A program elective takes only the courses on its list, or the courses of its subjects. An HSS slot takes a course of its subjects, and when the slot stands for a category (`hss_category`, such as Humanities), only a course of that category.
 - **The extra courses:** for each list of the minor, the list courses that the student did not take and that no active program has, in list order. Each list needs as many of them as its part of `extra`.
 - **A list of subjects or of any course** names no fixed courses. Its extra courses can go to a slot that takes a course of one of its subjects, or that names a course of one of its subjects (with the HSS category rule above). A list of any course goes only to a free elective. These lists add no codes to `courses`.
 - **One slot per extra course:** each slot takes at most one course, and each course uses one slot, so the result has at most `extra` slots. A course on two lists of the minor fills one slot only. The narrow slots (program electives and HSS slots) take courses first, in term order, then the free electives in term order. A free elective is then not used where a narrow slot fits. The assignment is a maximum matching: a later slot can move a course from an earlier slot to another slot that also takes it, so the most courses get a slot.
@@ -591,7 +601,7 @@ An elective slot names a list, not a course. With `include=candidates` (#993), `
 - A candidate has an active section in the term. When WIT Calendar has no sections of the term yet (`sections` is false), `candidates` is an empty list.
 - A course that the student did or takes (done or in progress, in any term, also through a checked `CourseCodeAlias`) is not a candidate, because it cannot fill a slot again. A course in the term itself counts too: a registered course already fills its slot. A course not passed can be a candidate.
 - An assumed course (`assume`, `assume_plans`) and a course that a `course` row of `planned` or `behind` names are not candidates either. The first counts as passed, and the row takes the second.
-- The source of the candidates depends on the row. For a choice, an HSS slot, and a slot with a list, the rules are the rules of `DegreeProgress#take_for`, so a candidate is a course that `degree_progress` counts for the row. A term elective list is only a recommendation: `degree_progress` cannot check a slot with no list, and a free elective takes any course.
+- The source of the candidates depends on the row. For a choice, an HSS slot, and a slot with a list, the rules are the rules of `RequirementFill#take_for` (held by `AcademicProfiles::ElectiveListRule`), so a candidate is a course that `degree_progress` counts for the row. A term elective list is only a recommendation: `degree_progress` cannot check a slot with no list, and a free elective takes any course.
 
 | Row | Candidates |
 |---|---|
@@ -628,7 +638,7 @@ flowchart TD
 
 A student who plans a later term needs the prerequisite check to count the courses of the terms between now and then (#996). `AcademicProfiles::AssumedCourses` gives those courses to `NextTermCourses`.
 
-- `assume`: course codes to count as passed before the term. The API takes them separated by commas (`assume=COMP3350,MATH 2300`) or as a list (`assume[]=COMP3350`). The MCP tool takes a list of strings. `CatalogCourse.parse_code` reads each code. A value that is not a course code, or more than 50 codes, gives 422 with the usual error body (a tool error in MCP).
+- `assume`: course codes to count as passed before the term. The API takes them separated by commas (`assume=COMP3350,MATH 2300`) or as a list (`assume[]=COMP3350`). The MCP tool takes a list of strings. `CourseCode.parse` reads each code. A value that is not a course code, or more than 50 codes, gives 422 with the usual error body (a tool error in MCP).
 - `assume_plans=true`: also count the courses of the student's saved registration plans (#995) for the terms after the current term and before the term. The enrollments of the current term and of earlier terms are the real record, so the plans of those terms do not count. Without a current term, no plan counts. The client writes the codes of a plan, so a code that does not parse is skipped. One query reads the plans.
 - An assumed course counts as a course in progress counts: as passed with a C or better, also through a checked `CourseCodeAlias`.
 - With either argument, the hash has `assumed` after `term`: `courses` holds the assumed codes as `SUBJ 1234`, sorted, each one time, and `from_plans` holds the terms of the plans that gave at least one of them, oldest first. A course that the student did or takes before the term with a C or better (also through an alias) is not in `courses`, because it already counts. A course passed below C stays, because a retake can meet a minimum grade of C. Without the arguments, the hash has no `assumed`, and the rest is the same as before.

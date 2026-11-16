@@ -29,7 +29,7 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
       set = catalog_year.requirement_sets.find_by!(degree_program: science)
       expect(set).to have_attributes(name: "COMPUTER SCIENCE (BCOS)", source: "pdf", needs_review: true, reviewed_at: nil,
                                      path: "/previous-catalogs/WIT_2014-15_Academic_Catalog_.pdf#page=2", total_credits: 39)
-      expect(set.catalog_url).to eq("https://catalog.wit.edu/previous-catalogs/WIT_2014-15_Academic_Catalog_.pdf#page=2")
+      expect(DegreeRequirements.page_url(set)).to eq("https://catalog.wit.edu/previous-catalogs/WIT_2014-15_Academic_Catalog_.pdf#page=2")
       expect(set.program_plans.sole).to have_attributes(name: "Computer Science (BCOS)", years: 2)
       expect(set.program_plans.sole.items.count).to eq(11)
     end

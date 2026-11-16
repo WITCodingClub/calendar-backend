@@ -31,8 +31,6 @@ module AcademicProfiles
   #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
-    COUNTED = CourseHistory::STATUSES
-
     # The outcomes of the courses that count for PrerequisiteCheck: the
     # taken courses (by key), and each assumed course as passed with a C or
     # better (no outcome).
@@ -141,7 +139,7 @@ module AcademicProfiles
         uid = row[:planned_term_uid]
         next if uid.nil?
 
-        if uid == term_uid && COUNTED.exclude?(row[:status])
+        if uid == term_uid && !CourseHistory.counted?(row[:status])
           planned << row
         elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
           behind << row
@@ -175,7 +173,7 @@ module AcademicProfiles
     # attempt, such as a D in an earlier term, and the retake is in the
     # term. Each course once, in plan order.
     def registered_json(entry)
-      codes = entry[:requirements].filter_map { |row| row[:course] if COUNTED.include?(row[:status]) }
+      codes = entry[:requirements].filter_map { |row| row[:course] if CourseHistory.counted?(row[:status]) }
       codes.flat_map { |code| term_registered.select { |course| course_keys.equivalent_codes(code).include?(course[:code]) } }
            .uniq { |course| course[:code] }
            .map { |course| { code: course[:code], title: course[:title], crns: term_crns.fetch(course[:code], []) } }
@@ -194,7 +192,7 @@ module AcademicProfiles
       else
         @user.courses.where(term: term).order(:crn)
              .pluck(Arel.sql(Course::SUBJECT_CODE_SQL), :course_number, :crn)
-             .group_by { |subject, number, _| CourseKeys.format([ subject, number ]) }
+             .group_by { |subject, number, _| CourseCode.format(subject, number) }
              .transform_values { |rows| rows.map(&:last).uniq }
       end
     end
@@ -244,7 +242,7 @@ module AcademicProfiles
     def term_course_rows
       term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
                .select { |row| row[:kind] == "course" }
-               .filter_map { |row| CourseKeys.parse(row[:code]) }
+               .filter_map { |row| CourseCode.parse(row[:code]) }
     end
 
     # The courses a row names: its code, or the options of a choice. An
@@ -258,7 +256,7 @@ module AcademicProfiles
     end
 
     def course_json(code)
-      key = CourseKeys.parse(code)
+      key = CourseCode.parse(code)
       catalog = key && catalog_courses.catalog(key)
 
       {
@@ -286,13 +284,13 @@ module AcademicProfiles
     # any program, also through an alias.
     def missing_in_plan(keys)
       keys.select { |key| course_keys.equivalents(key).any? { |found| term_row_keys.include?(found) } }
-          .map { |key| CourseKeys.format(key) }
+          .map { |key| CourseCode.format(*key) }
     end
 
     def term_row_keys
       @term_row_keys ||= course_keys.expand(term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
                                                      .flat_map { |row| row_codes(row) }
-                                                     .filter_map { |code| CourseKeys.parse(code) }).to_set
+                                                     .filter_map { |code| CourseCode.parse(code) }).to_set
     end
 
     # The courses from DegreeProgress that count, by [subject, number]: done
@@ -300,9 +298,9 @@ module AcademicProfiles
     # course in the same term meet a prerequisite. A transfer credit (#1020)
     # has no term and always counts.
     def taken_courses
-      @taken_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
+      @taken_courses ||= progress[:courses].select { |course| CourseHistory.counted?(course[:status]) }
                                            .select { |course| term_uid.nil? || course[:term_uid].nil? || course[:term_uid] < term_uid }
-                                           .group_by { |course| CourseKeys.parse(course[:code]) }
+                                           .group_by { |course| CourseCode.parse(course[:code]) }
     end
 
     # The assumed courses, without the ones the student did or takes (also
@@ -327,7 +325,7 @@ module AcademicProfiles
     def catalog_courses
       @catalog_courses ||= CourseDetails.new(progress[:programs].flat_map { |entry| entry[:requirements] }
                                                                 .flat_map { |row| row_codes(row) }
-                                                                .filter_map { |code| CourseKeys.parse(code) }, course_keys)
+                                                                .filter_map { |code| CourseCode.parse(code) }, course_keys)
     end
 
     def term
@@ -345,11 +343,11 @@ module AcademicProfiles
     end
 
     # A section stores its subject as a label, such as "Computer Science
-    # (COMP)", so the codes take the code in it (Course.prefix_of).
+    # (COMP)", so the codes take the code in it (Course::SUBJECT_CODE_SQL).
     def offered_codes
       @offered_codes ||= Course.active.where(term: term).distinct
                                .pluck(Arel.sql(Course::SUBJECT_CODE_SQL), :course_number)
-                               .to_set { |subject, number| "#{subject} #{number}" }
+                               .to_set { |subject, number| CourseCode.format(subject, number) }
     end
   end
 end

@@ -6,15 +6,11 @@ module Admin
   # programs of a year, and the report that compares the year's courses with
   # Banner. The :id of a route is the start year (2024 for 2024-2025).
   class CatalogYearsController < Admin::ApplicationController
-    # The first catalog year that the catalog site has as HTML. Older years
-    # are PDFs (#865). The same year as lib/tasks/degree_requirements.rake.
-    FIRST_HTML_YEAR = 2019
-
     def index
       authorize CatalogYear
 
       stored = CatalogYear.all.index_by(&:start_year)
-      start_years = (stored.keys | (FIRST_HTML_YEAR..Date.current.year).to_a).sort.reverse
+      start_years = (stored.keys | (CatalogYear::FIRST_HTML_START_YEAR..Date.current.year).to_a).sort.reverse
       @catalog_years = start_years.map { |start_year| stored[start_year] || CatalogYear.new(start_year: start_year) }
       @queued = DegreeRequirements::ImportJob.queued_start_years
       @program_counts = RequirementSet.group(:catalog_year_id).count
@@ -37,9 +33,9 @@ module Admin
       authorize CatalogYear, :import?
 
       start_year = Integer(params[:id], exception: false)
-      name = start_year && "#{start_year}-#{start_year + 1}"
-      if start_year.nil? || !start_year.between?(FIRST_HTML_YEAR, Date.current.year + 1)
-        redirect_to admin_catalog_years_path, alert: "The import reads catalog years from #{FIRST_HTML_YEAR} to #{Date.current.year + 1}."
+      name = start_year && TermCode.catalog_year_name(start_year)
+      if start_year.nil? || !start_year.between?(CatalogYear::FIRST_HTML_START_YEAR, Date.current.year + 1)
+        redirect_to admin_catalog_years_path, alert: "The import reads catalog years from #{CatalogYear::FIRST_HTML_START_YEAR} to #{Date.current.year + 1}."
       elsif CatalogYear.source_pdf.exists?(start_year: start_year)
         # The HTML import cannot read a year from a PDF (#865).
         redirect_to admin_catalog_years_path, alert: "#{name} comes from a PDF. The HTML import cannot read it."

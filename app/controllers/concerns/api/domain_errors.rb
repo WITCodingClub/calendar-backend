@@ -2,15 +2,16 @@
 
 module Api
   # The errors of shared services that any API action can meet, each with its
-  # status. An action does not rescue them itself. The degree planning errors
-  # have their own handlers.
+  # status. An action does not rescue them itself. AcademicProfiles::Error
+  # covers every degree planning error, CourseOutcomes::InvalidOutcomesError
+  # too, with its code.
   module DomainErrors
     extend ActiveSupport::Concern
 
     included do
       rescue_from Courses::InvalidPayloadError, with: :render_bad_request
       rescue_from FriendMeetings::Creator::Error, with: :render_unprocessable
-      rescue_from CourseOutcomes::InvalidOutcomesError, with: :render_unprocessable
+      rescue_from AcademicProfiles::Error, with: :render_unprocessable
       rescue_from Catalog::BannerThrottle::CooldownError, with: :render_banner_unavailable
     end
 

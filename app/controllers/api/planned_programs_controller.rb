@@ -17,8 +17,6 @@ module Api
       planned.save!(program)
 
       render json: StudentProgramSerializer.new(program).as_json, status: :created
-    rescue AcademicProfiles::InvalidProfileError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
 
     # id is the public id of the planned row, or the slug of its program.

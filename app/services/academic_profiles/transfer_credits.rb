@@ -84,10 +84,9 @@ module AcademicProfiles
         raw = entry[:code]
         raise invalid("credits[#{index}].code must be a string") unless raw.is_a?(String)
 
-        pair = CatalogCourse.parse_code(raw)
-        next skipped << Skipped.new(code: raw, reason: "not_a_course_code") if pair.nil?
+        code = CourseCode.normalize(raw)
+        next skipped << Skipped.new(code: raw, reason: "not_a_course_code") if code.nil?
 
-        code = pair.join(" ")
         next skipped << Skipped.new(code: code, reason: "duplicate") if rows.key?(code)
         next skipped << Skipped.new(code: code, reason: "student_entry") if student_codes.include?(code)
 

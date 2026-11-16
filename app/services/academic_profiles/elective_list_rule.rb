@@ -8,18 +8,16 @@ module AcademicProfiles
   # fill a slot, and MinorFit (#998) finds the slots that a course of a minor
   # can fill.
   class ElectiveListRule
-    CO_OP_SUBJECT = "COOP"
-
     # group: an ElectiveGroup with its courses loaded.
     def initialize(group, course_keys)
       @group = group
-      @keys = course_keys.expand(group.courses.map { |course| [ course.subject_code, course.course_number ] }).to_set
+      @keys = course_keys.expand(group.courses.map(&:key)).to_set
     end
 
     # Any course means a course for degree credit: not a co-op and not a
     # course below 1000, such as ENGL0700.
     def self.degree_credit?(key)
-      key.first != CO_OP_SUBJECT && key.last.to_i >= 1000
+      key.first != SharedElectiveList::CO_OP_SUBJECT && key.last.to_i >= 1000
     end
 
     # true when the list takes the course with this [subject, number] key.
@@ -31,7 +29,7 @@ module AcademicProfiles
     # true when the list takes some course of this subject: a list of any
     # course, or a list with the subject. A list of named courses gives false.
     def accepts_subject?(subject)
-      (any_course? && subject != CO_OP_SUBJECT) || @group.subject_codes.include?(subject)
+      (any_course? && subject != SharedElectiveList::CO_OP_SUBJECT) || @group.subject_codes.include?(subject)
     end
 
     # true when the list names a course of this subject, such as PSYC 3100
