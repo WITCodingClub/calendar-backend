@@ -4,20 +4,26 @@ require "rails_helper"
 
 # A rate limit that outlasts the short in-process retries leaves the job. The
 # job then goes back in the queue with a wait, and frees its worker thread.
-RSpec.describe "Google Calendar jobs on a rate limit" do
+RSpec.describe "Calendar provider jobs on a rate limit" do
   let(:user) { create(:user) }
   let(:provider) { instance_double(GoogleCalendar::Provider) }
+  let(:manager) { instance_double(GoogleCalendar::CalendarManager) }
+  let(:syncer) { instance_double(CourseCalendars::ScheduleSyncer) }
   let(:error) { Google::Apis::RateLimitError.new("rateLimitExceeded: Rate Limit Exceeded", status_code: 403) }
 
-  before { allow(GoogleCalendar::Provider).to receive(:new).and_return(provider) }
+  before do
+    allow(GoogleCalendar::Provider).to receive(:new).and_return(provider)
+    allow(GoogleCalendar::CalendarManager).to receive(:new).and_return(manager)
+    allow(CourseCalendars::ScheduleSyncer).to receive(:new).and_return(syncer)
+  end
 
   {
     CourseCalendars::SyncJob => -> {
-      allow(user).to receive(:sync_course_schedule).and_raise(error)
+      allow(syncer).to receive(:sync_schedule).and_raise(CourseCalendars::RateLimitError)
       [ user ]
     },
     CourseCalendars::HistoricalSyncJob => -> {
-      allow(user).to receive(:sync_historical_events).and_raise(error)
+      allow(syncer).to receive(:sync_historical).and_raise(CourseCalendars::RateLimitError)
       [ user ]
     },
     GoogleCalendar::CreateJob => -> {
@@ -25,11 +31,11 @@ RSpec.describe "Google Calendar jobs on a rate limit" do
       [ user.id ]
     },
     GoogleCalendar::DeleteJob => -> {
-      allow(provider).to receive(:delete_calendar).and_raise(error)
+      allow(manager).to receive(:delete_calendar).and_raise(error)
       [ "cal-1" ]
     },
     GoogleCalendar::EventDeleteJob => -> {
-      allow(provider).to receive(:delete_calendar_event).and_raise(error)
+      allow(manager).to receive(:delete_event).and_raise(error)
       [ "cal-1", "evt-1" ]
     }
   }.each do |job_class, setup|

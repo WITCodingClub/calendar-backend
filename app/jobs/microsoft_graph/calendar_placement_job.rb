@@ -5,19 +5,20 @@ module MicrosoftGraph
   # primary Microsoft calendar, then starts a forced sync that creates the events
   # in the new place.
   #
-  # It shares the concurrency group and key of CourseCalendars::SyncJob, so a move
-  # and a sync for one person never run at the same time. Solid Queue puts the
-  # group in front of the key, and the group is the job class unless it is set.
+  # It takes CourseCalendars::UserLock, so a move and a sync for one person
+  # never run at the same time.
   class CalendarPlacementJob < ApplicationJob
+    include CourseCalendars::UserLock
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
-    limits_concurrency to: 1, group: CourseCalendars::SyncJob::CONCURRENCY_GROUP,
-                       key: ->(user, _placement) { "google_calendar_sync_user_#{user.id}" }
+    limits_concurrency_per_user(&:id)
 
     # A Graph failure stops the move before the row changes, so the job can run
-    # again. An auth failure needs a new sign-in, so that job is dropped.
-    retry_on MicrosoftGraph::Error, wait: :polynomially_longer, attempts: 5
-    discard_on MicrosoftGraph::AuthError
+    # again.
+    retry_on_provider_errors
+    discard_on_auth_errors
 
     def perform(user, placement)
       return unless MicrosoftGraph.enabled_for?(user)

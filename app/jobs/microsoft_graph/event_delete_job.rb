@@ -4,9 +4,11 @@ module MicrosoftGraph
   # Deletes one event from a Microsoft calendar. Enqueued when a Microsoft
   # CalendarEvent row is destroyed, so the live Outlook event goes too.
   class EventDeleteJob < ApplicationJob
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
-    discard_on MicrosoftGraph::AuthError
+    discard_on_auth_errors
 
     def perform(oauth_credential_id, event_id, ical_uid = nil)
       return if event_id.blank?

@@ -4,19 +4,18 @@ module FriendMeetings
   # Writes a changed FriendMeeting to its provider events, and makes each event
   # that is missing. The owner's edit and an unfriend both start it.
   #
-  # It shares the concurrency group and key of CourseCalendars::SyncJob, like
-  # FriendMeetings::PublishJob, so it never runs at the same time as a publish or
+  # It takes CourseCalendars::UserLock, so it never runs at the same time as a publish or
   # a sync for the same person.
   class UpdateJob < ApplicationJob
+    include CourseCalendars::UserLock
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
-    limits_concurrency to: 1, group: CourseCalendars::SyncJob::CONCURRENCY_GROUP,
-                       key: ->(meeting) { "google_calendar_sync_user_#{meeting.user_id}" }
+    limits_concurrency_per_user(&:user_id)
 
-    retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,
-             wait: :polynomially_longer, attempts: 5
-    discard_on MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, Signet::AuthorizationError,
-               ActiveJob::DeserializationError
+    retry_on_provider_errors
+    discard_on_auth_errors
 
     def perform(meeting)
       FriendMeetings::Publisher.new(meeting.user).update(meeting)

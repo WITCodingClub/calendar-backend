@@ -11,19 +11,17 @@ module FriendMeetings
   # FriendMeetings::Publisher#remove records it on the publication, and a
   # reconnect finishes the removal (OauthCredential#resume_friend_meetings).
   #
-  # It shares the concurrency group and key of CourseCalendars::SyncJob, like
-  # FriendMeetings::PublishJob, so it never runs at the same time as a publish or
+  # It takes CourseCalendars::UserLock, so it never runs at the same time as a publish or
   # a sync for the same person.
   class RemoveJob < ApplicationJob
+    include CourseCalendars::UserLock
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
-    limits_concurrency to: 1, group: CourseCalendars::SyncJob::CONCURRENCY_GROUP,
-                       key: ->(meeting) { "google_calendar_sync_user_#{meeting.user_id}" }
+    limits_concurrency_per_user(&:user_id)
 
-    retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,
-             Google::Apis::TransmissionError, Google::Apis::ClientError,
-             wait: :polynomially_longer, attempts: 8
-    discard_on ActiveJob::DeserializationError
+    retry_on_provider_errors Google::Apis::TransmissionError, Google::Apis::ClientError, attempts: 8
 
     def perform(meeting)
       return unless meeting.cancelled?
