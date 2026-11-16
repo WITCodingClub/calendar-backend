@@ -5,6 +5,9 @@ require "rails_helper"
 RSpec.describe UniversityCalendar::IcsImport, type: :service do
   let(:feed_url) { described_class::ICS_FEED_URL }
 
+  # HttpFetcher waits between retries. A spec has no need to wait.
+  before { stub_const("HttpFetcher::RETRY_OPTIONS", HttpFetcher::RETRY_OPTIONS.merge(interval: 0)) }
+
   def stub_feed(fixture, url: feed_url, status: 200)
     stub_request(:get, url).to_return(status: status, body: file_fixture("university_calendar/#{fixture}").read)
   end
@@ -397,6 +400,15 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
     end
 
     context "when the download fails" do
+      it "retries a busy server and sends the bot user agent" do
+        request = stub_request(:get, feed_url).with(headers: { "User-Agent" => HttpFetcher::USER_AGENT })
+                                              .to_return({ status: 503 }, { status: 200, body: file_fixture("university_calendar/feed.ics").read })
+
+        described_class.call
+
+        expect(request).to have_been_requested.twice
+      end
+
       it "raises with the HTTP status for a server error" do
         stub_feed("feed.ics", status: 500)
 
