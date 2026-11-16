@@ -1,5 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
-import { getCredential, isCancelled } from "lib/webauthn"
+import { getCredential, isCancelled, postJson } from "lib/webauthn"
+
+const FAILED = "Could not sign in with that passkey."
 
 // Signs in with a passkey on the sign-in page. The button stays hidden until
 // the browser says it can run the ceremony, so a device with no
@@ -16,9 +18,9 @@ export default class extends Controller {
     this.errorTarget.hidden = true
     this.buttonTarget.disabled = true
     try {
-      const { handle, options } = await this.post(this.optionsUrlValue)
+      const { handle, options } = await postJson(this.optionsUrlValue, {}, FAILED)
       const credential = await getCredential(options)
-      const result = await this.post(this.sessionUrlValue, { handle, credential })
+      const result = await postJson(this.sessionUrlValue, { handle, credential }, FAILED)
       window.location.assign(result.redirect_to)
     } catch (error) {
       if (!isCancelled(error)) {
@@ -27,17 +29,5 @@ export default class extends Controller {
       }
       this.buttonTarget.disabled = false
     }
-  }
-
-  async post(url, body) {
-    const token = document.querySelector('meta[name="csrf-token"]')?.content
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
-      body: JSON.stringify(body ?? {})
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(data.error || "Could not sign in with that passkey.")
-    return data
   }
 }

@@ -22,7 +22,6 @@ module Api
     # when no handoff is present.
     prepend_before_action :authenticate_user_from_handoff, only: [ :registration_options, :create ]
 
-    # GET /api/user/passkeys
     def index
       authorize Passkey.new(user: current_user), :index?
 
@@ -31,7 +30,6 @@ module Api
       render json: { passkeys: passkeys }, status: :ok
     end
 
-    # POST /api/user/passkeys/registration_options
     def registration_options
       authorize Passkey.new(user: current_user), :create?
 
@@ -61,7 +59,6 @@ module Api
       render json: { handle: record.handle, options: options.as_json }, status: :ok
     end
 
-    # POST /api/user/passkeys
     def create
       passkey = Passkey.new(user: current_user)
       authorize passkey, :create?
@@ -79,7 +76,7 @@ module Api
 
       owner = current_user
 
-      credential = WebAuthn::Credential.from_create(registration_credential_params)
+      credential = WebAuthn::Credential.from_create(Passkeys::CredentialParams.attestation(params))
       credential.verify(challenge.challenge)
 
       passkey.assign_attributes(
@@ -100,7 +97,6 @@ module Api
       render_error "Could not verify this passkey", status: :unprocessable_content
     end
 
-    # DELETE /api/user/passkeys/:passkey_id
     def destroy
       passkey = find_by_any_id(current_user.passkeys, params[:passkey_id])
 
@@ -115,47 +111,16 @@ module Api
       render json: { message: "Passkey removed" }, status: :ok
     end
 
-    # POST /api/user/passkeys/authentication_options
-    #
-    # Unauthenticated: this is the start of a sign-in. No allow list is sent, so
-    # the browser offers whichever discoverable passkey the device holds and we
-    # never reveal whether a given account has one.
+    # Unauthenticated: this is the start of a sign-in.
     def authentication_options
-      options = WebAuthn::Credential.options_for_get(user_verification: "preferred")
-
-      record = WebauthnChallenge.issue!(challenge: options.challenge, purpose: "authentication")
-
-      render json: { handle: record.handle, options: options.as_json }, status: :ok
+      render json: Passkeys::Authentication.options, status: :ok
     end
 
-    # POST /api/user/passkeys/authenticate
-    #
     # Unauthenticated. Returns the same body as onboarding, so the extension can
     # reuse one code path for "I have a token now".
     def authenticate
-      challenge = WebauthnChallenge.consume(handle: params[:handle], purpose: "authentication")
-
-      if challenge.nil?
-        render_error "Sign-in expired. Start again.", status: :unauthorized
-        return
-      end
-
-      credential = WebAuthn::Credential.from_get(assertion_credential_params)
-      passkey    = Passkey.find_by(external_id: credential.id)
-
-      if passkey.nil?
-        render_error "Unknown passkey", status: :unauthorized
-        return
-      end
-
-      credential.verify(
-        challenge.challenge,
-        public_key: passkey.public_key,
-        sign_count: passkey.sign_count
-      )
-
-      passkey.record_use!(credential.sign_count)
-
+      passkey = Passkeys::Authentication.verify!(handle: params[:handle],
+                                                 credential: Passkeys::CredentialParams.assertion(params))
       user = passkey.user
 
       # The page asks for a handoff rather than the token: it has to send this
@@ -169,14 +134,14 @@ module Api
         pub_id: user.public_id.delete_prefix("usr_"),
         jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request, passkey: passkey)
       }, status: :ok
-    # ArgumentError: the gem raises it for a field that is not valid base64url.
-    rescue WebAuthn::Error, ArgumentError => e
-      Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
-      render_error "Could not verify this passkey", status: :unauthorized
+    rescue Passkeys::Authentication::Failed => e
+      message = {
+        expired: "Sign-in expired. Start again.",
+        unknown: "Unknown passkey"
+      }.fetch(e.reason, "Could not verify this passkey")
+      render_error message, status: :unauthorized
     end
 
-    # POST /api/user/passkeys/handoff
-    #
     # Mints the code the extension hands to the passkey page so the page can
     # register a passkey for the signed-in account.
     def handoff
@@ -185,8 +150,6 @@ module Api
       render json: { code: PasskeyHandoff.issue!(user: current_user, purpose: "register") }, status: :ok
     end
 
-    # POST /api/user/passkeys/exchange
-    #
     # Unauthenticated: trades the code the page redirected back with for a JWT.
     # Same body as onboarding, so the extension keeps one code path.
     def exchange
@@ -227,30 +190,6 @@ module Api
       return if @current_user
 
       super
-    end
-
-    # The exact keys WebAuthn::Credential reads. The clientExtensionResults hash
-    # is open ended and nothing here consults it, so it stays out.
-    CREDENTIAL_KEYS = [ :type, :id, :rawId, :authenticatorAttachment ].freeze
-
-    # The gem reads credential["response"] without a nil check, so a missing
-    # response has to fail here as a 400 and not as a NoMethodError.
-    def registration_credential_params
-      credential = params.require(:credential)
-      credential.require(:response)
-      credential.permit(
-        *CREDENTIAL_KEYS,
-        response: [ :attestationObject, :clientDataJSON ]
-      ).to_h
-    end
-
-    def assertion_credential_params
-      credential = params.require(:credential)
-      credential.require(:response)
-      credential.permit(
-        *CREDENTIAL_KEYS,
-        response: [ :authenticatorData, :clientDataJSON, :signature, :userHandle ]
-      ).to_h
     end
 
     def default_nickname(owner)
