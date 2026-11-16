@@ -70,6 +70,19 @@ RSpec.describe Cleanup::ExpiredRecordsJob do
     expect(WebauthnChallenge.exists?(stale.id)).to be(false)
   end
 
+  it "reports a model that fails and still purges the others" do
+    error = ActiveRecord::StatementInvalid.new("synthetic failure")
+    allow(Friendship).to receive(:purge_expired).and_raise(error)
+    allow(Rails.error).to receive(:report)
+    create(:friend_group, :temporary)
+
+    travel 8.days do
+      expect(described_class.perform_now).to include("Friendship" => nil, "FriendGroup" => 1)
+    end
+
+    expect(Rails.error).to have_received(:report).with(error, handled: true, context: { model: "Friendship" })
+  end
+
   it "keeps the old job names for jobs already in the queue" do
     expect(Friendships::RemoveExpiredJob).to eq(described_class)
     expect(FriendGroups::RemoveExpiredJob).to eq(described_class)
