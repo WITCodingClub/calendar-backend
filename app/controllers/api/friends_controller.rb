@@ -66,10 +66,10 @@ module Api
     private
 
     # Both levels of one friendship for the friends list, so the client needs
-    # no visibility request for each friend. It follows readable_without_flag?:
-    # nil while the viewer's flag is off and the friend shares the full schedule.
+    # no visibility request for each friend. Nil while the levels are not open
+    # to the viewer (Friendships::Features.busy_times_readable?).
     def index_visibility(friendship, flag_on)
-      return nil unless flag_on || !friendship.full_schedule_visible_to?(current_user)
+      return nil unless Friendships::Features.busy_times_readable?(friendship, current_user, flag_on: flag_on)
 
       FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json.except(:friend_id)
     end

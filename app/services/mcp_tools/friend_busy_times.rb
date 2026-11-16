@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 module McpTools
-  # A friend's busy times, with no course data. The rules are the same as
-  # GET /api/friends/:friend_id/busy_blocks (Api::Friends::SchedulesController).
+  # A friend's busy times, with no course data (Friendships::BusyTimes).
   class FriendBusyTimes < BaseTool
     tool_name "friend_busy_times"
     title "A friend's busy times"
@@ -37,15 +36,11 @@ module McpTools
     def perform(friend_id:, start_date:, end_date:)
       friendship = find_friendship(friend_id)
       authorize friendship, :view_availability?
-      unless Friendships::Features.busy_times_readable?(friendship, user)
-        raise ToolError, "Busy times for this friend are not available yet."
-      end
+      busy_times = Friendships::BusyTimes.new(user, friendship)
+      raise ToolError, "Busy times for this friend are not available yet." unless busy_times.readable?
 
       from, to = date_range(start_date, end_date)
-      friend   = friendship.friend_for(user)
-
-      BusyBlocksSerializer.new(BusyBlocks.new(friend, from: from, to: to).call, from: from, to: to)
-                          .as_json.merge(friend: FriendSerializer.new(friend).as_json)
+      busy_times.as_json(from, to).merge(friend: FriendSerializer.new(friendship.friend_for(user)).as_json)
     end
 
     private

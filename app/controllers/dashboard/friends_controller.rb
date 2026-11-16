@@ -34,7 +34,7 @@ module Dashboard
         @schedule = Courses::Schedule.build(@friend, **schedule_params)
       else
         @week_start  = Courses::Schedule.week_start_for(params[:week_start])
-        @busy_blocks = BusyBlocks.new(@friend, from: @week_start, to: @week_start + 6).call
+        @busy_blocks = Friendships::BusyTimes.new(current_user, @friendship).blocks(@week_start, @week_start + 6)
         render :availability
       end
     end

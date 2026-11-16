@@ -80,14 +80,13 @@ module Api
         return if performed?
 
         authorize friendship, :view_availability?
-        return unless readable_without_flag?(friendship)
+        busy_times = Friendships::BusyTimes.new(current_user, friendship)
+        return render_error("Not found", status: :not_found) unless busy_times.readable?
 
         from, to = busy_blocks_range
         return if performed?
 
-        friend = friendship.friend_for(current_user)
-        blocks = BusyBlocks.new(friend, from: from, to: to).call
-        render json: BusyBlocksSerializer.new(blocks, from: from, to: to).as_json, status: :ok
+        render json: busy_times.as_json(from, to), status: :ok
       end
 
       private
