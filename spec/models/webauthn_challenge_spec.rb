@@ -75,14 +75,4 @@ RSpec.describe WebauthnChallenge do
     expect(described_class.consume(handle: "made-up", purpose: "authentication")).to be_nil
     expect(described_class.consume(handle: nil, purpose: "authentication")).to be_nil
   end
-
-  it "clears out rows that expired, so the table does not grow without bound" do
-    stale = described_class.issue!(challenge: "old", purpose: "authentication")
-
-    travel(described_class::TTL + 1.minute) do
-      described_class.issue!(challenge: "new", purpose: "authentication")
-    end
-
-    expect(described_class.exists?(stale.id)).to be(false)
-  end
 end

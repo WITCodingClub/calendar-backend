@@ -40,6 +40,7 @@
 # SHA-256 digest is stored, like a password reset token.
 class MeetingLink < ApplicationRecord
   include EncodedIds::HashidIdentifiable
+  include Expirable
 
   set_public_id_prefix :mlk, min_hash_length: 12
 
@@ -92,7 +93,7 @@ class MeetingLink < ApplicationRecord
   end
 
   def usable?
-    used_at.nil? && revoked_at.nil? && expires_at > Time.current
+    used_at.nil? && revoked_at.nil? && !expired?
   end
 
   def used?    = used_at.present?
@@ -105,7 +106,7 @@ class MeetingLink < ApplicationRecord
   def status
     if used? then "used"
     elsif revoked? then "revoked"
-    elsif expires_at <= Time.current then "expired"
+    elsif expired? then "expired"
     else "active"
     end
   end
@@ -159,8 +160,8 @@ class MeetingLink < ApplicationRecord
   def expiry_is_valid
     return if expires_at.blank?
 
-    if expires_at <= Time.current
-      errors.add(:expires_at, "must be in the future")
+    if expired?
+      expires_at_in_future
     elsif expires_at > MAX_EXPIRY.from_now
       errors.add(:expires_at, "must be no more than #{MAX_EXPIRY.in_days.to_i} days from now")
     end

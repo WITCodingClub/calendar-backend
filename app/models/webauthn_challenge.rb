@@ -28,6 +28,8 @@
 # authenticator's answer. Consuming a row deletes it, which is what makes a
 # challenge single use.
 class WebauthnChallenge < ApplicationRecord
+  include Expirable
+
   TTL = 5.minutes
 
   PURPOSES = %w[registration authentication].freeze
@@ -39,11 +41,7 @@ class WebauthnChallenge < ApplicationRecord
   validates :purpose,   presence: true, inclusion: { in: PURPOSES }
   validates :expires_at, presence: true
 
-  scope :expired, -> { where(expires_at: ...Time.current) }
-
   def self.issue!(challenge:, purpose:, user: nil)
-    expired.delete_all
-
     create!(
       handle:     SecureRandom.urlsafe_base64(32),
       challenge:  challenge,
@@ -62,7 +60,7 @@ class WebauthnChallenge < ApplicationRecord
     return nil if record.nil?
 
     record.destroy!
-    return nil if record.expires_at <= Time.current
+    return nil if record.expired?
 
     record
   end

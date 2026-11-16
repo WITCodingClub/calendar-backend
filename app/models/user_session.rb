@@ -39,6 +39,7 @@
 #
 class UserSession < ApplicationRecord
   include EncodedIds::HashidIdentifiable
+  include Expirable
 
   set_public_id_prefix :ses, min_hash_length: 12
 
@@ -57,11 +58,11 @@ class UserSession < ApplicationRecord
   validates :source,     presence: true, inclusion: { in: SOURCES }
   validates :expires_at, presence: true
 
-  scope :active,  -> { where(revoked_at: nil).where(expires_at: Time.current..) }
+  scope :active,  -> { unexpired.where(revoked_at: nil) }
   scope :recent_first, -> { order(Arel.sql("last_seen_at DESC NULLS LAST"), created_at: :desc) }
 
   def active?
-    revoked_at.nil? && expires_at > Time.current
+    revoked_at.nil? && !expired?
   end
 
   def revoked?

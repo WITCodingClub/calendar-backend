@@ -41,18 +41,12 @@ production:
     queue: low
     schedule: every hour at minute 42
 
-  # Expired friendships already grant nothing. This only deletes the rows.
-  remove_expired_friendships:
-    class: Friendships::RemoveExpiredJob
+  # Expired friendships, friend groups and passkey tokens already grant
+  # nothing. This only deletes the rows.
+  remove_expired_records:
+    class: Cleanup::ExpiredRecordsJob
     queue: low
     schedule: every hour at minute 25
-
-  # Expired friend groups are already hidden. This only deletes the rows. The
-  # friendships in them stay.
-  remove_expired_friend_groups:
-    class: FriendGroups::RemoveExpiredJob
-    queue: low
-    schedule: every hour at minute 29
 
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
