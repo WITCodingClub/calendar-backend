@@ -49,7 +49,7 @@ module Admin
       initiator_user_id = session.delete(:oauth_initiator_user_id)
       initiator_user = User.find_by(id: initiator_user_id)
 
-      unless initiator_user&.owner?
+      unless ServiceAccountPolicy.new(initiator_user, :service_account).manage?
         flash[:alert] = "Access denied. Only owners can complete this OAuth flow."
         redirect_to root_path
         return
@@ -101,7 +101,7 @@ module Admin
     end
 
     def require_owner!
-      if current_user&.owner?
+      if policy(:service_account).manage?
         authorize :service_account, :manage?
       else
         flash[:alert] = "Access denied. Owner role required."

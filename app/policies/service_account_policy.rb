@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# The Google service account OAuth setup. Only an owner can use it.
+# The Google service account OAuth setup (AdminAccess :service_account).
 class ServiceAccountPolicy < ApplicationPolicy
-  def manage? = owner?
+  def manage? = AdminAccess.allowed?(user, :service_account)
 end

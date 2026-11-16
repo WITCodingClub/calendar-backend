@@ -4,7 +4,8 @@ require "rails_helper"
 
 # The job dashboard, Flipper, PgHero, Blazer, and the console audits can run
 # jobs, change flags, read any row, or show console sessions. They need a
-# super admin, not only admin access.
+# super admin, not only admin access. The console audits need an owner
+# (AdminAccess).
 RSpec.describe "Admin super admin tools", type: :request do
   TOOL_PATHS = %w[/admin/jobs /admin/flipper /admin/pghero /admin/blazer /admin/audits].freeze
 
@@ -64,7 +65,7 @@ RSpec.describe "Admin super admin tools", type: :request do
         expect { open_tool("/admin/pghero") }.to raise_error(ReachedPgHero)
       end
 
-      (TOOL_PATHS - %w[/admin/jobs /admin/pghero]).each do |path|
+      (TOOL_PATHS - %w[/admin/jobs /admin/pghero /admin/audits]).each do |path|
         it "opens #{path}" do
           open_tool(path)
 
@@ -72,5 +73,15 @@ RSpec.describe "Admin super admin tools", type: :request do
         end
       end
     end
+  end
+
+  it "opens the console audits for an owner only" do
+    sign_in create(:user, :super_admin)
+    get "/admin/audits"
+    expect(response).to redirect_to(dashboard_root_path)
+
+    sign_in create(:user, :owner)
+    open_tool("/admin/audits")
+    expect(response).to have_http_status(:ok)
   end
 end

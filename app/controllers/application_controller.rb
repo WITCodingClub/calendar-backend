@@ -45,7 +45,7 @@ class ApplicationController < ActionController::Base
 
   # Audits1984 (mounted at /admin/audits) calls this to find the auditor.
   def find_current_auditor
-    current_user if current_user&.admin_access?
+    current_user if AdminAccess.allowed?(current_user, :console_audits)
   end
 
   def user_not_authorized
