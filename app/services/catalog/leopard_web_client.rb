@@ -19,6 +19,10 @@ module Catalog
     class SessionError < StandardError; end
     class ParseError < StandardError; end
 
+    # The errors of a Banner request or of its answer, not of our own code.
+    # A run over many items reports one of them and goes on with the next.
+    FAILURES = [ RequestError, ParseError, Faraday::Error, JSON::ParserError ].freeze
+
     attr_reader :term, :course_reference_number
 
     def initialize(term: nil, course_reference_number: nil)
@@ -87,7 +91,9 @@ module Catalog
       end
     end
 
-    ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
+    # v2: the list is an Array. The old key held a { success:, terms: } Hash,
+    # which an old deploy slot can still write.
+    ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms/v2"
 
     # Banner's terms, as { code:, description: }. Raises RequestError when
     # Banner does not answer.

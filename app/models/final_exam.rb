@@ -92,7 +92,7 @@ class FinalExam < ApplicationRecord
   def duration_hours
     return 0 unless start_time && end_time
 
-    Hhmm.hours(end_time) - Hhmm.hours(start_time)
+    Hhmm.duration_hours(start_time, end_time)
   end
 
   def time_of_day

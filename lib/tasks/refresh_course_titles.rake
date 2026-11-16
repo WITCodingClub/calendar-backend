@@ -26,7 +26,7 @@ namespace :courses do
 
       begin
         sections = Catalog::LeopardWebClient.get_course_catalog(term: term.uid)
-      rescue Catalog::LeopardWebClient::RequestError, Catalog::LeopardWebClient::SessionError, Faraday::Error => e
+      rescue Catalog::LeopardWebClient::RequestError, Catalog::LeopardWebClient::SessionError, Faraday::Error, JSON::ParserError => e
         puts "Failed to fetch courses: #{e.message}"
         next
       end

@@ -33,7 +33,7 @@ module Catalog
     def call
       return clear_links unless @course.is_section_linked
 
-      BannerThrottle.report_unless_cooldown(fallback: false, course_id: @course.id, crn: @course.crn) do
+      BannerThrottle.report_unless_cooldown(fallback: false, errors: LeopardWebClient::FAILURES, course_id: @course.id, crn: @course.crn) do
         store(LeopardWebClient.fetch_linked_sections(term: @course.term.uid, course_reference_number: @course.crn))
         true
       end

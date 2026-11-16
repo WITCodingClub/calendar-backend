@@ -68,6 +68,12 @@ RSpec.describe Catalog::SectionLinksSync do
     expect(lecture.reload.links_fetched_at).to be_nil
   end
 
+  it "fails on an error that is not a Banner failure" do
+    allow(Catalog::LeopardWebClient).to receive(:fetch_linked_sections).and_raise(NoMethodError, "bug")
+
+    expect { described_class.call(lecture) }.to raise_error(NoMethodError)
+  end
+
   it "stops on a Banner cooldown, so the job can try again later" do
     allow(Catalog::LeopardWebClient).to receive(:fetch_linked_sections).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
 

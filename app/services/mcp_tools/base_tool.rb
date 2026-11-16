@@ -301,7 +301,11 @@ module McpTools
       raise ToolError, "#{name} must be a date in YYYY-MM-DD format"
     end
 
+    # Both dates are required here. The API routes default a blank date.
     def date_range(start_date, end_date)
+      { "start_date" => start_date, "end_date" => end_date }.each do |name, value|
+        raise ToolError, "#{name} must be a date in YYYY-MM-DD format" if value.blank?
+      end
       BusyBlocks::DateRange.parse(start_date, end_date)
     rescue BusyBlocks::DateRange::InvalidError => e
       raise ToolError, e.message

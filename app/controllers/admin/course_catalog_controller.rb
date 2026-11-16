@@ -23,8 +23,11 @@ module Admin
         return
       end
 
-      Catalog::ImportJob.enqueue(term)
-      flash[:notice] = "Started importing courses for #{term.name} in the background."
+      if Catalog::ImportJob.enqueue(term)
+        flash[:notice] = "Started importing courses for #{term.name} in the background."
+      else
+        flash[:alert] = "Could not start the import for #{term.name}."
+      end
       redirect_to admin_course_catalog_path
     end
 

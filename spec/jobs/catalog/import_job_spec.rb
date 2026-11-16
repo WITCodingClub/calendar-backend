@@ -55,5 +55,19 @@ RSpec.describe Catalog::ImportJob do
       expect(term.reload).to have_attributes(catalog_importing: true, catalog_import_failed: false,
                                              catalog_import_job_id: job.job_id)
     end
+
+    it "clears the flags when the job does not reach the queue" do
+      allow_any_instance_of(described_class).to receive(:enqueue).and_return(false) # rubocop:disable RSpec/AnyInstance
+
+      expect(described_class.enqueue(term)).to be(false)
+      expect(term.reload).to have_attributes(catalog_importing: false, catalog_import_job_id: nil)
+    end
+
+    it "clears the flags when the enqueue raises" do
+      allow_any_instance_of(described_class).to receive(:enqueue).and_raise(ActiveRecord::ConnectionNotEstablished) # rubocop:disable RSpec/AnyInstance
+
+      expect { described_class.enqueue(term) }.to raise_error(ActiveRecord::ConnectionNotEstablished)
+      expect(term.reload.catalog_importing).to be(false)
+    end
   end
 end

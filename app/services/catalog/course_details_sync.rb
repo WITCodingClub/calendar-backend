@@ -149,7 +149,7 @@ module Catalog
     end
 
     def store(catalog_course, crn)
-      BannerThrottle.report_unless_cooldown(fallback: false, catalog_course_id: catalog_course.id, term_uid: @term.uid, crn: crn) do
+      BannerThrottle.report_unless_cooldown(fallback: false, errors: LeopardWebClient::FAILURES, catalog_course_id: catalog_course.id, term_uid: @term.uid, crn: crn) do
         fetch_and_store(catalog_course, crn)
       end
     end

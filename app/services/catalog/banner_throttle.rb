@@ -143,13 +143,13 @@ module Catalog
 
       # Runs the block for one item of a longer Banner run. A CooldownError
       # goes up, so the job stops and retries after the cooldown
-      # (Catalog::BannerCooldownRetry). Any other error is reported with the
-      # context, and the answer is the fallback, so the run goes on.
-      def report_unless_cooldown(fallback: nil, **context)
+      # (Catalog::BannerCooldownRetry). Any other error in errors is reported
+      # with the context, and the answer is the fallback, so the run goes on.
+      def report_unless_cooldown(fallback: nil, errors: [ StandardError ], **context)
         yield
       rescue CooldownError
         raise
-      rescue StandardError => e
+      rescue *errors => e
         Rails.error.report(e, handled: true, context: context)
         fallback
       end

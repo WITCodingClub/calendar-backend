@@ -14,6 +14,9 @@ module Hhmm
 
   def hours(hhmm) = minutes(hhmm) / 60.0
 
+  # Whole minutes first, so 15:05 to 17:05 is exactly 2.0.
+  def duration_hours(from, to) = (minutes(to) - minutes(from)) / 60.0
+
   def from_time(time) = (time.hour * 100) + time.min
 
   # "13:50".

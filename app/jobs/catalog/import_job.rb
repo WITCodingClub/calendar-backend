@@ -11,12 +11,14 @@ module Catalog
     queue_as :low
 
     # Sets the flags first, so a job that ends before this method returns
-    # cannot leave the term marked as importing.
+    # cannot leave the term marked as importing. A job that did not reach the
+    # queue clears them again. Returns the job, or false.
     def self.enqueue(term)
       job = new(term.uid)
       term.update!(catalog_importing: true, catalog_import_failed: false, catalog_import_job_id: job.job_id)
-      job.enqueue
-      job
+      enqueued = job.enqueue
+    ensure
+      term.update!(catalog_importing: false, catalog_import_job_id: nil) if job && !enqueued
     end
 
     def perform(term_uid)

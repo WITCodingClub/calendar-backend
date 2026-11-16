@@ -7,6 +7,7 @@ RSpec.describe Hhmm do
     expect(described_class.minutes(945)).to eq(585)
     expect(described_class.minutes(1000) - described_class.minutes(945)).to eq(15)
     expect(described_class.hours(1330)).to eq(13.5)
+    expect(described_class.duration_hours(1505, 1705)).to eq(2.0)
   end
 
   it "formats a 24-hour and a 12-hour clock" do

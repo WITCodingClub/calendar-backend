@@ -121,6 +121,13 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(reports.first.context).to include(catalog_course_id: course.id, crn: 20382)
   end
 
+  it "fails the run on an error that is not a Banner failure" do
+    stub_banner(20382)
+    allow(CatalogCourse).to receive(:transaction).and_raise(ActiveRecord::StatementInvalid, "boom")
+
+    expect { sync }.to raise_error(ActiveRecord::StatementInvalid)
+  end
+
   it "stops on a Banner cooldown, so the job can try again later" do
     client = class_double(Catalog::LeopardWebClient)
     allow(client).to receive(:get_course_details).and_raise(Catalog::BannerThrottle::CooldownError.new(60))

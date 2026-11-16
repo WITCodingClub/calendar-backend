@@ -233,6 +233,7 @@ RSpec.describe FinalExam do
   describe "#duration_hours" do
     it "counts hours and minutes" do
       expect(build(:final_exam, start_time: 830, end_time: 1115).duration_hours).to eq(2.75)
+      expect(build(:final_exam, start_time: 1505, end_time: 1705).duration_hours).to eq(2.0)
     end
 
     it "is 0 without times" do

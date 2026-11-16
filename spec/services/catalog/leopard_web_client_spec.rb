@@ -262,6 +262,13 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(stub).to have_been_requested.once
     end
 
+    it "never reads the Hash that the old key held" do
+      Rails.cache.write("leopard_web/active_terms", { success: true, terms: [] })
+      stub_request(:get, terms_url).to_return(status: 200, body: [ { code: "202710", description: "Fall 2026" } ].to_json)
+
+      expect(described_class.get_active_terms).to eq([ { code: "202710", description: "Fall 2026" } ])
+    end
+
     it "raises and keeps nothing when Banner fails" do
       stub = stub_request(:get, terms_url).to_return(status: 400, body: "")
 

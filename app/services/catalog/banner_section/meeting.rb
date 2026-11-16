@@ -84,7 +84,7 @@ module Catalog
       end
 
       def hours
-        [ Hhmm.hours(end_time) - Hhmm.hours(begin_time), 0 ].max.round
+        [ Hhmm.duration_hours(begin_time, end_time), 0 ].max.round
       end
     end
   end
