@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Api::Onboardings", type: :request do
+  include ActiveSupport::Testing::TimeHelpers
+
   def json = JSON.parse(response.body)
 
   def verification(email:, verified: true, success: true, error: nil)
@@ -143,9 +145,9 @@ RSpec.describe "Api::Onboardings", type: :request do
     it "prefers the code when a client in mid-rollout sends both" do
       allow(GoogleSignIn::AuthCodeExchanger).to receive(:exchange)
         .and_return(GoogleSignIn::AuthCodeExchanger::Result.new(success: true, access_token: "from-code"))
-      allow(GoogleSignIn::TokenVerifier).to receive(:verify_access_token)
-        .with("from-code")
-        .and_return(verification(email: "lovelacea@wit.edu"))
+      allow(GoogleSignIn::TokenVerifier).to receive(:verify_access_token) do |token|
+        verification(email: token == "from-code" ? "lovelacea@wit.edu" : "stale@wit.edu")
+      end
 
       post "/api/user/onboard", params: {
         google_auth_code:    "auth-code",
@@ -155,15 +157,16 @@ RSpec.describe "Api::Onboardings", type: :request do
       }
 
       expect(response).to have_http_status(:ok)
-      expect(GoogleSignIn::TokenVerifier).to have_received(:verify_access_token).with("from-code")
+      expect(User.sole.email).to eq("lovelacea@wit.edu")
     end
 
-    it "issues a token that expires" do
+    it "issues a token that expires after the API token lifetime" do
+      freeze_time
       stub_google(verification(email: "lovelacea@wit.edu"))
 
       post "/api/user/onboard", params: { google_access_token: "good-token" }
 
-      expect(JsonWebTokenService.decode(json["jwt"])[:exp]).to be_present
+      expect(JsonWebTokenService.decode(json["jwt"])[:exp]).to eq(JsonWebTokenService::DEFAULT_TTL.from_now.to_i)
     end
   end
 end

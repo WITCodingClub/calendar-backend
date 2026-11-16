@@ -71,15 +71,25 @@ RSpec.describe "GET /api/user/preferences/version", type: :request do
     expect(json).not_to have_key("version")
   end
 
-  it "does not resolve templates or enqueue calendar sync work" do
+  it "enqueues no calendar sync work" do
     create(:event_preference, user: user, title_template: "Saved title")
     request_headers = headers
-    expect(Preferences::Resolver).not_to receive(:new)
-    expect(Preferences::TemplateRenderer).not_to receive(:new)
-    expect(CourseCalendars::SyncJob).not_to receive(:perform_later)
 
-    get "/api/user/preferences/version", headers: request_headers
+    expect { get "/api/user/preferences/version", headers: request_headers }.not_to have_enqueued_job
 
     expect(response).to have_http_status(:ok)
+  end
+
+  # Clients poll this endpoint, so it must not resolve each meeting's templates.
+  it "sends the same number of queries with one saved preference or many" do
+    create(:event_preference, user: user, title_template: "Saved title")
+    request_headers = headers
+    get "/api/user/preferences/version", headers: request_headers
+    small = count_queries { get "/api/user/preferences/version", headers: request_headers }
+
+    create_list(:event_preference, 5, user: user, title_template: "Saved title")
+    large = count_queries { get "/api/user/preferences/version", headers: request_headers }
+
+    expect(large).to eq(small)
   end
 end

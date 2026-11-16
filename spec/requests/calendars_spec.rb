@@ -140,17 +140,18 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
       Rails.cache = original
     end
 
-    before { allow(CourseCalendars::IcsFeed).to receive(:new).and_call_original }
-
-    it "builds the feed one time for two requests with the same data" do
+    it "serves the cached body while no row that the feed reads changes" do
       user = student_in(%w[11111])
 
       get "/calendar/#{user.calendar_token}"
       first_body = response.body
+      # update_columns keeps updated_at, so no cache key moves. A feed built
+      # again would show the new title.
+      Course.find_by!(crn: 11111).update_columns(title: "Not In The Cache") # rubocop:disable Rails/SkipsModelValidations
       get "/calendar/#{user.calendar_token}"
 
       expect(response.body).to eq(first_body)
-      expect(CourseCalendars::IcsFeed).to have_received(:new).once
+      expect(response.body).not_to include("Not In The Cache")
     end
 
     it "builds the feed again after a class changes" do
@@ -163,7 +164,6 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
       end
 
       expect(response.body).to include("Advanced Data Structures")
-      expect(CourseCalendars::IcsFeed).to have_received(:new).twice
     end
   end
 

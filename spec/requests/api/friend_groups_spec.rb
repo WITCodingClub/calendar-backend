@@ -19,13 +19,6 @@ RSpec.describe "Api::Friends::Groups", type: :request do
 
   after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
 
-  def query_count
-    count = 0
-    counter = ->(*, payload) { count += 1 unless payload[:name] == "SCHEMA" || payload[:cached] }
-    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
-    count
-  end
-
   context "when the friend_groups flag is off" do
     it "answers 404 on every route" do
       group = create(:friend_group, user: user)
@@ -335,11 +328,11 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ friends[0].public_id ] },
                                                         headers: headers, as: :json # warm up
 
-        few = query_count do
+        few = count_queries do
           patch "/api/friends/groups/#{group.public_id}", params: { member_ids: friends.first(2).map(&:public_id) },
                                                           headers: headers, as: :json
         end
-        many = query_count do
+        many = count_queries do
           patch "/api/friends/groups/#{group.public_id}", params: { member_ids: friends.map(&:public_id) },
                                                           headers: headers, as: :json
         end
@@ -352,9 +345,9 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         3.times { |i| add_to(create(:friend_group, user: user, name: "Group #{i}"), befriend) }
         get "/api/friends/groups", headers: headers # warm up
 
-        few = query_count { get "/api/friends/groups", headers: headers }
+        few = count_queries { get "/api/friends/groups", headers: headers }
         6.times { |i| add_to(create(:friend_group, user: user, name: "More #{i}"), befriend) }
-        many = query_count { get "/api/friends/groups", headers: headers }
+        many = count_queries { get "/api/friends/groups", headers: headers }
 
         expect(response.parsed_body["groups"].size).to eq(9)
         expect(many).to eq(few)
@@ -576,9 +569,9 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         2.times { add_to(group, befriend) }
         get "/api/friends", headers: headers # warm up the Flipper cache and the token lookup
 
-        few = query_count { get "/api/friends", headers: headers }
+        few = count_queries { get "/api/friends", headers: headers }
         6.times { add_to(create(:friend_group, user: user), befriend) }
-        many = query_count { get "/api/friends", headers: headers }
+        many = count_queries { get "/api/friends", headers: headers }
 
         expect(response.parsed_body["friends"].size).to eq(8)
         expect(many).to eq(few)

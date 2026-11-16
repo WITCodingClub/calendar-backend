@@ -62,21 +62,17 @@ RSpec.describe "Admin::Buildings", type: :request do
   end
 
   describe "POST /admin/buildings/sync" do
-    before { allow(TwentyFiveLive::SyncJob).to receive(:perform_later) }
-
     it "queues a sync" do
-      post sync_admin_buildings_path
+      expect { post sync_admin_buildings_path }.to have_enqueued_job(TwentyFiveLive::SyncJob)
 
-      expect(TwentyFiveLive::SyncJob).to have_received(:perform_later)
       expect(response).to redirect_to(admin_buildings_path)
     end
 
     it "does not queue a second sync while one runs" do
       allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(true)
 
-      post sync_admin_buildings_path
+      expect { post sync_admin_buildings_path }.not_to have_enqueued_job(TwentyFiveLive::SyncJob)
 
-      expect(TwentyFiveLive::SyncJob).not_to have_received(:perform_later)
       expect(response).to redirect_to(admin_buildings_path)
     end
   end
