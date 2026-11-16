@@ -22,16 +22,12 @@ module Types
     field :source, String, null: false,
           description: "Where the text comes from, for credit and for a link back"
 
-    def tags
-      ::Catalog::ReviewSerializer.new(object).as_json[:tags]
-    end
+    def tags = ::Catalog::Fields.review_tags(object)
 
     def rated_on
       object.rating_date&.to_date
     end
 
-    def source
-      ::Catalog::ReviewSerializer::SOURCE
-    end
+    def source = ::Catalog::Fields::REVIEW_SOURCE
   end
 end

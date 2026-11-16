@@ -17,7 +17,7 @@ module Catalog
         end_time:         @meeting_time.fmt_end_time_military,
         begin_time_12h:   @meeting_time.fmt_begin_time,
         end_time_12h:     @meeting_time.fmt_end_time,
-        duration_minutes: duration_minutes,
+        duration_minutes: Fields.duration_minutes(@meeting_time),
         meeting_type:     @meeting_time.meeting_schedule_type,
         all_day:          @meeting_time.all_day?,
         location:         location
@@ -25,11 +25,6 @@ module Catalog
     end
 
     private
-
-    def duration_minutes
-      self.class.minutes_since_midnight(@meeting_time.end_time) -
-        self.class.minutes_since_midnight(@meeting_time.begin_time)
-    end
 
     def location
       building = @meeting_time.building
@@ -40,12 +35,6 @@ module Catalog
         building: { abbreviation: building.abbreviation, name: building.name },
         rooms:    @meeting_time.rooms.map { |room| { number: room.number, floor: room.floor } }
       }
-    end
-
-    # begin_time/end_time are HHMM integers, so plain subtraction would make
-    # 09:45 -> 10:00 look like 55 minutes.
-    def self.minutes_since_midnight(hhmm)
-      ((hhmm / 100) * 60) + (hhmm % 100)
     end
   end
 end

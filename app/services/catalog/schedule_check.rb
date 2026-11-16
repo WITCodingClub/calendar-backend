@@ -59,7 +59,7 @@ module Catalog
     end
 
     def code(course)
-      SectionSerializer.course_code_for(course)
+      Fields.section_code(course)
     end
 
     def section_json(course)

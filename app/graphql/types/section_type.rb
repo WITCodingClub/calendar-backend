@@ -50,9 +50,7 @@ module Types
       object.similar_sections(limit: Embeddable.similar_limit(limit))
     end
 
-    def course_code
-      ::Catalog::SectionSerializer.course_code_for(object)
-    end
+    def course_code = ::Catalog::Fields.section_code(object)
 
     def course
       dataloader.with(Sources::CatalogCourseSource).load([ object.prefix, object.course_number ])
@@ -64,7 +62,7 @@ module Types
 
     def prerequisites
       catalog_course = course
-      catalog_course && ::Catalog::CourseSerializer.new(catalog_course).as_json[:prerequisites]
+      catalog_course && ::Catalog::CourseRequisites.new(catalog_course).prerequisites
     end
 
     def schedule_type_code
@@ -79,21 +77,13 @@ module Types
       { capacity: object.waitlist_capacity, available: object.waitlist_available }
     end
 
-    # The same answer as the REST API.
-    def cross_list
-      ::Catalog::SectionSerializer.cross_list_for(object)
-    end
+    def cross_list = ::Catalog::Fields.cross_list(object)
 
     # The same answer as the REST API, from Catalog::SectionLinks.
     def linked
       ::Catalog::SectionLinks.new(object).as_json
     end
 
-    # filtered_meeting_times drops the duplicate rows a concurrent ingest can
-    # leave behind, preferring the copy that has a real room.
-    def meeting_times
-      object.filtered_meeting_times
-            .sort_by { |mt| [ Course::MeetingTime.day_of_weeks[mt.day_of_week], mt.begin_time ] }
-    end
+    def meeting_times = ::Catalog::Fields.meeting_times(object)
   end
 end

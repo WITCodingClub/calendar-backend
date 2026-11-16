@@ -70,7 +70,7 @@ module McpTools
 
     SUBJECT = object(subject: STRING, code: STRING, section_count: INTEGER).freeze
 
-    # Catalog::InstructorSerializer.rmp_for. Nil when there are no ratings.
+    # Catalog::Fields.rmp. Nil when there are no ratings.
     RMP = nullable(
       object(
         id:                       nullable(STRING),
