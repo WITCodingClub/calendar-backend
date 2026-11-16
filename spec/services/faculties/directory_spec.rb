@@ -153,20 +153,4 @@ RSpec.describe Faculties::Directory, type: :service do
       expect(result[:faculty].first[:email]).to eq("byrona@wit.edu")
     end
   end
-
-  describe "#call!" do
-    it "returns the result when the fetch succeeds" do
-      stub_page(page: 0, fixture: "page_single.html")
-
-      result = described_class.new(page: 0, fetch_all: false).call!
-
-      expect(result[:success]).to be(true)
-    end
-
-    it "raises with the underlying error message when the fetch fails" do
-      stub_page(page: 0, fixture: "page_single.html", status: 503)
-
-      expect { described_class.new(page: 0, fetch_all: false).call! }.to raise_error("HTTP 503")
-    end
-  end
 end

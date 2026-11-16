@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Faculties
-  class RateMyProfessorClient < ApplicationService
+  class RateMyProfessorClient
     require "faraday"
     require "json"
 

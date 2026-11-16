@@ -18,7 +18,6 @@ module Faculties
       @employee_type = employee_type
       @search = search
       @force = force
-      super()
     end
 
     def call
@@ -30,13 +29,6 @@ module Faculties
     rescue => e
       Rails.error.report(e, handled: true, context: { page: page })
       { success: false, error: e.message, faculty: [], total_count: 0 }
-    end
-
-    def call!
-      result = call
-      raise result[:error] unless result[:success]
-
-      result
     end
 
     private

@@ -1,8 +1,7 @@
-class ApplicationJob < ActiveJob::Base
-  # Automatically retry jobs that encountered a deadlock
-  # retry_on ActiveRecord::Deadlocked
+# frozen_string_literal: true
 
-  # Most jobs are safe to ignore if the underlying records are no longer available.
-  # Without this, a job for a deleted user fails and stays in the failed list.
+class ApplicationJob < ActiveJob::Base
+  # A job for a record that was deleted after it was queued has nothing to do.
+  # Without this, it fails and stays in the failed list.
   discard_on ActiveJob::DeserializationError
 end

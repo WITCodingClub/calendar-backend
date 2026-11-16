@@ -1,24 +1,8 @@
 # frozen_string_literal: true
 
-# app/services/application_service.rb
+# A service object: X.call(...) builds X with the arguments and runs #call.
+# X.call! runs #call!, which raises where #call returns a failure.
 class ApplicationService
-  class << self
-    def call(*, **)
-      new(*, **).call
-    end
-
-    def call!(*, **)
-      new(*, **).call!
-    end
-  end
-
-  def initialize(*, **); end
-
-  def call
-    raise NotImplementedError
-  end
-
-  def call!
-    raise NotImplementedError
-  end
+  def self.call(...) = new(...).call
+  def self.call!(...) = new(...).call!
 end
