@@ -7,7 +7,6 @@ module Users
     before_action :redirect_if_authenticated, only: [ :new ]
 
     def new
-      # Renders sign-in page with Google OAuth button
     end
 
     private

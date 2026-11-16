@@ -99,7 +99,6 @@ module IconHelper
     end
   end
 
-  # The WIT Calendar logo: the calendar icon in a primary container.
   def logo_mark(size = :medium)
     box, icon_size = LOGO_SIZES.fetch(size)
 

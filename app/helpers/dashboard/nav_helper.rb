@@ -17,7 +17,6 @@ module Dashboard
       ]
     end
 
-    # True when the My programs pages are on for the signed-in user (#944).
     def degree_planning_enabled?
       Flipper.enabled?(FeatureFlags::DEGREE_PLANNING, current_user)
     end

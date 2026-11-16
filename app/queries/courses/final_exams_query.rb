@@ -9,7 +9,6 @@ module Courses
       @term = term
     end
 
-    # @return [ActiveRecord::Relation<FinalExam>]
     def call
       FinalExam
         .where(term: @term, course_id: @user.enrollments.where(term_id: @term.id).select(:course_id))
