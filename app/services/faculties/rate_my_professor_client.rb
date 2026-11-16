@@ -280,7 +280,7 @@ module Faculties
     end
 
     def faculty_directory_url(first_name:, last_name:)
-      "https://wit.edu/faculty-staff-directory?search=#{URI.encode_www_form_component(first_name)}+#{URI.encode_www_form_component(last_name)}&dept=&school=&employee_type=All"
+      "#{Faculties::Directory::BASE_URL}?search=#{URI.encode_www_form_component(first_name)}+#{URI.encode_www_form_component(last_name)}&dept=&school=&employee_type=All"
     end
 
     private

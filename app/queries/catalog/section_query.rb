@@ -117,7 +117,7 @@ module Catalog
       return relation if values.empty?
 
       ids = values.map do |value|
-        Course.id_from_public_id(value) || raise(FilterError, "Unknown pub_id #{value.inspect}")
+        PublicIds.decode(Course, value) || raise(FilterError, "Unknown pub_id #{value.inspect}")
       end
 
       relation.where(id: ids)

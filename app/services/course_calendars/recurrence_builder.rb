@@ -63,11 +63,10 @@ module CourseCalendars
       nil
     end
 
-    # The local time on the date for an HHMM integer such as 1330.
     def time_on(date, time_int)
       return nil unless date && time_int
 
-      SchoolTimeZone.zone.local(date.year, date.month, date.day, time_int / 100, time_int % 100)
+      Hhmm.on(date, time_int, zone: SchoolTimeZone.zone)
     end
 
     # The weekly rule of the meeting time, until effective_end_date, without

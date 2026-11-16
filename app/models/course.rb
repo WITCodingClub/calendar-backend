@@ -116,17 +116,6 @@ class Course < ApplicationRecord
     "#{get_public_id_prefix}#{EncodedIds.configuration.separator}#{encode_id(id)}"
   end
 
-  # Turns "crs_kw7coe30" back into the numeric id. Returns nil when the prefix
-  # or the hash does not belong to a course.
-  def self.id_from_public_id(value)
-    separator = EncodedIds.configuration.separator
-    parts     = value.to_s.strip.split(separator)
-    hash      = parts.pop
-    return nil unless parts.join(separator) == get_public_id_prefix
-
-    decode_id(hash)
-  end
-
   # Banner writes linked sections as <slot><key>. The slot says what the section
   # is for within the pairing, and the key says which pairing it belongs to. In
   # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"

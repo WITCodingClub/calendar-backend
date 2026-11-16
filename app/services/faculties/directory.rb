@@ -5,7 +5,8 @@ module Faculties
     require "faraday"
     require "nokogiri"
 
-    BASE_URL = "https://wit.edu/faculty-staff-directory"
+    SITE_URL = "https://wit.edu"
+    BASE_URL = "#{SITE_URL}/faculty-staff-directory"
     RESULTS_PER_PAGE = 12
 
     attr_reader :page, :fetch_all, :employee_type, :search, :force
@@ -313,7 +314,7 @@ module Faculties
       return nil if src.include?("placeholder") || src.include?("Icon_User")
 
       if src.start_with?("/")
-        "https://wit.edu#{src}"
+        "#{SITE_URL}#{src}"
       else
         src
       end
@@ -325,7 +326,7 @@ module Faculties
 
       href = link["href"]
       if href.start_with?("/")
-        "https://wit.edu#{href}"
+        "#{SITE_URL}#{href}"
       else
         href
       end

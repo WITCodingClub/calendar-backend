@@ -3,6 +3,14 @@
 require "rails_helper"
 
 RSpec.describe GoogleCalendar::Provider do
+  it ".gone? is true for a 404 or a 410, and .rate_limited? for a RateLimitError" do
+    expect(described_class.gone?(Google::Apis::ClientError.new("missing", status_code: 404))).to be(true)
+    expect(described_class.gone?(Google::Apis::ClientError.new("deleted", status_code: 410))).to be(true)
+    expect(described_class.gone?(Google::Apis::ClientError.new("conflict", status_code: 409))).to be(false)
+    expect(described_class.rate_limited?(Google::Apis::RateLimitError.new("slow down", status_code: 429))).to be(true)
+    expect(described_class.rate_limited?(Google::Apis::ServerError.new("down", status_code: 500))).to be(false)
+  end
+
   describe "#update_calendar_events" do
     let(:user) { create(:user) }
     let(:credential) { create(:oauth_credential, user: user, token_expires_at: 1.hour.from_now) }

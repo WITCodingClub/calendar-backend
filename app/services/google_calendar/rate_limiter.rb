@@ -113,7 +113,7 @@ module GoogleCalendar
 
     def rate_limit_error?(error)
       return false if error.message.to_s.match?(NON_RETRYABLE_REASONS)
-      return true if error.is_a?(Google::Apis::RateLimitError)
+      return true if GoogleCalendar::Provider.rate_limited?(error)
 
       if error.is_a?(Google::Apis::ClientError)
         return true if error.status_code == 429
