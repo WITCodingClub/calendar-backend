@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
 # One weekly meeting of a person's course, with the title, description,
-# color, and reminders the person's calendar gives it. The extension's course
+# location, color, and reminders the person's calendar gives it. The extension's course
 # list, a friend's schedule, the MCP course tools, and the dashboard read it.
 class MeetingTimeSerializer
   DAYS = Course::MeetingTime.day_of_weeks.keys.freeze
 
   # recurrence is a CourseCalendars::RecurrenceBuilder for the schedule owner.
   # It gives the same end date and no-class dates that calendar sync uses.
-  def initialize(meeting_time, preference_resolver:, template_renderer:, recurrence:)
+  def initialize(meeting_time, preference_resolver:, preview:, recurrence:)
     @mt = meeting_time
     @preference_resolver = preference_resolver
-    @template_renderer = template_renderer
+    @preview = preview
     @recurrence = recurrence
   end
 
@@ -41,19 +41,14 @@ class MeetingTimeSerializer
 
   def calendar_config
     preferences = @preference_resolver.resolve_with_sources(@mt)[:preferences]
-    variables   = Preferences::Context.for(@mt).variables
+    text        = @preview.call(preferences, Preferences::Context.for(@mt).variables)
 
     {
-      title:             render(preferences[:title_template], variables) || @mt.course.title,
-      description:       render(preferences[:description_template], variables),
+      **text,
       color_id:          Preferences::Colors.normalize(preferences[:color_id]),
       reminder_settings: preferences[:reminder_settings],
       visibility:        preferences[:visibility]
     }
-  end
-
-  def render(template, variables)
-    @template_renderer.render(template, variables) if template.present?
   end
 
   def building_json

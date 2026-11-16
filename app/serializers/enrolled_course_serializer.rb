@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 class EnrolledCourseSerializer
-  def initialize(enrollment, term:, preference_resolver:, template_renderer:, recurrence:)
+  def initialize(enrollment, term:, preference_resolver:, preview:, recurrence:)
     @enrollment = enrollment
     @term = term
     @preference_resolver = preference_resolver
-    @template_renderer = template_renderer
+    @preview = preview
     @recurrence = recurrence
   end
 
@@ -29,7 +29,7 @@ class EnrolledCourseSerializer
                         MeetingTimeSerializer.new(
                           mt,
                           preference_resolver: @preference_resolver,
-                          template_renderer:   @template_renderer,
+                          preview:             @preview,
                           recurrence:          @recurrence
                         ).as_json
                       end

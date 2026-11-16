@@ -11,7 +11,7 @@ RSpec.describe EnrolledCourseSerializer do
     enrollment = create(:enrollment, user: user, course: course)
     described_class.new(enrollment.reload, term: course.term,
                                            preference_resolver: Preferences::Resolver.new(user),
-                                           template_renderer: Preferences::TemplateRenderer.new,
+                                           preview: Preferences::Preview.new,
                                            recurrence: CourseCalendars::RecurrenceBuilder.new(user)).as_json
   end
 
@@ -33,5 +33,12 @@ RSpec.describe EnrolledCourseSerializer do
     meeting_time_in("102")
 
     expect(serialize[:meeting_times].pluck(:id, :building_room)).to eq([ [ mixed.public_id, "FES 101" ] ])
+  end
+
+  it "renders the location template, as the synced event does" do
+    meeting_time = meeting_time_in("101")
+    create(:event_preference, user: user, preferenceable: meeting_time, location_template: "Room {{room}} ")
+
+    expect(serialize[:meeting_times].sole[:calendar_config]).to include(location: "Room 101")
   end
 end
