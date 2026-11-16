@@ -119,8 +119,7 @@ module Api
     # Unauthenticated. Returns the same body as onboarding, so the extension can
     # reuse one code path for "I have a token now".
     def authenticate
-      passkey = Passkeys::Authentication.verify!(handle: params[:handle],
-                                                 credential: Passkeys::CredentialParams.assertion(params))
+      passkey = Passkeys::Authentication.verify!(handle: params[:handle], params: params)
       user = passkey.user
 
       # The page asks for a handoff rather than the token: it has to send this

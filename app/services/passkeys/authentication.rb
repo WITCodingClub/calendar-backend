@@ -33,12 +33,15 @@ module Passkeys
     end
 
     # The second step: spends the challenge, checks the signature, and returns
-    # the passkey. +credential+ comes from CredentialParams.assertion.
-    def verify!(handle:, credential:)
+    # the passkey. The challenge is spent before the credential is read, so a
+    # request with an expired handle answers :expired and a bad request still
+    # uses up its challenge. A missing credential raises
+    # ActionController::ParameterMissing (CredentialParams.assertion).
+    def verify!(handle:, params:)
       challenge = WebauthnChallenge.consume(handle: handle, purpose: PURPOSE)
       raise Failed, :expired if challenge.nil?
 
-      assertion = WebAuthn::Credential.from_get(credential)
+      assertion = WebAuthn::Credential.from_get(CredentialParams.assertion(params))
       passkey   = Passkey.find_by(external_id: assertion.id)
       raise Failed, :unknown if passkey.nil?
 

@@ -38,5 +38,18 @@ RSpec.describe Courses::Schedule do
 
       expect(schedule.no_class_dates).to eq([ Date.new(2026, 9, 7) ])
     end
+
+    # September 2026 starts on a Tuesday and ends on a Wednesday, so the month
+    # grid draws Monday, August 31 and Sunday, October 4 too.
+    it "lists the no-class days on the leading and trailing days of the month grid" do
+      [ Date.new(2026, 8, 31), Date.new(2026, 10, 4) ].each do |day|
+        create(:university_calendar_event, category: "holiday",
+                                           start_time: day.in_time_zone, end_time: day.in_time_zone.end_of_day)
+      end
+
+      schedule = described_class.build(user, week_start: "2026-09-14", month: "2026-09")
+
+      expect(schedule.no_class_dates).to contain_exactly(Date.new(2026, 8, 31), Date.new(2026, 10, 4))
+    end
   end
 end

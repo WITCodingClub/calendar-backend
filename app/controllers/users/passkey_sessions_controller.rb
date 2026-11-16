@@ -20,8 +20,7 @@ module Users
     end
 
     def create
-      passkey = Passkeys::Authentication.verify!(handle: params[:handle],
-                                                 credential: Passkeys::CredentialParams.assertion(params))
+      passkey = Passkeys::Authentication.verify!(handle: params[:handle], params: params)
       user = passkey.user
       # Stay signed in past the :timeoutable idle limit, as the Google sign-in does.
       user.remember_me = true

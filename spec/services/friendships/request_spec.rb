@@ -29,6 +29,11 @@ RSpec.describe Friendships::Request do
       expect(reason_of { described_class.build(requester, requester) }).to eq(:self)
     end
 
+    it "checks the options before the request to yourself" do
+      expect(reason_of { described_class.build(requester, requester, visibility: "availability_only") })
+        .to eq(:visibility_disabled)
+    end
+
     it "refuses a sharing level while the availability-only flag is off" do
       expect(reason_of { described_class.build(requester, addressee, visibility: "availability_only") })
         .to eq(:visibility_disabled)

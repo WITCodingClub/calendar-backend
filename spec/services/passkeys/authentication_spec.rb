@@ -23,7 +23,17 @@ RSpec.describe Passkeys::Authentication do
 
   describe ".verify!" do
     it "fails as expired for a handle with no challenge" do
-      expect(reason_of { described_class.verify!(handle: "missing", credential: {}) }).to eq(:expired)
+      params = ActionController::Parameters.new(handle: "missing")
+
+      expect(reason_of { described_class.verify!(handle: "missing", params: params) }).to eq(:expired)
+    end
+
+    it "spends the challenge before it reads a missing credential" do
+      handle = described_class.options[:handle]
+
+      expect { described_class.verify!(handle: handle, params: ActionController::Parameters.new) }
+        .to raise_error(ActionController::ParameterMissing)
+      expect(WebauthnChallenge.consume(handle: handle, purpose: "authentication")).to be_nil
     end
 
     it "fails as rejected for a credential the gem cannot read" do
@@ -31,7 +41,9 @@ RSpec.describe Passkeys::Authentication do
       credential = { "type" => "public-key", "id" => "!!", "rawId" => "!!",
                      "response" => { "clientDataJSON" => "!!", "authenticatorData" => "!!", "signature" => "!!" } }
 
-      expect(reason_of { described_class.verify!(handle: handle, credential: credential) }).to eq(:rejected)
+      params = ActionController::Parameters.new(credential: credential)
+
+      expect(reason_of { described_class.verify!(handle: handle, params: params) }).to eq(:rejected)
     end
   end
 end

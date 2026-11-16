@@ -34,9 +34,7 @@ module Courses
         month_date:      month_date,
         courses:         courses,
         schedule_by_day: by_day(courses),
-        no_class_dates:  UniversityCalendarEvent.no_class_dates_between(
-          [ week_start, month_date ].min, [ week_start + 6, month_date.end_of_month ].max
-        )
+        no_class_dates:  no_class_dates(week_start, month_date)
       )
     end
 
@@ -61,6 +59,15 @@ module Courses
       nil
     end
 
+    # The no-class days of every day the week view and the month grid draw.
+    # The month grid starts on the Monday before the 1st and ends on the
+    # Sunday after the last day (dashboard/schedules/_month).
+    def self.no_class_dates(week_start, month_date)
+      grid_first = month_date.beginning_of_month.beginning_of_week(:monday)
+      grid_last  = month_date.end_of_month.end_of_week(:monday)
+      UniversityCalendarEvent.no_class_dates_between([ week_start, grid_first ].min, [ week_start + 6, grid_last ].max)
+    end
+
     def self.by_day(courses)
       by_day = Hash.new { |hash, day| hash[day] = [] }
       courses.each do |course|
@@ -70,6 +77,6 @@ module Courses
       end
       by_day
     end
-    private_class_method :parse_date, :by_day
+    private_class_method :parse_date, :no_class_dates, :by_day
   end
 end

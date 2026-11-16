@@ -10,12 +10,13 @@ module Friendships
 
     # The new request, not saved yet.
     def build(requester, addressee, visibility: nil, expires_at: nil)
-      raise OptionError, :self if requester.id == addressee.id
-
       friendship = Friendship.new(requester: requester, addressee: addressee)
       level = visibility_for(requester, visibility)
       friendship.requester_visibility = level if level
       friendship.expires_at = expiry_for(requester, expires_at) if expires_at.present?
+      # After the options, so a flag or format error answers first, as before.
+      raise OptionError, :self if requester.id == addressee.id
+
       friendship
     end
 
