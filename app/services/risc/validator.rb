@@ -60,11 +60,15 @@ module Risc
       event_details = events[event_type] || {}
 
       subject = event_details["subject"] || {}
+      # A token-revoked event names a token in `subject`. The OpenID OAuth
+      # event types draft puts the account, when it is sent, in `token_subject`.
+      token_subject = event_details["token_subject"] || {}
 
       {
         jti: decoded_token["jti"],
         event_type: event_type,
-        google_subject: subject["sub"],
+        google_subject: subject["sub"].presence || token_subject["sub"].presence,
+        token_identifier: token_identifier(subject),
         reason: event_details["reason"],
         raw_event_data: decoded_token.to_json,
         iat: decoded_token["iat"],
@@ -73,6 +77,18 @@ module Risc
     end
 
     private
+
+    # The token fields of an OAuth token subject, or nil when the subject names
+    # no token.
+    def token_identifier(subject)
+      return nil if subject["token"].blank?
+
+      {
+        token_type: subject["token_type"],
+        algorithm: subject["token_identifier_alg"],
+        token: subject["token"]
+      }
+    end
 
     def get_json(url, name)
       response = HttpFetcher.connection(timeout: READ_TIMEOUT).get(url)

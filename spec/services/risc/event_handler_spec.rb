@@ -83,8 +83,7 @@ RSpec.describe Risc::EventHandler do
 
     {
       SecurityEvent::SESSIONS_REVOKED => "sessions_revoked",
-      SecurityEvent::TOKENS_REVOKED   => "tokens_revoked",
-      SecurityEvent::TOKEN_REVOKED    => "token_revoked"
+      SecurityEvent::TOKENS_REVOKED   => "tokens_revoked"
     }.each do |event_type, action|
       it "revokes every Google credential for #{action}" do
         expect(process(event_type)).to eq(success: true, action: action, oauth_credentials_revoked: true)
@@ -113,6 +112,82 @@ RSpec.describe Risc::EventHandler do
 
     it "marks an unknown event type processed" do
       expect(process("https://schemas.example.test/unknown")).to eq(success: true, action: "unknown_event_type")
+    end
+  end
+
+  describe "a token-revoked event" do
+    let(:revoked_token) { "1//synthetic-refresh-token-revoked" }
+    let(:kept_token) { "1//synthetic-refresh-token-kept" }
+    let!(:named) { create(:oauth_credential, user: user, email: "named@example.test", refresh_token: revoked_token) }
+    let!(:other) { create(:oauth_credential, user: user, email: "other@example.test", refresh_token: kept_token) }
+
+    def double_sha512(token)
+      Base64.strict_encode64(Digest::SHA512.digest(Digest::SHA512.digest(token)))
+    end
+
+    def token_revoked(token:, algorithm: "hash_base64_sha512_sha512", token_type: "refresh_token", subject: nil)
+      described_class.new(
+        jti:              "synthetic-token-revoked-#{SecureRandom.hex(4)}",
+        event_type:       SecurityEvent::TOKEN_REVOKED,
+        google_subject:   subject,
+        token_identifier: { token_type:, algorithm:, token: },
+        reason:           nil,
+        raw_event_data:   "{}"
+      ).process
+    end
+
+    it "revokes only the credential whose refresh token the event names" do
+      result = token_revoked(token: double_sha512(revoked_token), subject: named.uid)
+
+      expect(result).to eq(success: true, action: "token_revoked", oauth_credentials_revoked: true, oauth_credential_ids: [ named.id ])
+      expect(named.reload).to have_attributes(refresh_token: nil, token_revoked?: true)
+      expect(other.reload).to have_attributes(refresh_token: kept_token, token_revoked?: false)
+      expect(credential.reload).not_to be_token_revoked
+      expect(SecurityEvent.last).to have_attributes(processed: true, user: user, oauth_credential: named, google_subject: named.uid)
+    end
+
+    it "finds the credential without a subject, and records its Google account" do
+      result = token_revoked(token: double_sha512(revoked_token))
+
+      expect(result).to include(action: "token_revoked", oauth_credential_ids: [ named.id ])
+      expect(named.reload.refresh_token).to be_nil
+      expect(other.reload.refresh_token).to eq(kept_token)
+      expect(SecurityEvent.last).to have_attributes(processed: true, user: user, google_subject: named.uid)
+    end
+
+    it "matches the first 16 characters for the prefix identifier" do
+      result = token_revoked(token: revoked_token.first(16), algorithm: "prefix")
+
+      # Both synthetic tokens share their first 16 characters.
+      expect(result).to include(action: "token_revoked", oauth_credential_ids: [ named.id, other.id ])
+
+      unique = create(:oauth_credential, user: user, email: "unique@example.test", refresh_token: "1//unique-prefix-0123456789")
+      expect(token_revoked(token: "1//unique-prefix", algorithm: "prefix")).to include(oauth_credential_ids: [ unique.id ])
+    end
+
+    it "does not look past the credential of the subject" do
+      result = token_revoked(token: double_sha512(revoked_token), subject: other.uid)
+
+      expect(result).to eq(success: true, action: "token_not_found")
+      expect(named.reload.refresh_token).to eq(revoked_token)
+    end
+
+    it "records an unknown token as handled and changes nothing" do
+      result = token_revoked(token: double_sha512("1//synthetic-refresh-token-unknown"))
+
+      expect(result).to eq(success: true, action: "token_not_found")
+      expect(named.reload).to have_attributes(refresh_token: revoked_token, token_revoked?: false)
+      expect(other.reload.refresh_token).to eq(kept_token)
+      expect(SecurityEvent.last).to have_attributes(processed: true, processing_error: nil, user: nil,
+                                                    google_subject: described_class::UNKNOWN_SUBJECT)
+    end
+
+    it "ignores a token type or identifier that Google does not document" do
+      expect(token_revoked(token: double_sha512(revoked_token), token_type: "access_token"))
+        .to eq(success: true, action: "token_identifier_unsupported")
+      expect(token_revoked(token: revoked_token, algorithm: "plain"))
+        .to eq(success: true, action: "token_identifier_unsupported")
+      expect(named.reload.refresh_token).to eq(revoked_token)
     end
   end
 end

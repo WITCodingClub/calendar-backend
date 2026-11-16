@@ -269,10 +269,35 @@ RSpec.describe Risc::Validator, type: :service do
         jti: "factory-jti-2",
         event_type: "https://schemas.openid.net/secevent/risc/event-type/sessions-revoked",
         google_subject: "google-subject-123",
+        token_identifier: nil,
         reason: "hijacking",
         raw_event_data: decoded.to_json,
         iat: 1_700_000_000,
         state: "opaque-state"
+      )
+    end
+
+    it "pulls the token identifier and the token subject out of a token-revoked event" do
+      decoded = ActiveSupport::HashWithIndifferentAccess.new(
+        "jti" => "factory-jti-4",
+        "events" => {
+          SecurityEvent::TOKEN_REVOKED => {
+            "subject" => {
+              "subject_type" => "oauth_token",
+              "token_type" => "refresh_token",
+              "token_identifier_alg" => "hash_base64_sha512_sha512",
+              "token" => "c3ludGhldGljLWhhc2g="
+            },
+            "token_subject" => { "subject_type" => "iss-sub", "sub" => "google-subject-456" }
+          }
+        }
+      )
+
+      data = service.extract_event_data(decoded)
+
+      expect(data).to include(
+        google_subject: "google-subject-456",
+        token_identifier: { token_type: "refresh_token", algorithm: "hash_base64_sha512_sha512", token: "c3ludGhldGljLWhhc2g=" }
       )
     end
 

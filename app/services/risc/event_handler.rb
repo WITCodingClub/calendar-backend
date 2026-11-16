@@ -16,14 +16,21 @@ module Risc
     ].freeze
 
     # The action of each event type that does not depend on the event, and
-    # whether it revokes every Google credential of the person.
+    # whether it revokes every Google credential of the person. A token-revoked
+    # event names one token, so handle_token_revoked handles it.
     ACTIONS = {
       SecurityEvent::SESSIONS_REVOKED                   => [ "sessions_revoked", true ],
       SecurityEvent::TOKENS_REVOKED                     => [ "tokens_revoked", true ],
-      SecurityEvent::TOKEN_REVOKED                      => [ "token_revoked", true ],
       SecurityEvent::ACCOUNT_ENABLED                    => [ "account_enabled", false ],
       SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED => [ "credential_change_required", false ]
     }.freeze
+
+    # Google sends token-revoked events for refresh tokens only.
+    REFRESH_TOKEN = "refresh_token"
+    TOKEN_REVOKED_REASON = "risc token-revoked"
+    # The event row needs a subject. A token-revoked event can come without
+    # one, and then only a matching credential gives it.
+    UNKNOWN_SUBJECT = "unknown"
 
     attr_reader :event_data, :security_event
 
@@ -33,6 +40,12 @@ module Risc
     end
 
     def process
+      if event_data[:event_type] == SecurityEvent::TOKEN_REVOKED
+        result = handle_token_revoked
+        @security_event.mark_processed!
+        return { success: true, **result }
+      end
+
       user = find_user_by_google_subject(event_data[:google_subject])
       @security_event = create_security_event(user)
 
@@ -74,13 +87,13 @@ module Risc
 
     # A retry finds the row that the failed attempt left, instead of failing on
     # the unique jti.
-    def create_security_event(user)
-      oauth_credential = user&.oauth_credentials&.find_by(provider: "google", uid: event_data[:google_subject])
+    def create_security_event(user, oauth_credential: nil, google_subject: event_data[:google_subject])
+      oauth_credential ||= user&.oauth_credentials&.find_by(provider: "google", uid: event_data[:google_subject])
 
       SecurityEvent.find_or_initialize_by(jti: event_data[:jti]).tap do |event|
         event.update!(
           event_type: event_data[:event_type],
-          google_subject: event_data[:google_subject],
+          google_subject: google_subject,
           user: user,
           oauth_credential: oauth_credential,
           reason: event_data[:reason],
@@ -114,6 +127,61 @@ module Risc
 
       revoke_all_oauth_credentials(user)
       { action: "account_disabled_hijacking", oauth_credentials_revoked: true }
+    end
+
+    # Revokes only the credential whose refresh token the event names. With a
+    # subject, the token can only belong to the credential of that Google
+    # account. Without one, every Google credential is a candidate.
+    def handle_token_revoked
+      identifier = event_data[:token_identifier] || {}
+      subject    = event_data[:google_subject]
+
+      unless identifier[:token_type] == REFRESH_TOKEN && TokenMatcher.supported?(identifier[:algorithm])
+        @security_event = create_security_event(find_user_by_google_subject(subject), google_subject: subject || UNKNOWN_SUBJECT)
+        Rails.logger.warn("RISC: token_revoked with unsupported token type #{identifier[:token_type].inspect} " \
+                          "or identifier #{identifier[:algorithm].inspect}, event #{@security_event.id}")
+        return { action: "token_identifier_unsupported" }
+      end
+
+      candidates  = subject ? OauthCredential.google.where(uid: subject) : OauthCredential.google
+      ids         = TokenMatcher.new(algorithm: identifier[:algorithm], token: identifier[:token]).matching_ids(candidates)
+      credentials = OauthCredential.where(id: ids).order(:id).to_a
+      credential  = credentials.first
+
+      @security_event = create_security_event(
+        credential&.user || find_user_by_google_subject(subject),
+        oauth_credential: credential,
+        google_subject: subject || credential&.uid || UNKNOWN_SUBJECT
+      )
+
+      if credentials.empty?
+        Rails.logger.info("RISC: token_revoked matched no credential, event #{@security_event.id}")
+        return { action: "token_not_found" }
+      end
+
+      revoke_refresh_tokens(credentials)
+      { action: "token_revoked", oauth_credentials_revoked: true, oauth_credential_ids: credentials.map(&:id) }
+    end
+
+    # Google asks to delete the refresh token and to ask the person to consent
+    # again. The credential stays, like a grant that Google refused
+    # (invalid_grant): mark_revoked! sets the flag that the dashboard reads, and
+    # the next sign-in stores a new token and clears it.
+    def revoke_refresh_tokens(credentials)
+      failures = []
+
+      credentials.each do |credential|
+        credential.refresh_token = nil
+        credential.mark_revoked!(TOKEN_REVOKED_REASON)
+        Rails.logger.info("RISC: revoked refresh token of OAuth credential #{credential.id} for user #{credential.user_id}")
+      rescue *TRANSIENT_ERRORS
+        raise
+      rescue => e
+        Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
+        failures << "credential #{credential.id}: #{e.class}"
+      end
+
+      raise RevocationFailed, "Could not revoke #{failures.join('; ')}" if failures.any?
     end
 
     def handle_verification_event

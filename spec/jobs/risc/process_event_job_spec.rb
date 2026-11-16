@@ -19,8 +19,8 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
     stub_request(:get, JWKS_URL).to_return(status: 200, body: { keys: [ jwk ] }.to_json)
   end
 
-  def build_token(event_type:, subject: nil, jti: "factory-jti-1", reason: nil, state: nil)
-    event_details = {}
+  def build_token(event_type:, subject: nil, jti: "factory-jti-1", reason: nil, state: nil, details: {})
+    event_details = details.dup
     event_details["subject"] = { "subject_type" => "iss-sub", "sub" => subject } if subject
     event_details["reason"] = reason if reason
     event_details["state"] = state if state
@@ -111,6 +111,27 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
     event = SecurityEvent.find_by(jti: "unknown-user-jti")
     expect(event.processed).to be(true)
     expect(event.processing_error).to eq("User not found")
+  end
+
+  # The shape follows Google's "OAuth token identifiers" section and the
+  # OpenID OAuth event types draft: an oauth_token subject with no sub.
+  it "revokes only the named refresh token for a token-revoked event with no subject" do
+    stub_google_risc_endpoints
+    user = create(:user)
+    named = create(:oauth_credential, user: user, refresh_token: "1//synthetic-refresh-token-named")
+    other = create(:oauth_credential, user: user, email: "other@example.test", refresh_token: "1//synthetic-refresh-token-other")
+    digest = Base64.strict_encode64(Digest::SHA512.digest(Digest::SHA512.digest("1//synthetic-refresh-token-named")))
+    token = build_token(
+      event_type: SecurityEvent::TOKEN_REVOKED, jti: "token-revoked-jti",
+      details: { "subject" => { "subject_type" => "oauth_token", "token_type" => "refresh_token",
+                                "token_identifier_alg" => "hash_base64_sha512_sha512", "token" => digest } }
+    )
+
+    described_class.perform_now(token)
+
+    expect(named.reload).to have_attributes(refresh_token: nil, token_revoked?: true)
+    expect(other.reload).to have_attributes(refresh_token: "1//synthetic-refresh-token-other", token_revoked?: false)
+    expect(SecurityEvent.find_by(jti: "token-revoked-jti")).to have_attributes(processed: true, user: user, oauth_credential: named)
   end
 
   it "skips reprocessing an event whose jti was already processed" do
