@@ -2,7 +2,8 @@
 
 module MicrosoftGraph
   # Turns the event hash the sync builds (the same one Google gets) into a
-  # Graph event resource.
+  # Graph event resource, and a Graph event back into a
+  # CourseCalendars::RemoteEvent.
   #
   # Graph has no RRULE or EXDATE. A daily, weekly, or monthly RRULE becomes a
   # patternedRecurrence,
@@ -15,9 +16,10 @@ module MicrosoftGraph
   # time for people who check the person's availability. An all-day event, for
   # example a holiday, shows as free, like Outlook's own default.
   class EventPayload
-    GRAPH_TIME_ZONE = "Eastern Standard Time"
-    LOCAL_TIME_ZONE = "America/New_York"
     TIME_FORMAT     = "%Y-%m-%dT%H:%M:%S"
+    # The fields a GET must ask for to read an event back.
+    SELECT          = "id,subject,location,start,end,isAllDay,recurrence,categories"
+    UTC_ZONES       = %w[UTC Etc/GMT GMT].freeze
 
     DAYS = {
       "SU" => "sunday", "MO" => "monday", "TU" => "tuesday", "WE" => "wednesday",
@@ -27,7 +29,6 @@ module MicrosoftGraph
     # The ordinal in a monthly BYDAY, for example 2 in 2WE, as a Graph index.
     WEEK_INDEXES = { "1" => "first", "2" => "second", "3" => "third", "4" => "fourth", "-1" => "last" }.freeze
 
-    REMINDER_METHODS = %w[email popup notification].freeze
     SENSITIVITY      = { "private" => "private", "confidential" => "confidential" }.freeze
 
     def self.build(event_data)
@@ -51,6 +52,47 @@ module MicrosoftGraph
 
       new(start_time: start_time, recurrence: recurrence).send(:recurrence_payload)
     end
+
+    # The Graph event as CourseCalendars::EventEdits reads it. row is the
+    # tracking row of the event, and event_id the id the event has now.
+    def self.remote_event(row, event_id, remote)
+      CourseCalendars::RemoteEvent.new(
+        id:                 event_id,
+        summary:            remote["subject"],
+        location:           remote.dig("location", "displayName"),
+        start_time:         parse_time(remote["start"]),
+        end_time:           parse_time(remote["end"]),
+        all_day:            remote["isAllDay"] == true,
+        recurrence_changed: normalize_recurrence(remote["recurrence"]) !=
+                              normalize_recurrence(recurrence_for(start_time: row.start_time, recurrence: row.recurrence)),
+        raw:                remote
+      )
+    end
+
+    def self.parse_time(value)
+      return nil if value.blank? || value["dateTime"].blank?
+
+      zone = UTC_ZONES.include?(value["timeZone"]) ? Time.find_zone!("UTC") : SchoolTimeZone.zone
+      zone.parse(value["dateTime"])&.in_time_zone(SchoolTimeZone::NAME)
+    end
+
+    # Only the parts the app sets. Graph adds defaults such as dayOfMonth, and
+    # an index for every type, so the index counts only for a relativeMonthly
+    # pattern.
+    def self.normalize_recurrence(recurrence)
+      return nil if recurrence.blank?
+
+      recurrence = recurrence.deep_stringify_keys
+      pattern    = recurrence["pattern"] || {}
+      range      = recurrence["range"] || {}
+
+      [
+        pattern["type"], pattern["interval"].to_i, Array(pattern["daysOfWeek"]).sort,
+        pattern["type"] == "relativeMonthly" ? pattern["index"] : nil,
+        range["type"], range["type"] == "endDate" ? range["endDate"] : nil
+      ]
+    end
+    private_class_method :parse_time, :normalize_recurrence
 
     def initialize(event_data)
       @data = event_data
@@ -82,7 +124,7 @@ module MicrosoftGraph
     end
 
     def local_start
-      data[:start_time].in_time_zone(LOCAL_TIME_ZONE)
+      data[:start_time].in_time_zone(SchoolTimeZone::NAME)
     end
 
     def start_value
@@ -92,12 +134,12 @@ module MicrosoftGraph
     # An all-day event ends at midnight on the day after, like Google's
     # exclusive end date.
     def end_value
-      local_end = data[:end_time].in_time_zone(LOCAL_TIME_ZONE)
+      local_end = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
       all_day? ? (local_end.to_date + 1.day).beginning_of_day.strftime(TIME_FORMAT) : local_end.strftime(TIME_FORMAT)
     end
 
     def time_payload(value)
-      { dateTime: value, timeZone: GRAPH_TIME_ZONE }
+      { dateTime: value, timeZone: MicrosoftGraph::TIME_ZONE }
     end
 
     def recurrence_payload
@@ -133,37 +175,19 @@ module MicrosoftGraph
     end
 
     def range_payload(until_value, start_date)
-      range = { startDate: start_date.iso8601, recurrenceTimeZone: GRAPH_TIME_ZONE }
+      range = { startDate: start_date.iso8601, recurrenceTimeZone: MicrosoftGraph::TIME_ZONE }
       return range.merge(type: "noEnd") if until_value.blank?
 
-      end_date = Time.parse(until_value).in_time_zone(LOCAL_TIME_ZONE).to_date
+      end_date = Time.parse(until_value).in_time_zone(SchoolTimeZone::NAME).to_date
       range.merge(type: "endDate", endDate: end_date.iso8601)
     end
 
     def reminder_payload
-      settings = data[:reminder_settings]
-      return {} unless settings.is_a?(Array)
+      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      return {} if reminders.nil?
+      return { isReminderOn: false } if reminders.empty?
 
-      minutes = settings.filter_map do |reminder|
-        next unless reminder.is_a?(Hash) && REMINDER_METHODS.include?(reminder["method"])
-        next if reminder["time"].blank? || reminder["type"].blank?
-
-        to_minutes(reminder["time"], reminder["type"])
-      end
-
-      return { isReminderOn: false } if minutes.empty?
-
-      { isReminderOn: true, reminderMinutesBeforeStart: minutes.min }
-    end
-
-    def to_minutes(time, type)
-      value = time.to_f
-
-      case type
-      when "hours" then (value * 60).to_i
-      when "days"  then (value * 1440).to_i
-      else value.to_i
-      end
+      { isReminderOn: true, reminderMinutesBeforeStart: reminders.map(&:minutes).min }
     end
   end
 end

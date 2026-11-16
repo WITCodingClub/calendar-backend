@@ -12,7 +12,7 @@ module CourseCalendars
   #
   #   CourseCalendars::IcsFeed.new(user).to_ical
   class IcsFeed
-    TZID = "America/New_York"
+    TZID = SchoolTimeZone::NAME
 
     # How often a calendar app should fetch the feed again, as an iCalendar
     # duration. Apps that subscribe by URL, such as Cozi, Apple Calendar, and
@@ -149,7 +149,7 @@ module CourseCalendars
 
       e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-      color_hex = GoogleCalendar::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
+      color_hex = Preferences::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
       e.color = color_hex
       e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
 

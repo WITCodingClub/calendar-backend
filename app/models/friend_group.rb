@@ -56,7 +56,7 @@ class FriendGroup < ApplicationRecord
 
   normalizes :name, with: ->(name) { name.squish }
   # Only "#rrggbb" in any case. The format check rejects every other value,
-  # also the legacy palette ids that GoogleCalendar::Colors accepts.
+  # also the legacy palette ids that Preferences::Colors accepts.
   normalizes :color, with: ->(color) { color.is_a?(String) ? color.strip.downcase : color }
 
   # An expired group with the same name blocks a new one through the unique
@@ -65,7 +65,7 @@ class FriendGroup < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: NAME_MAX_LENGTH },
                    uniqueness: { scope: :user_id, case_sensitive: false }
-  validates :color, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
+  validates :color, format: { with: Preferences::Colors::HEX_FORMAT }, allow_nil: true
   validate :expires_at_in_future, if: :will_save_change_to_expires_at?
 
   # Returns { friend user id => [groups] } for every group the user owns, in two

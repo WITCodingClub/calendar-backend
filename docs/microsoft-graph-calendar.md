@@ -110,24 +110,24 @@ flowchart TD
     Sync --> Create[The sync creates the events in the new place]
 ```
 
-- The job uses the concurrency group and key of `CourseCalendars::SyncJob`. A move and a sync for one person do not run at the same time.
+- The job takes `CourseCalendars::UserLock`, the lock of `CourseCalendars::SyncJob`. A move and a sync for one person do not run at the same time.
 - A failed step can run again, and the job tries 5 times. The job reads the primary calendar id before it deletes anything. A delete of a missing event or calendar counts as done. A move to `separate` stops while an event delete has failed, because the sync would update the old event in the primary calendar.
 - One gap stays. If the process dies after Graph creates the separate calendar and before the row is saved, the next run creates a second, empty "WIT Courses" calendar. The app does not look for a calendar by name, because it could then adopt, and later delete, a calendar that the person made.
 - Edits that the person made to class events in Outlook do not survive a move. The dashboard tells the person this before the move.
-- On a disconnect with the `primary` placement, the app deletes each tracked event in the request, one Graph call for each event. A failed delete is logged, and that event stays in Outlook with its "WIT" category.
+- On a disconnect with the `primary` placement, the app deletes each tracked event in the request, one Graph call for each event. A failed delete is reported, and that event stays in Outlook with its "WIT" category.
 
 ## Sync flow
 
 ```mermaid
 sequenceDiagram
     participant Job as CourseCalendars::SyncJob
-    participant User as User#sync_course_schedule
+    participant User as CourseCalendars::ScheduleSyncer
     participant Providers as CourseCalendars::Providers
     participant MS as MicrosoftGraph::CalendarProvider
     participant Graph as Microsoft Graph
     participant DB as calendar_events
 
-    Job->>User: sync_course_schedule(force:)
+    Job->>User: sync_schedule(force:)
     User->>Providers: services_for(user)
     Providers-->>User: Google and/or Microsoft service
     User->>MS: update_calendar_events(events)
@@ -175,6 +175,10 @@ sequenceDiagram
     MS->>Graph: GET instances and DELETE each EXDATE occurrence
     MS->>Graph: DELETE /me/events/{id} for dropped future events
 ```
+
+## Rate limits
+
+`MicrosoftGraph::Client` retries a `429`, `503` or `504` on a GET, PATCH or DELETE twice in the request (Faraday). When Graph still answers `429` during a sync, the sync raises `CourseCalendars::RateLimitError`, the same error as a Google rate limit. `CourseCalendars::SyncJob` and `CourseCalendars::HistoricalSyncJob` then go back in the queue with a wait, and the user is not recorded as synced. See `docs/google-calendar-rate-limits.md`.
 
 ## Differences from Google
 

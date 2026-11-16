@@ -42,15 +42,8 @@ class OauthCredential < ApplicationRecord
   has_many :security_events, dependent: :nullify
 
   # prepend: the dependent destroy above is a before_destroy callback too, and
-  # it deletes the calendar row that the removal has to look up.
-  before_destroy :revoke_calendar_access, prepend: true
-
-  # A Microsoft calendar lives in the person's mailbox, and only this
-  # credential's token can delete it. `has_one :course_calendar, dependent:
-  # :destroy` runs before any before_destroy declared after it, and the
-  # MicrosoftGraph::CalendarDeleteJob it enqueues runs after the credential is
-  # gone. So this callback is prepended and deletes the calendar now.
-  before_destroy :delete_microsoft_calendar, prepend: true, if: :microsoft?
+  # it deletes the calendar row that the provider still needs.
+  before_destroy :release_calendar, prepend: true
 
   # Disconnecting the Google account that vouched for this person should not
   # leave tokens it produced still working. A Microsoft credential only syncs a
@@ -58,20 +51,31 @@ class OauthCredential < ApplicationRecord
   after_destroy :revoke_sessions, if: :google?
 
   # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
-  # the user) ends the Google grant too. After commit, so a rolled back destroy
-  # keeps its grant, and in a job, so the request does not wait for Google.
-  # Google only: Google's revoke endpoint cannot end a Microsoft grant.
-  after_destroy_commit :enqueue_google_token_revocation, if: :google?
+  # the user) ends the grant too, where the provider can. After commit, so a
+  # rolled back destroy keeps its grant, and in a job, so the request does not
+  # wait for the provider.
+  after_destroy_commit :revoke_grant
 
-  PROVIDERS = %w[google microsoft].freeze
+  PROVIDERS = CourseCalendars::Providers::CLASSES.keys.freeze
+
+  GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
+
+  # A token that ends within this time counts as expired, so it is refreshed
+  # before a call and does not end in the middle of one.
+  EXPIRY_MARGIN = 5.minutes
+
+  # OauthCredentials::RefreshTokensJob refreshes each credential that has not
+  # changed for this long. A Microsoft refresh token expires after 90 days
+  # without use, so a weekly refresh keeps an idle connection alive.
+  REFRESH_AFTER = 7.days
 
   validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
 
-  # OauthCredentials::RefreshTokensJob flags a grant that Google refused. A new access token
-  # only comes from a working grant, so saving one takes the flag away.
+  # A provider refused the grant (mark_revoked!). A new access token only
+  # comes from a working grant, so saving one takes the flag away.
   before_update :clear_revoked_flag, if: :will_save_change_to_access_token?
   # A new token can finish friend meeting work that a refused token stopped.
   after_commit :resume_friend_meetings, on: %i[create update], if: :saved_change_to_access_token?
@@ -80,14 +84,22 @@ class OauthCredential < ApplicationRecord
   scope :google,        -> { for_provider("google") }
   scope :microsoft,     -> { for_provider("microsoft") }
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
-  scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
+  scope :needs_refresh, -> { where(updated_at: ...REFRESH_AFTER.ago).where.not(refresh_token: nil) }
 
-  def course_calendar_id
-    course_calendar&.external_calendar_id
+  # True when the provider refused the grant: the person revoked it or the
+  # refresh token expired, so the provider will not take it again. Other token
+  # errors, such as invalid_client after a secret rotation, say nothing about
+  # the person.
+  def self.invalid_grant?(error)
+    case error
+    when Signet::AuthorizationError then error.message.match?(/"error"\s*:\s*"invalid_grant"/)
+    when MicrosoftGraph::AuthError  then error.body.is_a?(Hash) && error.body["error"] == "invalid_grant"
+    else false
+    end
   end
 
   def token_expired?
-    token_expires_at.nil? || token_expires_at <= 5.minutes.from_now
+    token_expires_at.nil? || token_expires_at <= EXPIRY_MARGIN.from_now
   end
 
   def token_revoked?
@@ -96,6 +108,45 @@ class OauthCredential < ApplicationRecord
 
   def needs_reauth?
     token_revoked? || refresh_token.blank?
+  end
+
+  # Flags a grant that the provider will not take again, so the dashboard
+  # asks the person to sign in again.
+  def mark_revoked!(reason)
+    update!(metadata: (metadata || {}).merge(
+      "token_revoked"     => true,
+      "token_revoked_at"  => Time.current.iso8601,
+      "revocation_reason" => reason
+    ))
+  end
+
+  # Refreshes the access token with the provider and saves it.
+  def refresh!
+    calendar_provider.refresh_token!(self)
+  end
+
+  # The Google authorization for this credential. An expired token (or any
+  # token, with refresh: true) is refreshed and saved first. A refused grant
+  # (.invalid_grant?) marks the credential revoked.
+  def google_authorization(refresh: false)
+    authorization = Google::Auth::UserRefreshCredentials.new(
+      client_id:     Rails.application.credentials.dig(:google, :client_id),
+      client_secret: Rails.application.credentials.dig(:google, :client_secret),
+      scope:         [ GOOGLE_CALENDAR_SCOPE ],
+      access_token:  access_token,
+      refresh_token: refresh_token,
+      expires_at:    token_expires_at
+    )
+    return authorization unless refresh || token_expired?
+
+    begin
+      authorization.refresh!
+    rescue Signet::AuthorizationError => e
+      mark_revoked!(e.message) if self.class.invalid_grant?(e)
+      raise
+    end
+    update!(access_token: authorization.access_token, token_expires_at: Time.zone.at(authorization.expires_at))
+    authorization
   end
 
   # Whether the person can disconnect this credential.
@@ -118,56 +169,20 @@ class OauthCredential < ApplicationRecord
     provider == "microsoft"
   end
 
+  def calendar_provider
+    CourseCalendars::Providers.for(provider)
+  end
+
   private
 
-  # A Graph failure must not block the disconnect, so it is reported only. When
-  # the events are in the person's primary calendar, only the events go.
-  def delete_microsoft_calendar
-    calendar = course_calendar
-    return if calendar.nil? || calendar.external_calendar_id.blank?
-
-    MicrosoftGraph::CalendarProvider.new(user, credential: self).remove_course_events(calendar)
-  rescue => e
-    Rails.error.report(e, handled: true, context: { oauth_credential_id: id })
-  ensure
-    # The delete job would find no credential, so it is not enqueued.
-    calendar&.skip_remote_deletion = true
+  def release_calendar
+    calendar_provider.release_calendar(self)
   end
 
-  # Only Google calendars are shared into the person's calendar list. A
-  # Microsoft calendar lives in the person's own mailbox, so there is nothing
-  # to unshare.
-  #
-  # The course calendar belongs to one credential, but it is shared with every
-  # Google account the person connects. So look it up for the user, not only
-  # on this credential.
-  def revoke_calendar_access
-    return unless google?
-
-    calendar_id = CourseCalendar.google.for_user(user).pick(:external_calendar_id) if user
-    return if calendar_id.blank?
-
-    service = GoogleCalendar::Provider.new(user)
-    report_google_failure("remove the course calendar from the calendar list") do
-      service.remove_calendar_from_user_list_for_email(calendar_id, email)
-    end
-    report_google_failure("stop sharing the course calendar") do
-      service.unshare_calendar_with_email(calendar_id, email)
-    end
+  def revoke_grant
+    calendar_provider.revoke_later(self)
   end
 
-  # Google can refuse or be down, and that must not block the disconnect. Any
-  # other error is a bug, so it is not rescued here.
-  def report_google_failure(action)
-    yield
-  rescue Google::Apis::Error, Signet::AuthorizationError, Signet::RemoteServerError,
-         Signet::UnexpectedStatusError, Faraday::Error => e
-    Rails.logger.error("Failed to #{action} for #{email}: #{e.message}")
-    Rails.error.report(e, handled: true, context: { oauth_credential_id: id, action: action })
-  end
-
-  # The refresh token ends the whole grant. Google does not revoke an access
-  # token that has expired.
   # Most people have no friend meeting work waiting, so this costs two
   # indexed queries and starts no job.
   def resume_friend_meetings
@@ -177,12 +192,6 @@ class OauthCredential < ApplicationRecord
     waiting  = meetings.where.not(cancelled_at: nil).exists? ||
                FriendMeetingPublication.where(friend_meeting_id: meetings.select(:id), status: %w[failed removed]).exists?
     FriendMeetings::ResumeJob.perform_later(user) if waiting
-  end
-
-  def enqueue_google_token_revocation
-    GoogleSignIn::RevokeTokenJob.perform_later(
-      GoogleSignIn::RevokeTokenJob.seal(refresh_token.presence || access_token)
-    )
   end
 
   def clear_revoked_flag

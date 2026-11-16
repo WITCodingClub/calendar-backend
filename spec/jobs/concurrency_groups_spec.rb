@@ -43,4 +43,26 @@ RSpec.describe "Job concurrency groups" do
       expect(job.concurrency_duration).to eq(duration)
     end
   end
+
+  # CourseCalendars::UserLock: the jobs that write a user's calendar take one
+  # lock, so they never run at the same time for one user.
+  describe "the per-user calendar lock" do
+    let(:user) { create(:user) }
+    let(:meeting) { build_stubbed(:friend_meeting, user: user) }
+    let(:expected) { "GoogleCalendarSyncJob/google_calendar_sync_user_#{user.id}" }
+
+    it "gives every job the same group and key for one user" do
+      jobs = [
+        CourseCalendars::SyncJob.new(user, force: true),
+        MicrosoftGraph::CalendarPlacementJob.new(user, "primary"),
+        FriendMeetings::PublishJob.new(meeting),
+        FriendMeetings::UpdateJob.new(meeting),
+        FriendMeetings::RemoveJob.new(meeting),
+        FriendMeetings::ResumeJob.new(user)
+      ]
+
+      expect(jobs.map(&:concurrency_key)).to all(eq(expected))
+      expect(jobs.map { |job| job.class.concurrency_duration }).to all(eq(1.hour))
+    end
+  end
 end

@@ -31,7 +31,7 @@ module McpTools
       location_template:    { type: "string", maxLength: 500, description: "The event location, same variables." },
       color:                {
         type:        "string",
-        description: "A color name (#{GoogleCalendar::Colors::NAMES.keys.join(', ')}), a Google Calendar " \
+        description: "A color name (#{Preferences::Colors::NAMES.keys.join(', ')}), a Google Calendar " \
                      "color id from 1 to 11, or a #rrggbb hex color."
       },
       visibility:           { type: "string", enum: %w[default public private], description: "Who can see the event details." },
@@ -92,7 +92,7 @@ module McpTools
       return "not set" if value.nil?
 
       case column
-      when :color_id then GoogleCalendar::Colors::NAMES.key(value)&.capitalize || escape_text(value)
+      when :color_id then Preferences::Colors::NAMES.key(value)&.capitalize || escape_text(value)
       when :reminder_settings then describe_reminders(value)
       when :visibility then escape_text(value)
       else value.to_s.empty? ? "empty" : %("#{escape_text(value)}")
@@ -192,13 +192,13 @@ module McpTools
 
     def parse_color(value)
       name = value.to_s.strip.downcase
-      GoogleCalendar::Colors::NAMES[name] || GoogleCalendar::Colors.normalize(name) ||
-        raise(ToolError, "#{value.inspect} is not a color. Use a name (#{GoogleCalendar::Colors::NAMES.keys.join(', ')}), " \
+      Preferences::Colors::NAMES[name] || Preferences::Colors.normalize(name) ||
+        raise(ToolError, "#{value.inspect} is not a color. Use a name (#{Preferences::Colors::NAMES.keys.join(', ')}), " \
                          "an id from 1 to 11, or #rrggbb.")
     end
 
     # The stored form, the same as the extension sends: string values, and
-    # popup for a notification (ReminderSettingsNormalizable).
+    # popup for a notification (PreferenceFields).
     def parse_reminders(reminders)
       raise ToolError, "reminders must be a list" unless reminders.is_a?(Array)
 
@@ -210,7 +210,7 @@ module McpTools
 
     # Only a user with a synced calendar needs a sync.
     def sync_calendar
-      return unless user.google_credential || user.course_calendars.microsoft.exists?
+      return unless CourseCalendars::Providers.syncs?(user)
 
       CourseCalendars::SyncJob.perform_later(user, force: true)
     end

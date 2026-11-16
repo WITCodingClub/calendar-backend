@@ -72,7 +72,7 @@ RSpec.describe "Api::ExtensionConfigs", type: :request do
       put "/api/user/extension_config", params: { default_color_lab: "banana" }, headers: headers, as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(user.user_extension_config.reload.default_color_lab).to eq(GoogleCalendar::Colors::BANANA)
+      expect(user.user_extension_config.reload.default_color_lab).to eq(Preferences::Colors::BANANA)
     end
   end
 end

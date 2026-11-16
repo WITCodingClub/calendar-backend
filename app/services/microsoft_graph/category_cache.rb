@@ -5,7 +5,8 @@ module MicrosoftGraph
   #
   # Google takes a color on each event. Outlook colors an event through its
   # categories, and each category in the person's master list has one preset
-  # color. The app uses one "WIT <color>" category for each Google color. It
+  # color. The app uses one "WIT <color>" category for each palette color
+  # (Preferences::Colors::PALETTE holds the preset of each). It
   # reuses a category with that name when the person already has one, and does
   # not change the color the person gave it.
   #
@@ -18,22 +19,7 @@ module MicrosoftGraph
   class CategoryCache
     PREFIX = "WIT "
 
-    # Google event color id => [name, closest Outlook preset].
-    COLORS = {
-      1  => [ "Lavender",  "preset7" ],
-      2  => [ "Sage",      "preset4" ],
-      3  => [ "Grape",     "preset8" ],
-      4  => [ "Flamingo",  "preset9" ],
-      5  => [ "Banana",    "preset3" ],
-      6  => [ "Tangerine", "preset1" ],
-      7  => [ "Peacock",   "preset5" ],
-      8  => [ "Graphite",  "preset12" ],
-      9  => [ "Blueberry", "preset22" ],
-      10 => [ "Basil",     "preset19" ],
-      11 => [ "Tomato",    "preset0" ]
-    }.freeze
-
-    NAMES = COLORS.values.map { |name, _preset| "#{PREFIX}#{name}" }.freeze
+    NAMES = Preferences::Colors::PALETTE.map { |color| "#{PREFIX}#{color.name.capitalize}" }.freeze
 
     def self.app_category?(name)
       NAMES.include?(name)
@@ -49,14 +35,12 @@ module MicrosoftGraph
     # Outlook has only preset colors, so a custom color gets the category of
     # the nearest Google palette color. A legacy color id (1-11) also works.
     def name_for(color)
-      hex = GoogleCalendar::Colors.normalize(color)
+      hex = Preferences::Colors.normalize(color)
       return nil unless hex
 
-      name, preset = COLORS[GoogleCalendar::Colors.nearest_color_id(hex)]
-      return nil unless name
-
-      category = "#{PREFIX}#{name}"
-      @names.fetch(category) { @names[category] = ensure_category(category, preset) }
+      color    = Preferences::Colors.nearest(hex)
+      category = "#{PREFIX}#{color.name.capitalize}"
+      @names.fetch(category) { @names[category] = ensure_category(category, color.outlook_preset) }
     end
 
     private

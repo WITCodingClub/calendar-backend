@@ -5,18 +5,20 @@ require "rails_helper"
 RSpec.describe CourseCalendars::SyncJob do
   let(:user) { create(:user, calendar_needs_sync: true, last_calendar_sync_at: nil) }
 
-  before { allow(user).to receive(:sync_course_schedule) }
+  let(:syncer) { instance_double(CourseCalendars::ScheduleSyncer, sync_schedule: nil) }
+
+  before { allow(CourseCalendars::ScheduleSyncer).to receive(:new).with(user).and_return(syncer) }
 
   it "syncs the schedule, with the backfill on a forced sync" do
     described_class.perform_now(user, force: true)
 
-    expect(user).to have_received(:sync_course_schedule).with(force: true, backfill_historical: true)
+    expect(syncer).to have_received(:sync_schedule).with(force: true, backfill_historical: true)
   end
 
   it "passes the backfill choice of the nightly run" do
     described_class.perform_now(user, force: false, backfill_historical: true, nightly: true)
 
-    expect(user).to have_received(:sync_course_schedule).with(force: false, backfill_historical: true)
+    expect(syncer).to have_received(:sync_schedule).with(force: false, backfill_historical: true)
   end
 
   # ScheduleSyncer records a sync only when it changed something. The nightly

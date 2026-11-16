@@ -2,16 +2,14 @@
 
 module GoogleCalendar
   # Turns the event hash the sync builds (the same one Microsoft gets) into a
-  # Google::Apis::CalendarV3::Event.
+  # Google::Apis::CalendarV3::Event, and a Google event back into a
+  # CourseCalendars::RemoteEvent.
   #
   # A custom color needs an event label. When the calendar cannot take labels,
   # the event gets the legacy colorId nearest to the color. Google reads
   # eventLabelId only when the request asks for label version 1, so pass
   # request_options(event) to insert_event and update_event.
   class EventPayload
-    TIME_ZONE        = "America/New_York"
-    REMINDER_METHODS = %w[email popup notification].freeze
-
     def self.build(event_data, labels = nil)
       new(event_data, labels).to_event
     end
@@ -32,6 +30,34 @@ module GoogleCalendar
     def self.request_options(google_event)
       google_event.event_label_id.nil? ? {} : { event_label_version: 1 }
     end
+
+    # The Google event as CourseCalendars::EventEdits reads it. row is the
+    # tracking row of the event.
+    def self.remote_event(row, google_event)
+      CourseCalendars::RemoteEvent.new(
+        id:                 row.external_event_id,
+        summary:            google_event.summary,
+        location:           google_event.location,
+        start_time:         parse_time(google_event.start),
+        end_time:           parse_time(google_event.end),
+        all_day:            google_event.start&.date.present?,
+        recurrence_changed: normalize_recurrence(google_event.recurrence) != normalize_recurrence(row.recurrence),
+        raw:                google_event
+      )
+    end
+
+    # A Google EventDateTime as a time in SchoolTimeZone, or nil.
+    def self.parse_time(time_obj)
+      value = time_obj&.date_time || time_obj&.date
+      return nil unless value
+
+      value.is_a?(String) ? Time.zone.parse(value).in_time_zone(SchoolTimeZone::NAME) : value.in_time_zone(SchoolTimeZone::NAME)
+    end
+
+    def self.normalize_recurrence(recurrence)
+      Array(recurrence).compact.sort.presence
+    end
+    private_class_method :parse_time, :normalize_recurrence
 
     def initialize(event_data, labels = nil)
       @data   = event_data
@@ -66,7 +92,7 @@ module GoogleCalendar
         # An empty id removes the label, so the event takes the calendar color.
         google_event.event_label_id = label_id.to_s
       elsif hex
-        google_event.color_id = GoogleCalendar::Colors.nearest_color_id(hex).to_s
+        google_event.color_id = Preferences::Colors.nearest_color_id(hex).to_s
       end
     end
 
@@ -75,47 +101,26 @@ module GoogleCalendar
         google_event.start = { date: data[:start_time].to_date.to_s }
         google_event.end   = { date: (data[:end_time].to_date + 1.day).to_s }
       else
-        start_time_et = data[:start_time].in_time_zone(TIME_ZONE)
-        end_time_et   = data[:end_time].in_time_zone(TIME_ZONE)
+        start_time_et = data[:start_time].in_time_zone(SchoolTimeZone::NAME)
+        end_time_et   = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
 
-        google_event.start = { date_time: start_time_et.iso8601, time_zone: TIME_ZONE }
-        google_event.end   = { date_time: end_time_et.iso8601,   time_zone: TIME_ZONE }
+        google_event.start = { date_time: start_time_et.iso8601, time_zone: SchoolTimeZone::NAME }
+        google_event.end   = { date_time: end_time_et.iso8601,   time_zone: SchoolTimeZone::NAME }
       end
     end
 
     def apply_reminders(google_event)
-      return unless data[:reminder_settings].is_a?(Array)
-
-      valid_reminders = data[:reminder_settings].select { |reminder| valid_reminder?(reminder) }
+      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      return if reminders.nil?
 
       # An empty list means "no reminders". It must still send use_default: false,
       # otherwise Google applies the calendar default reminders.
       google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
         use_default: false,
-        overrides:   valid_reminders.map do |reminder|
-          method  = reminder["method"] == "notification" ? "popup" : reminder["method"]
-          minutes = minutes_for(reminder["time"], reminder["type"])
-          Google::Apis::CalendarV3::EventReminder.new(reminder_method: method, minutes: minutes)
+        overrides:   reminders.map do |reminder|
+          Google::Apis::CalendarV3::EventReminder.new(reminder_method: reminder.delivery, minutes: reminder.minutes)
         end
       )
-    end
-
-    def valid_reminder?(reminder)
-      reminder.is_a?(Hash) &&
-        reminder["method"].present? &&
-        reminder["time"].present? &&
-        reminder["type"].present? &&
-        REMINDER_METHODS.include?(reminder["method"])
-    end
-
-    def minutes_for(time, type)
-      time_value = time.to_f
-
-      case type
-      when "hours" then (time_value * 60).to_i
-      when "days"  then (time_value * 1440).to_i
-      else time_value.to_i
-      end
     end
   end
 end

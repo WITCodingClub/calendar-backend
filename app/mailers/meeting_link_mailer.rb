@@ -10,7 +10,7 @@ class MeetingLinkMailer < ApplicationMailer
     @meeting  = link.friend_meeting
     @owner    = link.user
     @starts   = @meeting.local_start
-    @ends     = @meeting.end_time.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE)
+    @ends     = @meeting.end_time.in_time_zone(SchoolTimeZone::NAME)
     @invited  = FriendMeetings::Publisher.new(@owner).calendar_providers.any?
 
     mail(

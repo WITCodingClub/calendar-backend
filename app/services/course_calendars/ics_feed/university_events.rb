@@ -74,7 +74,7 @@ module CourseCalendars
           e.categories  = [ event.category.titleize ] if event.category.present?
 
           # The same color the Google and Outlook sync gives the event.
-          color_hex = GoogleCalendar::Colors.normalize(@preference_resolver.resolve_for(event)[:color_id])
+          color_hex = Preferences::Colors.normalize(@preference_resolver.resolve_for(event)[:color_id])
           if color_hex
             e.color = color_hex
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)

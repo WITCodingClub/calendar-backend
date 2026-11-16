@@ -4,9 +4,11 @@ module MicrosoftGraph
   # Deletes a course calendar from a person's Microsoft mailbox. Enqueued when a
   # Microsoft CourseCalendar row is destroyed.
   class CalendarDeleteJob < ApplicationJob
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
-    discard_on MicrosoftGraph::AuthError
+    discard_on_auth_errors
 
     def perform(oauth_credential_id, calendar_id)
       return if calendar_id.blank?

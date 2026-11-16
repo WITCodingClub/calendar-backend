@@ -122,15 +122,14 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       end
     end
 
-    context "when Google hits a rate limit and the other provider works" do
+    context "when one provider hits a rate limit and the other provider works" do
       before do
-        allow(google).to receive(:update_calendar_events)
-          .and_raise(Google::Apis::RateLimitError.new("rateLimitExceeded: Rate Limit Exceeded", status_code: 403))
+        allow(google).to receive(:update_calendar_events).and_raise(CourseCalendars::RateLimitError, "rateLimitExceeded")
         allow(Rails.error).to receive(:report)
       end
 
       it "raises the rate limit, so the job retries, and does not record a sync" do
-        expect { syncer.sync_schedule }.to raise_error(Google::Apis::RateLimitError)
+        expect { syncer.sync_schedule }.to raise_error(CourseCalendars::RateLimitError)
 
         expect(microsoft).to have_received(:update_calendar_events)
         expect(Rails.error).not_to have_received(:report)
@@ -176,87 +175,23 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
     end
   end
 
-  describe "#sync_enrollments" do
-    it "sends only the events of the given enrollments as specific events" do
-      enrollment = create(:enrollment, user: user, course: course)
-      meeting_time = create(:course_meeting_time, course: course)
-      other_course = create(:course, term: term)
-      create(:enrollment, user: user, course: other_course)
-      create(:course_meeting_time, course: other_course)
-
-      syncer.sync_enrollments([ enrollment.id ])
-
-      expect(google).to have_received(:update_specific_events)
-        .with([ a_hash_including(meeting_time_id: meeting_time.id) ], force: false)
-      expect(user.reload.calendar_needs_sync).to be(false)
-    end
-  end
-
-  describe "isolation in the partial syncs" do
+  describe "isolation in the historical sync" do
     before do
       allow(google).to receive(:update_specific_events).and_raise(Signet::AuthorizationError, "token revoked")
       allow(Rails.error).to receive(:report)
-    end
-
-    it "syncs the other provider in #sync_enrollments" do
-      enrollment = create(:enrollment, user: user, course: course)
-      create(:course_meeting_time, course: course)
-
-      expect(syncer.sync_enrollments([ enrollment.id ])).to eq(stats)
-      expect(microsoft).to have_received(:update_specific_events)
-    end
-
-    it "syncs the other provider in #sync_meeting_time" do
-      meeting_time = create(:course_meeting_time, course: course)
-
-      expect(syncer.sync_meeting_time(meeting_time.id)).to eq(stats)
-      expect(microsoft).to have_received(:update_specific_events)
-    end
-
-    it "syncs the other provider in #sync_historical" do
       create(:enrollment, user: user, course: course)
       create(:final_exam, course: course, term: term, exam_date: 1.week.ago.to_date)
+    end
 
+    it "syncs the other provider" do
       expect(syncer.sync_historical).to eq(stats)
       expect(microsoft).to have_received(:update_specific_events)
     end
 
     it "raises when every provider fails" do
       allow(microsoft).to receive(:update_specific_events).and_raise(MicrosoftGraph::AuthError, "token revoked")
-      meeting_time = create(:course_meeting_time, course: course)
 
-      expect { syncer.sync_meeting_time(meeting_time.id) }.to raise_error(Signet::AuthorizationError)
-    end
-  end
-
-  describe "#sync_meeting_time" do
-    it "sends the one meeting time and records only the sync time" do
-      meeting_time = create(:course_meeting_time, course: course)
-
-      expect(syncer.sync_meeting_time(meeting_time.id)).to eq(created: 2, updated: 4, skipped: 0)
-      expect(google).to have_received(:update_specific_events)
-        .with([ a_hash_including(meeting_time_id: meeting_time.id) ], force: true)
-      expect(user.reload).to have_attributes(calendar_needs_sync: true, last_calendar_sync_at: be_present)
-    end
-
-    it "returns nil for an unknown meeting time" do
-      expect(syncer.sync_meeting_time(0)).to be_nil
-      expect(google).not_to have_received(:update_specific_events)
-    end
-  end
-
-  describe "#sync_final_exam" do
-    it "sends the one final exam" do
-      final_exam = create(:final_exam, course: course, term: term)
-
-      syncer.sync_final_exam(final_exam.id, force: false)
-
-      expect(google).to have_received(:update_specific_events)
-        .with([ a_hash_including(final_exam_id: final_exam.id) ], force: false)
-    end
-
-    it "returns nil for an unknown final exam" do
-      expect(syncer.sync_final_exam(0)).to be_nil
+      expect { syncer.sync_historical }.to raise_error(Signet::AuthorizationError)
     end
   end
 

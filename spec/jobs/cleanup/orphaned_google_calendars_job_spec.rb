@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe Cleanup::OrphanedGoogleCalendarsJob do
-  let(:provider) { instance_double(GoogleCalendar::Provider) }
+  let(:provider) { instance_double(GoogleCalendar::CalendarManager) }
   let!(:tracked) { create(:course_calendar, external_calendar_id: "tracked-cal") }
 
   def listing(*ids)
@@ -12,7 +12,7 @@ RSpec.describe Cleanup::OrphanedGoogleCalendarsJob do
   end
 
   before do
-    allow(GoogleCalendar::Provider).to receive(:new).and_return(provider)
+    allow(GoogleCalendar::CalendarManager).to receive(:new).and_return(provider)
     allow(provider).to receive(:delete_calendar)
   end
 

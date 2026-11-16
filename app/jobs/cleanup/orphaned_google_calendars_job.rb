@@ -7,7 +7,7 @@ module Cleanup
     def perform
       Rails.logger.info "[Cleanup::OrphanedGoogleCalendarsJob] Starting cleanup of Google calendars not in database"
 
-      service = GoogleCalendar::Provider.new
+      service = GoogleCalendar::CalendarManager.new
       google_api_calendars = service.list_calendars
 
       db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)
@@ -23,7 +23,7 @@ module Cleanup
         service.delete_calendar(cal.id)
         deleted_count += 1
       rescue Google::Apis::ClientError => e
-        if e.status_code == 404
+        if GoogleCalendar::Provider.gone?(e)
           Rails.logger.warn "[Cleanup::OrphanedGoogleCalendarsJob] Calendar not found (already deleted): #{cal.id}"
           skipped_count += 1
         else

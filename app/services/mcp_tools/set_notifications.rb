@@ -106,7 +106,7 @@ module McpTools
       return "the reminders are on" unless user.notifications_disabled?
       return "the reminders are off until you turn them on again" if user.notifications_disabled_until > 50.years.from_now
 
-      until_time = user.notifications_disabled_until.in_time_zone("America/New_York")
+      until_time = user.notifications_disabled_until.in_time_zone(SchoolTimeZone::NAME)
       "the reminders are off until #{until_time.strftime('%B %-d, %Y at %-I:%M %p')} (Eastern time)"
     end
   end

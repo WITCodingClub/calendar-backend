@@ -1,6 +1,6 @@
 <% content_for :title, "Meeting Booked" %>
 <% starts = @meeting.local_start %>
-<% ends = @meeting.end_time.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE) %>
+<% ends = @meeting.end_time.in_time_zone(SchoolTimeZone::NAME) %>
 
 <div class="m3-card p-8 space-y-4">
   <h1 class="text-2xl font-bold text-on-surface">Your meeting is booked</h1>

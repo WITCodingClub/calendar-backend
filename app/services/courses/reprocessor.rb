@@ -61,8 +61,6 @@ module Courses
 
     private
 
-    ALREADY_GONE_STATUSES = [ 404, 410 ].freeze
-
     def validate_input!
       raise Courses::InvalidPayloadError, "courses cannot be nil"   if courses.nil?
       raise Courses::InvalidPayloadError, "courses must be an array" unless courses.is_a?(Array)
@@ -78,7 +76,7 @@ module Courses
     end
 
     def cleanup_calendar_events_for_enrollment(enrollment)
-      course_calendar = user.google_credential&.course_calendar
+      course_calendar = CourseCalendar.google.for_user(user).first
       return 0 unless course_calendar
 
       course           = enrollment.course
@@ -98,7 +96,7 @@ module Courses
           # 404 and 410 mean the event is already gone. Any other answer (401,
           # 403, 429) leaves the real event on the calendar, so the row stays:
           # without it nothing points at the event and it is stranded.
-          unless ALREADY_GONE_STATUSES.include?(e.status_code)
+          unless GoogleCalendar::Provider.gone?(e)
             Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.external_event_id}: #{e.message}")
             Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_event_id: cal_event.id })
             next
@@ -112,29 +110,7 @@ module Courses
     end
 
     def build_google_service
-      return nil unless user.google_credential
-
-      require "googleauth"
-      credentials = Google::Auth::UserRefreshCredentials.new(
-        client_id:     Rails.application.credentials.dig(:google, :client_id),
-        client_secret: Rails.application.credentials.dig(:google, :client_secret),
-        scope:         [ "https://www.googleapis.com/auth/calendar" ],
-        access_token:  user.google_access_token,
-        refresh_token: user.google_refresh_token,
-        expires_at:    user.google_token_expires_at
-      )
-
-      if user.google_token_expired?
-        credentials.refresh!
-        user.google_credential.update!(
-          access_token:     credentials.access_token,
-          token_expires_at: Time.zone.at(credentials.expires_at)
-        )
-      end
-
-      service = Google::Apis::CalendarV3::CalendarService.new
-      service.authorization = credentials
-      service
+      GoogleCalendar::CalendarServices.for_user(user) if user.google_credential
     end
   end
 end

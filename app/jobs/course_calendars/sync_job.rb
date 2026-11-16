@@ -2,19 +2,17 @@
 
 module CourseCalendars
   class SyncJob < ApplicationJob
+    include CourseCalendars::UserLock
+    include CourseCalendars::ProviderRetries
+
     queue_as :high
 
     # The concurrency group is part of every lock key, so it must not change when
     # the class is renamed. Jobs in the queue hold locks under this name.
     CONCURRENCY_GROUP = "GoogleCalendarSyncJob"
 
-    # A full sync of a large schedule can take many minutes. The lock must
-    # last longer than the job, or a second sync for the user starts and both
-    # create the same remote events.
-    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, **) { "google_calendar_sync_user_#{user.id}" },
-                       duration: 1.hour
-
-    retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+    limits_concurrency_per_user(&:id)
+    retry_on_rate_limits
 
     # Solid Queue runs the job with the lowest number first. Other jobs use 0.
     BULK_PRIORITY = 10
@@ -62,7 +60,7 @@ module CourseCalendars
     end
 
     def perform(user, force: false, backfill_historical: force, nightly: false)
-      user.sync_course_schedule(force: force, backfill_historical: backfill_historical)
+      CourseCalendars::ScheduleSyncer.new(user).sync_schedule(force: force, backfill_historical: backfill_historical)
 
       # CourseCalendars::NightlySyncJob picks users by these columns. Record
       # every nightly sync, also one that changed nothing, so the user is not

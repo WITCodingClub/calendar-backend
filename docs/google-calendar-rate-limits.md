@@ -23,10 +23,12 @@ The `google-apis-core` gem picks the error class from the HTTP status and the re
 - In a job: 2 retries, with a wait of at most 8 s (`GOOGLE_API_MAX_RETRIES`, `GOOGLE_API_MAX_DELAY`).
 - In a web request: 1 retry, with a wait of at most 2 s.
 
-When the limit lasts longer, the `RateLimitError` leaves the job. A job that calls Google puts itself back in the queue:
+When the limit lasts longer, the `RateLimitError` leaves the job. A sync turns it into `CourseCalendars::RateLimitError`, the one rate limit error for every provider (`CourseCalendars::Provider`). Microsoft Graph's `429` becomes the same error. A job that calls a provider includes `CourseCalendars::ProviderRetries` and puts itself back in the queue:
 
 ```ruby
-retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+include CourseCalendars::ProviderRetries
+
+retry_on_rate_limits
 ```
 
 The job waits about 3 s, 18 s, 83 s and 258 s, and frees its thread while it waits. After 5 attempts the error goes to the job executor, which reports it. A sync is safe to run again: events that it already made have rows, so the next run updates or skips them.
@@ -41,9 +43,9 @@ flowchart TD
   call -->|quotaExceeded or dailyLimitExceeded| report
 ```
 
-These jobs retry: `CourseCalendars::SyncJob`, `CourseCalendars::HistoricalSyncJob`, `GoogleCalendar::CreateJob`, `GoogleCalendar::DeleteJob`, `GoogleCalendar::EventDeleteJob`, and the `FriendMeetings::` jobs. Add the `retry_on` line to a new job that calls Google.
+These jobs retry: `CourseCalendars::SyncJob`, `CourseCalendars::HistoricalSyncJob`, `GoogleCalendar::CreateJob`, `GoogleCalendar::DeleteJob`, `GoogleCalendar::EventDeleteJob`, `MicrosoftGraph::CalendarPlacementJob`, and the `FriendMeetings::` jobs. The last two retry other provider failures too (`retry_on_provider_errors`). Add `retry_on_rate_limits` to a new job that calls a provider.
 
-When a user has a Google and a Microsoft calendar, `CourseCalendars::ScheduleSyncer` raises an error only when every provider fails. A Google rate limit is the exception: the syncer raises it after the other providers finish. The job then retries, and the user is not recorded as synced, so the nightly sync still picks the user.
+When a user has a Google and a Microsoft calendar, `CourseCalendars::ScheduleSyncer` raises an error only when every provider fails. A rate limit is the exception: the syncer raises it after the other providers finish. The job then retries, and the user is not recorded as synced, so the nightly sync still picks the user.
 
 The cleanup jobs (`Cleanup::`) have no `retry_on`. They log a failed item, skip it, and get it on the next run.
 

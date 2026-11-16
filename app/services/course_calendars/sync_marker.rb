@@ -2,11 +2,8 @@
 
 module CourseCalendars
   # Marks the calendars of the users enrolled in a course as needing a sync.
-  #
-  # Select the same way CourseCalendars::NightlySyncJob does, by the course_calendars
-  # association. The old predicate looked for a course_calendar_id key in the
-  # OAuth credential metadata. Nothing writes that key, so it matched no one and
-  # no data change ever marked a calendar.
+  # It picks users by the course_calendars association, as
+  # CourseCalendars::NightlySyncJob does.
   module SyncMarker
     BATCH_KEY = :calendar_sync_marker_batch
 

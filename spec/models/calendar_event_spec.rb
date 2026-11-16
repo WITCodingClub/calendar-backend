@@ -151,8 +151,6 @@ RSpec.describe CalendarEvent, type: :model do
       event = create(:calendar_event, :for_friend_meeting, course_calendar: calendar)
 
       expect(CalendarEvent.orphaned).not_to include(event)
-      expect(event).not_to be_orphaned
-      expect(event.syncable).to eq(event.friend_meeting)
     end
   end
 

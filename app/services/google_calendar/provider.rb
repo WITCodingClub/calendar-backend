@@ -1,400 +1,214 @@
 # frozen_string_literal: true
 
 module GoogleCalendar
-  # The Google side of the provider interface that CourseCalendars::Providers
-  # documents. It runs the sync and gives the work to its collaborators:
+  # The Google remote calls of CourseCalendars::Provider, which runs the sync.
   #
   #   GoogleCalendar::CalendarManager   create, share, list, and delete the calendar
-  #   GoogleCalendar::EventWriter       insert, update, and delete one event and its row
-  #   GoogleCalendar::EventPayload      the Google::Apis::CalendarV3::Event for an event hash
-  #   GoogleCalendar::EventEdits        the fields the person changed in Google
+  #   GoogleCalendar::EventPayload      the Google::Apis::CalendarV3::Event for an event hash, and back
+  #   GoogleCalendar::EventLabels       the event label of each custom color
   #   GoogleCalendar::CalendarServices  authorized Google API services
   #
-  # The collaborators call Google through this class's rate limiter, so the
-  # settings in config/initializers/google_api_rate_limiting.rb apply to all.
-  class Provider
+  # Every call goes through the rate limiter, so the settings in
+  # config/initializers/google_api_rate_limiting.rb apply.
+  class Provider < CourseCalendars::Provider
     include GoogleCalendar::RateLimiter
-    include CalendarEventPreparation
 
-    attr_reader :user
+    # A missing event: Google answers 404 for an event it never had, and 410
+    # Gone for an event that was already deleted.
+    GONE_STATUSES = [ 404, 410 ].freeze
 
-    def initialize(user = nil)
-      @user = user
+    def self.gone?(error)
+      error.is_a?(Google::Apis::ClientError) && GONE_STATUSES.include?(error.status_code)
     end
+
+    # The answers that CourseCalendars::Providers gives for Google.
+
+    def self.delete_event_later(ref)
+      GoogleCalendar::EventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
+    end
+
+    def self.delete_calendar_later(calendar)
+      GoogleCalendar::DeleteJob.perform_later(calendar.external_calendar_id)
+    end
+
+    def self.refreshable?
+      true
+    end
+
+    def self.refresh_token!(credential)
+      credential.google_authorization(refresh: true)
+    end
+
+    # The course calendar belongs to one credential, but it is shared with every
+    # Google account the person connects. So look it up for the user, not only
+    # on this credential. Uses the account's own token, so it runs before the
+    # token is revoked. Google can refuse or be down, and that must not block
+    # the disconnect.
+    def self.release_calendar(credential)
+      calendar_id = CourseCalendar.google.for_user(credential.user).pick(:external_calendar_id) if credential.user
+      return if calendar_id.blank?
+
+      manager = GoogleCalendar::CalendarManager.new(credential.user)
+      report_disconnect_failure(credential, "remove the course calendar from the calendar list") do
+        manager.remove_from_calendar_list(calendar_id, credential.email)
+      end
+      report_disconnect_failure(credential, "stop sharing the course calendar") do
+        manager.unshare_with_email(calendar_id, credential.email)
+      end
+    end
+
+    # The refresh token ends the whole grant. Google does not revoke an access
+    # token that has expired.
+    def self.revoke_later(credential)
+      GoogleSignIn::RevokeTokenJob.perform_later(
+        GoogleSignIn::RevokeTokenJob.seal(credential.refresh_token.presence || credential.access_token)
+      )
+    end
+
+    def self.report_disconnect_failure(credential, action)
+      yield
+    rescue Google::Apis::Error, Signet::AuthorizationError, Signet::RemoteServerError,
+           Signet::UnexpectedStatusError, Faraday::Error => e
+      Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id, action: action })
+    end
+    private_class_method :report_disconnect_failure
 
     def course_calendar
       CourseCalendar.google.for_user(user).first
     end
 
     def create_or_get_course_calendar
-      course_calendar = CourseCalendar.google.for_user(user).first
-      newly_created   = false
+      calendar = course_calendar
+      newly_created = calendar.blank?
 
-      if course_calendar.blank?
+      if newly_created
         google_api_calendar = calendar_manager.create_calendar
-        primary_credential  = user.google_credential || user.google_credentials.first
-        raise "No Google OAuth credentials found for user" unless primary_credential
+        credential = user.google_credential
+        raise "No Google OAuth credentials found for user" unless credential
 
-        course_calendar = primary_credential.create_course_calendar!(
+        calendar = credential.create_course_calendar!(
           external_calendar_id: google_api_calendar.id,
-          summary:            google_api_calendar.summary,
-          description:        google_api_calendar.description,
-          time_zone:          google_api_calendar.time_zone
+          summary:              google_api_calendar.summary,
+          description:          google_api_calendar.description,
+          time_zone:            google_api_calendar.time_zone
         )
-        newly_created = true
       end
 
-      calendar_id = course_calendar.external_calendar_id
+      calendar_manager.share_with_user(calendar.external_calendar_id)
+      calendar_manager.add_to_all_calendar_lists(calendar.external_calendar_id)
 
-      share_calendar_with_user(calendar_id)
-      add_calendar_to_all_oauth_users(calendar_id)
+      CourseCalendars::SyncJob.perform_later(user, force: true) if newly_created && user.enrollments.any?
 
-      if newly_created && user.enrollments.any?
-        CourseCalendars::SyncJob.perform_later(user, force: true)
-      end
-
-      calendar_id
-    rescue Google::Apis::RateLimitError
-      # GoogleCalendar::CreateJob retries this class later.
-      raise
-    rescue Google::Apis::Error => e
-      Rails.logger.error "Failed to create Google Calendar: #{e.message}"
-      raise "Failed to create course calendar: #{e.message}"
-    end
-
-    def update_calendar_events(events, force: false)
-      service         = user_calendar_service
-      course_calendar = CourseCalendar.google.for_user(user).first
-      return { created: 0, updated: 0, skipped: 0 } unless course_calendar
-
-      calendar_id = course_calendar.external_calendar_id
-
-      all_existing_events = course_calendar.calendar_events.schedule_events.to_a
-      existing_events     = {}
-      duplicates_to_delete = []
-
-      all_existing_events.each do |e|
-        event_key = build_event_key(e)
-
-        if existing_events[event_key]
-          if e.created_at > existing_events[event_key].created_at
-            duplicates_to_delete << existing_events[event_key]
-            existing_events[event_key] = e
-          else
-            duplicates_to_delete << e
-          end
-        else
-          existing_events[event_key] = e
-        end
-      end
-
-      if duplicates_to_delete.any?
-        Rails.logger.info "Cleaning up #{duplicates_to_delete.size} duplicate calendar events"
-        with_batch_throttling(duplicates_to_delete) do |cal_event|
-          delete_event_from_calendar(service, course_calendar, cal_event)
-        end
-      end
-
-      current_event_keys = events.map { |e| build_event_key_from_hash(e) }.compact
-
-      events_to_delete = existing_events.except(*current_event_keys).reject do |_key, cal_event|
-        event_fully_past?(cal_event)
-      end
-      with_batch_throttling(events_to_delete.values) do |cal_event|
-        delete_event_from_calendar(service, course_calendar, cal_event)
-      end
-
-      stats              = { created: 0, updated: 0, skipped: 0 }
-      preference_resolver = Preferences::Resolver.new(user)
-      template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
-      labels              = GoogleCalendar::EventLabels.new(service, calendar_id)
-      preload_syncables(events)
-
-      events.each do |event|
-        event_key      = build_event_key_from_hash(event)
-        existing_event = existing_events[event_key]
-
-        if existing_event
-          syncable             = resolve_syncable(event)
-          event_with_prefs     = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
-
-          if force || existing_event.data_changed?(event_with_prefs)
-            result = update_event_in_calendar(service, course_calendar, existing_event, event_with_prefs, force: force, labels: labels)
-            stats[:updated] += 1 if result == :updated
-            stats[:skipped] += 1 if result == :skipped_user_edit
-          else
-            existing_event.mark_synced!
-            stats[:skipped] += 1
-          end
-        else
-          create_event_in_calendar(service, course_calendar, event, preference_resolver: preference_resolver,
-                                                                    template_renderer: template_renderer, labels: labels)
-          stats[:created] += 1
-        end
-      end
-
-      course_calendar.mark_synced!
-
-      total_processed  = stats[:created] + stats[:updated] + stats[:skipped]
-      skip_percentage  = total_processed > 0 ? (stats[:skipped].to_f / total_processed * 100).round(2) : 0
-
-      Rails.logger.info({
-        message: "Calendar sync completed",
-        user_id: user.id,
-        events_created: stats[:created],
-        events_updated: stats[:updated],
-        events_skipped: stats[:skipped],
-        total_processed: total_processed,
-        skip_percentage: skip_percentage
-      }.to_json)
-
-      stats
-    end
-
-    def update_specific_events(events, force: false)
-      service         = user_calendar_service
-      course_calendar = CourseCalendar.google.for_user(user).first
-
-      unless course_calendar
-        Rails.logger.warn({ message: "Cannot update events - no Google Calendar found", user_id: user&.id, event_count: events.size }.to_json)
-        return { created: 0, updated: 0, skipped: 0 }
-      end
-
-      meeting_time_ids    = events.filter_map { |e| e[:meeting_time_id] }
-      final_exam_ids      = events.filter_map { |e| e[:final_exam_id] }
-      university_event_ids = events.filter_map { |e| e[:university_calendar_event_id] }
-
-      base_query = course_calendar.calendar_events.schedule_events
-      conditions = []
-      conditions << base_query.where(meeting_time_id: meeting_time_ids)         if meeting_time_ids.any?
-      conditions << base_query.where(final_exam_id: final_exam_ids)             if final_exam_ids.any?
-      conditions << base_query.where(university_calendar_event_id: university_event_ids) if university_event_ids.any?
-
-      query = conditions.reduce { |q, c| q.or(c) } || base_query
-
-      existing_events = query.index_by { |e| build_event_key(e) }
-
-      preference_resolver = Preferences::Resolver.new(user)
-      template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
-      labels              = GoogleCalendar::EventLabels.new(service, course_calendar.external_calendar_id)
-      stats = { created: 0, updated: 0, skipped: 0 }
-      preload_syncables(events)
-
-      events.each do |event|
-        event_key      = build_event_key_from_hash(event)
-        existing_event = existing_events[event_key]
-
-        if existing_event
-          syncable         = resolve_syncable(event)
-          event_with_prefs = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
-
-          if force || existing_event.data_changed?(event_with_prefs)
-            update_event_in_calendar(service, course_calendar, existing_event, event_with_prefs, force: force, labels: labels)
-            stats[:updated] += 1
-          else
-            existing_event.mark_synced!
-            stats[:skipped] += 1
-          end
-        else
-          create_event_in_calendar(service, course_calendar, event, preference_resolver: preference_resolver,
-                                                                    template_renderer: template_renderer, labels: labels)
-          stats[:created] += 1
-        end
-      end
-
-      Rails.logger.info "Partial sync complete: #{stats[:created]} created, #{stats[:updated]} updated, #{stats[:skipped]} skipped"
-      stats
-    end
-
-    # Delete tracked events from Google Calendar and from the database.
-    # Used for events that the reconcile pass in update_calendar_events keeps,
-    # such as past university events the user no longer wants.
-    def delete_events(db_events)
-      db_events = Array(db_events)
-      return 0 if db_events.empty?
-
-      course_calendar = CourseCalendar.google.for_user(user).first
-      return 0 unless course_calendar
-
-      service = user_calendar_service
-      with_batch_throttling(db_events) do |db_event|
-        delete_event_from_calendar(service, course_calendar, db_event)
-      end
-
-      db_events.size
-    end
-
-    # Puts a FriendMeeting in the course calendar and tracks it with a
-    # CalendarEvent row. With invite: true and invitees, Google sends each
-    # invitee an invitation. Returns the row, or nil when the person has no
-    # Google course calendar.
-    def create_friend_meeting_event(meeting, invite: true)
-      course_calendar = CourseCalendar.google.for_user(user).first
-      return nil unless course_calendar
-
-      calendar_id   = course_calendar.external_calendar_id
-      event_data    = meeting.event_data
-      google_event  = GoogleCalendar::EventPayload.for_friend_meeting(meeting, attendees: invite)
-      service       = user_calendar_service
-      send_updates  = google_event.attendees.present? ? "all" : "none"
-      created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event, send_updates: send_updates) }
-
-      course_calendar.calendar_events.create!(
-        friend_meeting_row_attributes(event_data).merge(friend_meeting: meeting, external_event_id: created_event.id)
-      )
-    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
-      raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
-
-      # A concurrent publish already tracks this meeting, so the event just
-      # created is a duplicate. Remove it rather than leave it on the calendar.
-      with_rate_limit_handling { service.delete_event(calendar_id, created_event.id, send_updates: "none") } if created_event&.id
-      nil
-    end
-
-    # Writes the meeting's current title, place, time, and (with attendees:
-    # true) friends over the event. Google tells each friend about the change,
-    # and sends a cancellation to a friend who is no longer on the list. An
-    # event that is gone is made again, without attendees.
-    def update_friend_meeting_event(row, meeting, attendees:)
-      calendar_id  = row.course_calendar.external_calendar_id
-      google_event = GoogleCalendar::EventPayload.for_friend_meeting(meeting, attendees: attendees)
-      service      = user_calendar_service
-
-      begin
-        with_rate_limit_handling do
-          service.update_event(calendar_id, row.external_event_id, google_event, send_updates: attendees ? "all" : "none")
-        end
-      rescue Google::Apis::ClientError => e
-        raise unless [ 404, 410 ].include?(e.status_code)
-
-        row.skip_remote_deletion = true
-        row.destroy!
-        return create_friend_meeting_event(meeting, invite: false)
-      end
-
-      row.update!(friend_meeting_row_attributes(meeting.event_data))
-      row
-    end
-
-    # Deletes the event of a meeting that its owner cancelled. Google sends a
-    # cancellation to each friend on the event. A missing event counts as
-    # deleted.
-    def delete_friend_meeting_event(row)
-      calendar_id = row.course_calendar.external_calendar_id
-      service     = user_calendar_service
-
-      begin
-        with_rate_limit_handling { service.delete_event(calendar_id, row.external_event_id, send_updates: "all") }
-      rescue Google::Apis::ClientError => e
-        raise unless [ 404, 410 ].include?(e.status_code)
-      end
-
-      row.skip_remote_deletion = true
-      row.destroy!
+      calendar.external_calendar_id
     end
 
     # The emails, in lower case, of the attendees who declined the invitation
     # to a meeting event. A tentative answer is not a decline. A missing event
     # has none.
     def declined_attendee_emails(row)
-      calendar_id = row.course_calendar.external_calendar_id
-      event       = with_rate_limit_handling { user_calendar_service.get_event(calendar_id, row.external_event_id) }
+      event = with_rate_limit_handling { user_calendar_service.get_event(calendar_id_of(row), row.external_event_id) }
 
       Array(event.attendees).select { |attendee| attendee.response_status == "declined" }
                             .map { |attendee| attendee.email.to_s.downcase }
     rescue Google::Apis::ClientError => e
-      raise unless [ 404, 410 ].include?(e.status_code)
+      raise unless self.class.gone?(e)
 
       []
-    end
-
-    def list_calendars
-      calendar_manager.list_calendars
-    end
-
-    # Deletes a single event from a calendar using the service account (which owns
-    # all app-created calendars). Used when a CalendarEvent row is destroyed
-    # so the live Google event doesn't linger as an orphan. Treats a missing event
-    # as success.
-    def delete_calendar_event(calendar_id, external_event_id)
-      service = service_account_calendar_service
-      with_rate_limit_handling { service.delete_event(calendar_id, external_event_id) }
-    rescue Google::Apis::ClientError => e
-      raise unless GoogleCalendar::EventWriter.event_already_deleted?(e)
-
-      Rails.logger.info("Event #{external_event_id} already absent from calendar #{calendar_id}")
-    end
-
-    def delete_calendar(calendar_id)
-      calendar_manager.delete_calendar(calendar_id)
-    end
-
-    # Public: OauthCredential calls this when a Google account is disconnected.
-    # Uses that account's own token, so call it before the token is revoked.
-    def remove_calendar_from_user_list_for_email(calendar_id, email)
-      calendar_manager.remove_from_calendar_list(calendar_id, email)
-    end
-
-    # Deletes the ACL rule that share_calendar_with_user added for the email.
-    def unshare_calendar_with_email(calendar_id, email)
-      calendar_manager.unshare_with_email(calendar_id, email)
     end
 
     private
 
     def calendar_manager
-      @calendar_manager ||= GoogleCalendar::CalendarManager.new(user, rate_limiter: self)
-    end
-
-    def event_writer
-      @event_writer ||= GoogleCalendar::EventWriter.new(user, rate_limiter: self)
-    end
-
-    # GoogleCalendar::CreateJob, CourseScheduleSyncable, and some rake tasks
-    # call the next four with send. Specs stub user_calendar_service.
-    def service_account_calendar_service
-      GoogleCalendar::CalendarServices.service_account
+      @calendar_manager ||= GoogleCalendar::CalendarManager.new(user)
     end
 
     def user_calendar_service
-      GoogleCalendar::CalendarServices.for_user(user)
+      @user_calendar_service ||= GoogleCalendar::CalendarServices.for_user(user)
     end
 
-    def share_calendar_with_user(calendar_id)
-      calendar_manager.share_with_user(calendar_id)
+    def connect!
+      user_calendar_service
     end
 
-    def add_calendar_to_all_oauth_users(calendar_id)
-      calendar_manager.add_to_all_calendar_lists(calendar_id)
+    def rate_limited?(error)
+      error.is_a?(Google::Apis::RateLimitError)
     end
 
-    def create_event_in_calendar(service, course_calendar, course_event, preference_resolver: nil, template_renderer: nil, labels: nil)
-      syncable   = resolve_syncable(course_event)
-      event_data = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
-
-      event_writer.create(service, course_calendar, course_event, event_data, labels: labels)
+    def each_paced(rows, &)
+      with_batch_throttling(rows, &)
     end
 
-    # course_event already has the user's preferences applied: both callers apply
-    # them to decide whether the event changed.
-    def update_event_in_calendar(service, course_calendar, db_event, course_event, force: false, labels: nil)
-      event_writer.update(service, course_calendar, db_event, course_event, force: force, labels: labels)
+    def calendar_id_of(row)
+      row.course_calendar.external_calendar_id
     end
 
-    def delete_event_from_calendar(service, course_calendar, db_event)
-      event_writer.delete(service, course_calendar, db_event)
+    def labels_for(calendar)
+      @labels ||= {}
+      @labels[calendar.external_calendar_id] ||= GoogleCalendar::EventLabels.new(user_calendar_service, calendar.external_calendar_id)
     end
 
-    def friend_meeting_row_attributes(event_data)
-      {
-        summary:         event_data[:summary],
-        location:        event_data[:location],
-        start_time:      event_data[:start_time],
-        end_time:        event_data[:end_time],
-        recurrence:      event_data[:recurrence],
-        event_data_hash: CalendarEvent.generate_data_hash(event_data),
-        last_synced_at:  Time.current
-      }
+    def insert_event(calendar, data)
+      google_event = EventPayload.build(data, labels_for(calendar))
+      created = with_rate_limit_handling do
+        user_calendar_service.insert_event(calendar.external_calendar_id, google_event, **EventPayload.request_options(google_event))
+      end
+      { external_event_id: created.id }
+    end
+
+    def fetch_event(row)
+      google_event = with_rate_limit_handling { user_calendar_service.get_event(calendar_id_of(row), row.external_event_id) }
+      EventPayload.remote_event(row, google_event)
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.gone?(e)
+    end
+
+    def patch_event(row, event_id, data, remote:, force:) # rubocop:disable Lint/UnusedMethodArgument
+      google_event = EventPayload.build(data, labels_for(row.course_calendar))
+      with_rate_limit_handling do
+        user_calendar_service.update_event(calendar_id_of(row), event_id, google_event, **EventPayload.request_options(google_event))
+      end
+      event_id
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.gone?(e)
+    end
+
+    def delete_event(row)
+      with_rate_limit_handling { user_calendar_service.delete_event(calendar_id_of(row), row.external_event_id) }
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.gone?(e)
+
+      Rails.logger.warn({ message: "Event not found in Google Calendar, removing the row", user_id: user.id,
+                          external_event_id: row.external_event_id }.to_json)
+    end
+
+    def delete_duplicate_event(calendar, event_id)
+      with_rate_limit_handling { user_calendar_service.delete_event(calendar.external_calendar_id, event_id, send_updates: "none") }
+    end
+
+    def insert_friend_meeting(calendar, meeting, invite:)
+      google_event = EventPayload.for_friend_meeting(meeting, attendees: invite)
+      send_updates = google_event.attendees.present? ? "all" : "none"
+      created = with_rate_limit_handling do
+        user_calendar_service.insert_event(calendar.external_calendar_id, google_event, send_updates: send_updates)
+      end
+      { external_event_id: created.id }
+    end
+
+    def patch_friend_meeting(row, meeting, attendees:)
+      google_event = EventPayload.for_friend_meeting(meeting, attendees: attendees)
+      with_rate_limit_handling do
+        user_calendar_service.update_event(calendar_id_of(row), row.external_event_id, google_event,
+                                           send_updates: attendees ? "all" : "none")
+      end
+      row.external_event_id
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.gone?(e)
+    end
+
+    def delete_friend_meeting(row)
+      with_rate_limit_handling { user_calendar_service.delete_event(calendar_id_of(row), row.external_event_id, send_updates: "all") }
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.gone?(e)
     end
   end
 end

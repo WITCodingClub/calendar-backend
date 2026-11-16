@@ -1,23 +1,57 @@
 # frozen_string_literal: true
 
 module MicrosoftGraph
-  # Syncs a person's course events to a calendar in their own Microsoft 365
-  # mailbox through Microsoft Graph. It answers the provider interface that
-  # CourseCalendars::Providers documents, like GoogleCalendar::Provider.
+  # The Microsoft Graph remote calls of CourseCalendars::Provider, which runs
+  # the sync. The events go to a calendar in the person's own Microsoft 365
+  # mailbox.
   #
   # Graph event ids change when an event moves between folders, but iCalUId does
   # not. Each tracking row keeps both. When Graph answers 404 for the stored id,
   # the service looks the event up by iCalUId, stores the new id and carries on.
   # Only when neither id finds the event does it create the event again.
-  class CalendarProvider
-    include CalendarEventPreparation
+  class CalendarProvider < CourseCalendars::Provider
+    # The answers that CourseCalendars::Providers gives for Microsoft.
 
-    LOCAL_TIME_ZONE = "America/New_York"
+    def self.delete_event_later(ref)
+      MicrosoftGraph::EventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
+    end
 
-    attr_reader :user
+    def self.delete_calendar_later(calendar)
+      MicrosoftGraph::CalendarDeleteJob.perform_later(calendar.oauth_credential_id, calendar.external_calendar_id)
+    end
+
+    # Microsoft credentials refresh only while the app has an Entra client.
+    def self.refreshable?
+      MicrosoftGraph.configured?
+    end
+
+    def self.refresh_token!(credential)
+      MicrosoftGraph::TokenClient.new.refresh!(credential)
+    end
+
+    # A Microsoft calendar lives in the person's mailbox, and only this
+    # credential's token can delete it. The delete job that destroying the row
+    # would enqueue runs after the credential is gone, so the calendar goes
+    # now. A Graph failure must not block the disconnect, so it is reported
+    # only. When the events are in the person's primary calendar, only the
+    # events go.
+    def self.release_calendar(credential)
+      calendar = credential.course_calendar
+      return if calendar.nil? || calendar.external_calendar_id.blank?
+
+      new(credential.user, credential: credential).remove_course_events(calendar)
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
+    ensure
+      # The delete job would find no credential, so it is not enqueued.
+      calendar&.skip_remote_deletion = true
+    end
+
+    # Microsoft has no revoke endpoint that the app can call for a grant.
+    def self.revoke_later(_credential); end
 
     def initialize(user, credential: nil, client: nil)
-      @user       = user
+      super(user)
       @credential = credential
       @client     = client
     end
@@ -120,102 +154,6 @@ module MicrosoftGraph
       mark_meetings_removed(calendar, meeting_ids)
     end
 
-    def update_calendar_events(events, force: false)
-      calendar = course_calendar
-      return empty_stats unless calendar
-
-      existing     = calendar.calendar_events.schedule_events.to_a.index_by { |row| build_event_key(row) }
-      current_keys = events.filter_map { |event| build_event_key_from_hash(event) }
-
-      existing.except(*current_keys).each_value do |row|
-        delete_remote_event(row) unless event_fully_past?(row)
-      end
-
-      stats = upsert_events(calendar, events, existing, force: force)
-      calendar.mark_synced!
-
-      Rails.logger.info({ message: "Microsoft calendar sync completed", user_id: user.id, **stats }.to_json)
-      stats
-    end
-
-    def update_specific_events(events, force: false)
-      calendar = course_calendar
-      return empty_stats unless calendar
-
-      rows = calendar.calendar_events.schedule_events
-      existing = rows.where(meeting_time_id: events.filter_map { |e| e[:meeting_time_id] })
-                     .or(rows.where(final_exam_id: events.filter_map { |e| e[:final_exam_id] }))
-                     .or(rows.where(university_calendar_event_id: events.filter_map { |e| e[:university_calendar_event_id] }))
-                     .index_by { |row| build_event_key(row) }
-
-      upsert_events(calendar, events, existing, force: force)
-    end
-
-    def delete_events(db_events)
-      db_events = Array(db_events)
-      return 0 if db_events.empty? || course_calendar.nil?
-
-      db_events.each { |row| delete_remote_event(row) }
-      db_events.size
-    end
-
-    # Puts a FriendMeeting in the person's primary calendar, whatever the
-    # placement of the course events. The row still belongs to the course
-    # calendar, which tracks it.
-    #
-    # Graph cannot move an event between calendars, and deleting a meeting with
-    # attendees sends them a cancellation. In the primary calendar, a placement
-    # move or a course calendar that the person deleted never touches the
-    # meeting, so friends never get a cancellation and a new invitation for
-    # nothing. Exchange also reads free and busy time from the primary calendar
-    # only.
-    #
-    # With invite: true and invitees, Exchange sends each invitee an
-    # invitation. Returns the row, or nil when the person has no Microsoft
-    # course calendar.
-    def create_friend_meeting_event(meeting, invite: true)
-      calendar = course_calendar
-      return nil unless calendar
-
-      data   = meeting.event_data
-      remote = client.post("me/calendar/events", friend_meeting_payload(meeting, attendees: invite))
-
-      calendar.calendar_events.create!(
-        row_attributes(data).merge(friend_meeting: meeting, external_event_id: remote["id"], external_ical_uid: remote["iCalUId"])
-      )
-    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
-      raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
-
-      # A concurrent publish already tracks this meeting, so the event just
-      # created is a duplicate. Remove it rather than leave it on the calendar.
-      delete_quietly(remote["id"]) if remote
-      nil
-    end
-
-    # Writes the meeting's current title, place, time, and (with attendees:
-    # true) friends over the event. Exchange sends the friends an update, and a
-    # cancellation to a friend who is no longer on the list. An event that is
-    # gone is made again, without attendees.
-    def update_friend_meeting_event(row, meeting, attendees:)
-      data     = meeting.event_data
-      event_id = patch_event(row, row.external_event_id, friend_meeting_payload(meeting, attendees: attendees))
-
-      if event_id.blank?
-        row.skip_remote_deletion = true
-        row.destroy!
-        return create_friend_meeting_event(meeting, invite: false)
-      end
-
-      row.update!(row_attributes(data).merge(external_event_id: event_id))
-      row
-    end
-
-    # Deletes the event of a meeting that its owner cancelled. Exchange sends a
-    # cancellation to each attendee of the event.
-    def delete_friend_meeting_event(row)
-      delete_remote_event(row)
-    end
-
     # The emails, in lower case, of the attendees who declined the invitation
     # to a meeting event. A tentative answer is not a decline. A missing event
     # has none.
@@ -256,8 +194,8 @@ module MicrosoftGraph
       @client ||= MicrosoftGraph::Client.new(credential)
     end
 
-    def empty_stats
-      { created: 0, updated: 0, skipped: 0 }
+    def rate_limited?(error)
+      error.is_a?(MicrosoftGraph::Error) && error.status == 429
     end
 
     # The primary calendar always exists, so there is nothing to create. Its id
@@ -271,14 +209,14 @@ module MicrosoftGraph
     end
 
     def create_separate_calendar
-      client.post("me/calendars", { name: calendar_name })
+      client.post("me/calendars", { name: self.class.calendar_name })
     end
 
     def save_calendar(calendar, remote, placement:)
       attributes = {
         external_calendar_id: remote.fetch("id"),
         summary:              remote["name"],
-        time_zone:            LOCAL_TIME_ZONE,
+        time_zone:            SchoolTimeZone::NAME,
         placement:            placement
       }
 
@@ -296,103 +234,97 @@ module MicrosoftGraph
       FriendMeetingPublication.where(friend_meeting_id: gone, provider: "microsoft").find_each(&:mark_removed!)
     end
 
-    # One failed delete must not stop the others, so it is logged and the row
-    # stays. A row that stays is tried again on the next call.
+    # One failed delete must not stop the others, so it is reported and the
+    # row stays. A row that stays is tried again on the next call.
     def delete_tracked_events(rows)
       rows.find_each do |row|
-        delete_remote_event(row)
+        delete_rows([ row ])
       rescue MicrosoftGraph::Error => e
-        Rails.logger.error({ message: "Could not delete a Microsoft event", user_id: user&.id,
-                             calendar_event_id: row.id, error: e.class.name }.to_json)
+        Rails.error.report(e, handled: true, context: { user_id: user&.id, calendar_event_id: row.id })
       end
     end
 
-    def upsert_events(calendar, events, existing, force:)
-      resolver = Preferences::Resolver.new(user)
-      renderer = Preferences::TemplateRenderer.new(user_id: user.id)
-      stats    = empty_stats
-      preload_syncables(events)
-
-      events.each do |event|
-        row  = existing[build_event_key_from_hash(event)]
-        data = apply_preferences_to_event(resolve_syncable(event), event,
-                                          preference_resolver: resolver, template_renderer: renderer)
-
-        if row.nil?
-          create_remote_event(calendar, event, data)
-          stats[:created] += 1
-        elsif force || row.data_changed?(data)
-          result = update_remote_event(calendar, row, event, data, force: force)
-          stats[result == :skipped_user_edit ? :skipped : :updated] += 1
-        else
-          row.mark_synced!
-          stats[:skipped] += 1
-        end
-      end
-
-      stats
-    end
-
-    def create_remote_event(calendar, event, data)
+    def insert_event(calendar, data)
       remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", event_payload(data))
-
-      row = calendar.calendar_events.create!(
-        row_attributes(data)
-          .merge(syncable_ids(event))
-          .merge(external_event_id: remote["id"], external_ical_uid: remote["iCalUId"])
-      )
-      cancel_new_event_exclusions(row, data)
-      row
-    rescue ActiveRecord::RecordNotUnique
-      # A concurrent sync already tracks this event, so the one just created is a
-      # duplicate. Remove it rather than leave it on the calendar.
-      delete_quietly(remote["id"]) if remote
-      nil
+      { external_event_id: remote["id"], external_ical_uid: remote["iCalUId"] }
     end
 
     # The row exists before the occurrences are cancelled, so a failure here
     # cannot make the next sync post the series again. The cleared hash makes
     # the next sync see a change and run the exclusions through an update.
-    def cancel_new_event_exclusions(row, data)
+    def event_created(row, data)
       cancel_excluded_occurrences(row.external_event_id, data)
     rescue MicrosoftGraph::Error, Faraday::Error => e
       Rails.error.report(e, handled: true, context: { user_id: user&.id, calendar_event_id: row.id })
       row.update_column(:event_data_hash, nil) # rubocop:disable Rails/SkipsModelValidations
     end
 
-    # Like GoogleCalendar::Provider#update_event_in_calendar: without force, the
-    # service reads the Outlook event first and keeps each field the person
-    # changed there. A changed recurrence keeps the whole event. A forced sync
-    # writes the app's values and forgets the edits.
-    def update_remote_event(calendar, row, event, data, force:)
+    # Reads the event by its stored id, then by its iCalUId. nil when neither
+    # finds it.
+    def fetch_event(row)
       event_id = row.external_event_id
-      edited   = []
-      remote   = nil
-      payload_data = data
+      remote   = begin
+        get_event(event_id)
+      rescue MicrosoftGraph::NotFoundError
+        event_id = find_event_id_by_ical_uid(row.external_ical_uid)
+        return nil if event_id.blank?
 
-      unless force
-        event_id, remote = fetch_tracked_event(row)
-        return recreate_remote_event(calendar, row, event, data) if event_id.blank?
-
-        edits = MicrosoftGraph::EventEdits.new(row, remote)
-        return keep_recurrence_edit(row, event_id, edits) if edits.recurrence_changed?
-
-        edited       = ((row.user_edited_fields || []) + edits.edited_fields).uniq
-        payload_data = edits.merge(data, edited)
+        begin
+          get_event(event_id)
+        rescue MicrosoftGraph::NotFoundError
+          return nil
+        end
       end
 
-      payload  = event_payload(payload_data, remote_categories: remote&.fetch("categories", nil))
-      # A forced update writes the app's values, so no color clears the old WIT category.
-      payload[:categories] ||= [] if force
-      event_id = patch_event(row, event_id, payload)
-      return recreate_remote_event(calendar, row, event, data) if event_id.blank?
+      EventPayload.remote_event(row, event_id, remote)
+    end
 
-      cancel_excluded_occurrences(event_id, payload_data)
-      # The hash is of the app's data, not the merged data, like
-      # GoogleCalendar::EventWriter#update. Else an edited event updates on every sync.
-      row.update!(row_attributes(payload_data).merge(external_event_id: event_id, user_edited_fields: edited.presence,
-                                                     event_data_hash: CalendarEvent.generate_data_hash(data)))
-      :updated
+    def get_event(event_id)
+      client.get(event_path(event_id), params: { "$select" => EventPayload::SELECT })
+    end
+
+    # Without a read of the event (a forced update), the WIT category is set
+    # only when the event has a color, and no color clears the old one. After
+    # a read, the person's own categories and free or busy choice stay.
+    # Updating a series restores its occurrences, so the excluded ones are
+    # cancelled again.
+    def patch_event(row, event_id, data, remote:, force:)
+      payload = event_payload(data, remote_categories: remote&.raw&.fetch("categories", nil))
+      payload[:categories] ||= [] if force
+      event_id = patch_tracked_event(row, event_id, payload)
+      cancel_excluded_occurrences(event_id, data) if event_id.present?
+      event_id
+    end
+
+    def delete_event(row)
+      delete_calendar_event(row.external_event_id, row.external_ical_uid)
+    end
+
+    def delete_duplicate_event(_calendar, event_id)
+      delete_quietly(event_id)
+    end
+
+    # A friend meeting goes to the person's primary calendar, whatever the
+    # placement of the course events. The row still belongs to the course
+    # calendar, which tracks it.
+    #
+    # Graph cannot move an event between calendars, and deleting a meeting with
+    # attendees sends them a cancellation. In the primary calendar, a placement
+    # move or a course calendar that the person deleted never touches the
+    # meeting, so friends never get a cancellation and a new invitation for
+    # nothing. Exchange also reads free and busy time from the primary calendar
+    # only.
+    def insert_friend_meeting(_calendar, meeting, invite:)
+      remote = client.post("me/calendar/events", friend_meeting_payload(meeting, attendees: invite))
+      { external_event_id: remote["id"], external_ical_uid: remote["iCalUId"] }
+    end
+
+    def patch_friend_meeting(row, meeting, attendees:)
+      patch_tracked_event(row, row.external_event_id, friend_meeting_payload(meeting, attendees: attendees))
+    end
+
+    def delete_friend_meeting(row)
+      delete_event(row)
     end
 
     # The Graph event with the category for the event's color. Without a read of
@@ -406,7 +338,6 @@ module MicrosoftGraph
       if remote_categories.nil?
         payload[:categories] = [ category ] if category
       else
-        # After a read, the person's own free or busy choice stays.
         payload.delete(:showAs)
         own = Array(remote_categories).reject { |name| MicrosoftGraph::CategoryCache.app_category?(name) }
         payload[:categories] = own + [ category ].compact
@@ -419,21 +350,6 @@ module MicrosoftGraph
       @category_cache ||= MicrosoftGraph::CategoryCache.new(client)
     end
 
-    # Returns the event id and the event. The id is nil when neither the stored
-    # id nor the iCalUId finds the event.
-    def fetch_tracked_event(row)
-      [ row.external_event_id, fetch_event(row.external_event_id) ]
-    rescue MicrosoftGraph::NotFoundError
-      moved_id = find_event_id_by_ical_uid(row.external_ical_uid)
-      return [ nil, nil ] if moved_id.blank?
-
-      begin
-        [ moved_id, fetch_event(moved_id) ]
-      rescue MicrosoftGraph::NotFoundError
-        [ nil, nil ]
-      end
-    end
-
     # The event with only its attendees, or nil when it is gone.
     def fetch_attendees(event_id)
       client.get(event_path(event_id), params: { "$select" => "attendees" })
@@ -441,12 +357,8 @@ module MicrosoftGraph
       nil
     end
 
-    def fetch_event(event_id)
-      client.get(event_path(event_id), params: { "$select" => MicrosoftGraph::EventEdits::SELECT })
-    end
-
     # Returns the id the PATCH reached, or nil when the event is gone.
-    def patch_event(row, event_id, payload)
+    def patch_tracked_event(row, event_id, payload)
       client.patch(event_path(event_id), payload)
       event_id
     rescue MicrosoftGraph::NotFoundError
@@ -455,32 +367,6 @@ module MicrosoftGraph
 
       client.patch(event_path(moved_id), payload)
       moved_id
-    end
-
-    # The person changed the recurrence in Outlook. The app cannot merge a
-    # series, so it keeps the event and records what the person left.
-    def keep_recurrence_edit(row, event_id, edits)
-      Rails.logger.info({ message: "Microsoft event recurrence edited in Outlook, keeping it", user_id: user.id, calendar_event_id: row.id }.to_json)
-      attributes = edits.remote_attributes
-      row.update!(attributes.merge(
-        external_event_id: event_id,
-        event_data_hash:   CalendarEvent.generate_data_hash(attributes.merge(recurrence: row.recurrence)),
-        last_synced_at:    Time.current
-      ))
-      :skipped_user_edit
-    end
-
-    def recreate_remote_event(calendar, row, event, data)
-      Rails.logger.warn({ message: "Microsoft event not found, recreating", user_id: user.id, calendar_event_id: row.id }.to_json)
-      row.skip_remote_deletion = true
-      row.destroy!
-      create_remote_event(calendar, event, data)
-    end
-
-    def delete_remote_event(row)
-      delete_calendar_event(row.external_event_id, row.external_ical_uid)
-      row.skip_remote_deletion = true
-      row.destroy
     end
 
     def delete_quietly(event_id)
@@ -501,13 +387,10 @@ module MicrosoftGraph
     end
 
     # Graph cannot take EXDATEs, so each excluded day's occurrence is cancelled
-    # once the series exists. Updating a series restores its occurrences, so this
-    # runs after every create and update.
+    # once the series exists.
     def cancel_excluded_occurrences(event_id, data)
-      zone = Time.find_zone!(LOCAL_TIME_ZONE)
-
       MicrosoftGraph::EventPayload.excluded_dates(data[:recurrence]).each do |date|
-        day_start = zone.local(date.year, date.month, date.day)
+        day_start = SchoolTimeZone.zone.local(date.year, date.month, date.day)
         response  = client.get("#{event_path(event_id)}/instances", params: {
           "startDateTime" => day_start.iso8601,
           "endDateTime"   => (day_start + 1.day).iso8601,
@@ -530,33 +413,12 @@ module MicrosoftGraph
       payload
     end
 
-    def row_attributes(data)
-      {
-        summary:         data[:summary],
-        location:        data[:location],
-        start_time:      data[:start_time],
-        end_time:        data[:end_time],
-        recurrence:      data[:recurrence],
-        event_data_hash: CalendarEvent.generate_data_hash(data),
-        last_synced_at:  Time.current
-      }
-    end
-
-    def syncable_ids(event)
-      event.slice(:meeting_time_id, :final_exam_id, :university_calendar_event_id).compact.first(1).to_h
-    end
-
     def event_path(event_id)
       "me/events/#{escape(event_id)}"
     end
 
     def escape(id)
       ERB::Util.url_encode(id.to_s)
-    end
-
-    def calendar_name
-      prefix = { "test" => "[TEST] ", "development" => "[DEV] ", "stage" => "[STAGE] " }[Rails.env] || ""
-      "#{prefix}WIT Courses"
     end
   end
 end

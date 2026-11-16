@@ -27,7 +27,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class CalendarPreference < ApplicationRecord
-  include ReminderSettingsNormalizable
+  include PreferenceFields
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :cpf, min_hash_length: 12
@@ -45,13 +45,6 @@ class CalendarPreference < ApplicationRecord
   validates :event_type, presence: true, if: -> { scope_event_type? || scope_uni_cal_category? }
   validates :event_type, absence: true, if: -> { scope_global? || scope_uni_cal_global? }
   validates :event_type, inclusion: { in: UNI_CAL_CATEGORIES }, if: :scope_uni_cal_category?
-  validates :title_template, length: { maximum: 500 }, allow_blank: true
-  validates :description_template, length: { maximum: 2000 }, allow_blank: true
-  validates :location_template, length: { maximum: 500 }, allow_blank: true
-  normalizes :color_id, with: GoogleCalendar::Colors.method(:normalize_attribute)
-  validates :color_id, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
-  validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
-  validate :validate_template_syntax
 
   after_update_commit :sync_calendar_if_preferences_changed
   # A category row sits above the university wide row in Preferences::Resolver, so
@@ -78,17 +71,6 @@ class CalendarPreference < ApplicationRecord
 
   private
 
-  def validate_template_syntax
-    [ :title_template, :description_template, :location_template ].each do |field|
-      value = send(field)
-      next if value.blank?
-
-      Preferences::TemplateRenderer.validate_template(value)
-    rescue Preferences::TemplateRenderer::InvalidTemplateError => e
-      errors.add(field, "invalid syntax: #{e.message}")
-    end
-  end
-
   def university_wide_color_picked?
     scope_uni_cal_global? && color_id.present? && (@color_id_picked || saved_change_to_color_id?)
   end
@@ -101,9 +83,7 @@ class CalendarPreference < ApplicationRecord
   end
 
   def sync_calendar_if_preferences_changed
-    return unless saved_change_to_title_template? || saved_change_to_description_template? ||
-                  saved_change_to_location_template? || saved_change_to_color_id? ||
-                  saved_change_to_visibility? || saved_change_to_reminder_settings?
+    return unless preference_fields_changed?
 
     CourseCalendars::SyncJob.perform_later(user, force: true)
   end

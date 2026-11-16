@@ -28,14 +28,14 @@ module Dashboard
           text:      "Classes are in your main calendar and show as busy.",
           button:    "Use a separate calendar",
           switch_to: "separate",
-          confirm:   "Move your classes to a separate \"WIT Courses\" calendar? They no longer show as busy to other people. Changes you made to class events in Outlook are lost."
+          confirm:   "Move your classes to a separate \"#{CourseCalendars::Provider::CALENDAR_NAME}\" calendar? They no longer show as busy to other people. Changes you made to class events in Outlook are lost."
         }
       else
         {
-          text:      "Classes are in a separate \"WIT Courses\" calendar. They do not show as busy to other people.",
+          text:      "Classes are in a separate \"#{CourseCalendars::Provider::CALENDAR_NAME}\" calendar. They do not show as busy to other people.",
           button:    "Show classes as busy",
           switch_to: "primary",
-          confirm:   "Move your classes to your main calendar? People who can see your calendar see the class events. The \"WIT Courses\" calendar is removed, and changes you made to class events in Outlook are lost."
+          confirm:   "Move your classes to your main calendar? People who can see your calendar see the class events. The \"#{CourseCalendars::Provider::CALENDAR_NAME}\" calendar is removed, and changes you made to class events in Outlook are lost."
         }
       end
     end

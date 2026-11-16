@@ -5,7 +5,8 @@ require "rails_helper"
 RSpec.describe "Api::GoogleCalendars", type: :request do
   let(:user)    { create(:user) }
   let(:headers) { auth_headers_for(user) }
-  let(:service) { instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-1", remove_calendar_from_user_list_for_email: nil, unshare_calendar_with_email: nil) }
+  let(:service) { instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-1") }
+  let(:manager) { instance_double(GoogleCalendar::CalendarManager, remove_from_calendar_list: nil, unshare_with_email: nil) }
 
   def json = response.parsed_body
 
@@ -13,7 +14,10 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
     GoogleSignIn::OauthState.verify_state(Rack::Utils.parse_query(URI(oauth_url).query)["state"])
   end
 
-  before { allow(GoogleCalendar::Provider).to receive(:new).and_return(service) }
+  before do
+    allow(GoogleCalendar::Provider).to receive(:new).and_return(service)
+    allow(GoogleCalendar::CalendarManager).to receive(:new).and_return(manager)
+  end
 
   describe "POST /api/user/google_calendar" do
     it "answers INTERNAL_ERROR and reports the error when the calendar service fails" do
@@ -117,7 +121,19 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json["message"]).to eq("email removed from Google Calendar association")
       expect(OauthCredential.exists?(extra.id)).to be(false)
-      expect(service).to have_received(:unshare_calendar_with_email).with(CourseCalendar.last.external_calendar_id, "second@example.com")
+      expect(manager).to have_received(:unshare_with_email).with(CourseCalendar.last.external_calendar_id, "second@example.com")
+    end
+
+    it "finds a course calendar that a later linked account owns" do
+      create(:oauth_credential, user: user, email: "first@example.com", created_at: 2.days.ago)
+      owner = create(:oauth_credential, user: user, email: "second@example.com", created_at: 1.day.ago)
+      create(:course_calendar, oauth_credential: owner)
+      extra = create(:oauth_credential, user: user, email: "third@example.com")
+
+      delete "/api/user/google_calendar/emails", params: { email: extra.email }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(OauthCredential.exists?(extra.id)).to be(false)
     end
 
     it "refuses to remove the last Google account" do

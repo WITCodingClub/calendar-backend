@@ -1,41 +1,58 @@
 # frozen_string_literal: true
 
 module CourseCalendars
-  # Picks the calendar provider services that one person's sync runs through.
+  # The calendar providers, by the name that CourseCalendar#provider and
+  # OauthCredential#provider store. Models and jobs ask this registry, so only
+  # the provider classes know their own jobs and token calls.
   #
-  # Every provider service answers the same small interface:
+  # Each class subclasses CourseCalendars::Provider and answers:
   #
-  #   new(user)
-  #   #course_calendar                         -> CourseCalendar or nil
-  #   #create_or_get_course_calendar           -> the external calendar id
-  #   #update_calendar_events(events, force:)  -> { created:, updated:, skipped: }
-  #   #update_specific_events(events, force:)  -> { created:, updated:, skipped: }
-  #   #delete_events(calendar_event_rows)      -> Integer
-  #   #create_friend_meeting_event(meeting, invite:)          -> CalendarEvent or nil
-  #   #update_friend_meeting_event(row, meeting, attendees:)  -> CalendarEvent or nil
-  #   #delete_friend_meeting_event(row)                       -> deletes the event and the row
-  #
-  # GoogleCalendar::Provider and MicrosoftGraph::CalendarProvider implement it.
+  #   .delete_event_later(ref)          ref: { calendar_id:, oauth_credential_id:, event_id:, ical_uid: }
+  #   .delete_calendar_later(calendar)  for a CourseCalendar row that is gone
+  #   .refreshable?                     whether the app can refresh its tokens now
+  #   .refresh_token!(credential)       refreshes and saves the access token
+  #   .release_calendar(credential)     before the credential is destroyed
+  #   .revoke_later(credential)         after the credential is destroyed
   module Providers
+    CLASSES = {
+      "google"    => "GoogleCalendar::Provider",
+      "microsoft" => "MicrosoftGraph::CalendarProvider"
+    }.freeze
+
     module_function
+
+    def for(name)
+      CLASSES.fetch(name.to_s).constantize
+    end
+
+    def refreshable_names
+      CLASSES.keys.select { |name| self.for(name).refreshable? }
+    end
 
     # Google joins only when the person has a Google credential: without one,
     # every Google call raises. Microsoft joins only when its flag is on for
     # the person and they have a Microsoft calendar. A person with neither
     # gets no services, and the sync does nothing.
     def services_for(user)
-      microsoft = MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
-
       services = []
-      services << GoogleCalendar::Provider.new(user) if user.google_credential.present?
-      services << MicrosoftGraph::CalendarProvider.new(user) if microsoft
+      services << GoogleCalendar::Provider.new(user) if google?(user)
+      services << MicrosoftGraph::CalendarProvider.new(user) if microsoft?(user)
       services
     end
 
-    # Adds the stats of each provider. One provider gives back its own hash, and
-    # no provider gives nil, like a sync that did not run.
-    def merge_stats(results)
-      results.compact.reduce { |total, stats| total.merge(stats) { |_key, a, b| a + b } }
+    # Whether a sync for the person would reach any provider, by the same rule
+    # as services_for, without building the services.
+    def syncs?(user)
+      google?(user) || microsoft?(user)
     end
+
+    def google?(user)
+      user.google_credential.present?
+    end
+
+    def microsoft?(user)
+      MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
+    end
+    private_class_method :google?, :microsoft?
   end
 end

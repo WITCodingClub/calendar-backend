@@ -1,0 +1,327 @@
+# frozen_string_literal: true
+
+module CourseCalendars
+  # The provider-neutral half of a calendar sync. It owns the sync loop (the
+  # tracking rows by key, the delete of events the person no longer has, and
+  # create, update or skip by the data hash), the "edits in the calendar win"
+  # merge, the row columns, the duplicate race, and the "event is gone, make
+  # it again" step. GoogleCalendar::Provider and MicrosoftGraph::CalendarProvider
+  # subclass it and make only the remote calls.
+  #
+  # A subclass implements:
+  #
+  #   #course_calendar                                  -> CourseCalendar or nil
+  #   #insert_event(calendar, data)                     -> the row's external id columns
+  #   #fetch_event(row)                                 -> CourseCalendars::RemoteEvent, or nil when gone
+  #   #patch_event(row, event_id, data, remote:, force:) -> the event id, or nil when gone
+  #   #delete_event(row)                                -> deletes it; a missing event counts as deleted
+  #   #delete_duplicate_event(calendar, event_id)       -> deletes an event the app just made twice
+  #   #insert_friend_meeting(calendar, meeting, invite:)         -> the row's external id columns
+  #   #patch_friend_meeting(row, meeting, attendees:)            -> the event id, or nil when gone
+  #   #delete_friend_meeting(row)                                -> deletes it; missing counts as deleted
+  #   #declined_attendee_emails(row)                             -> [String]
+  #   #rate_limited?(error)                                      -> true for its rate limit error
+  #   #connect!                                                  -> authorizes before a sync (optional)
+  #
+  # CourseCalendars::Providers lists the subclasses and the class methods each
+  # one answers for the models and jobs.
+  class Provider
+    CALENDAR_NAME = "WIT Courses"
+    ENV_PREFIXES  = { "test" => "[TEST] ", "development" => "[DEV] ", "stage" => "[STAGE] " }.freeze
+
+    SYNCABLES = {
+      meeting_time_id:              [ "mt", -> { Course::MeetingTime.includes(rooms: :building, course: [ :faculties, :term ]) } ],
+      final_exam_id:                [ "fe", -> { FinalExam.includes(course: [ :faculties, :term ]) } ],
+      university_calendar_event_id: [ "ue", -> { UniversityCalendarEvent.all } ]
+    }.freeze
+
+    # Outside production, the names the app gives a calendar start with a
+    # prefix, so a test calendar is never taken for the real one.
+    def self.env_prefix
+      ENV_PREFIXES[Rails.env].to_s
+    end
+
+    def self.calendar_name
+      "#{env_prefix}#{CALENDAR_NAME}"
+    end
+
+    # "mt_12" for an event hash or a tracking row of meeting time 12, and so on.
+    def self.event_key(event)
+      id_key = SYNCABLES.keys.find { |key| event[key] }
+      "#{SYNCABLES[id_key].first}_#{event[id_key]}" if id_key
+    end
+
+    attr_reader :user
+
+    def initialize(user)
+      @user = user
+    end
+
+    # Makes each event the person has, updates each one that changed, and
+    # deletes each tracked event that is no longer wanted. An event that is
+    # fully in the past stays: UniversityEventPruner removes those.
+    def update_calendar_events(events, force: false)
+      calendar = course_calendar
+      return empty_stats unless calendar
+
+      neutral_rate_limit do
+        connect!
+        existing = calendar.calendar_events.schedule_events.to_a.index_by { |row| self.class.event_key(row) }
+        wanted   = events.filter_map { |event| self.class.event_key(event) }
+        delete_rows(existing.except(*wanted).values.reject { |row| fully_past?(row) })
+
+        stats = upsert(calendar, events, existing, force: force)
+        calendar.mark_synced!
+        Rails.logger.info({ message: "Calendar sync completed", provider: calendar.provider, user_id: user.id, **stats }.to_json)
+        stats
+      end
+    end
+
+    # Makes or updates only the given events, and deletes nothing.
+    def update_specific_events(events, force: false)
+      calendar = course_calendar
+      return empty_stats unless calendar
+
+      neutral_rate_limit do
+        connect!
+        rows     = calendar.calendar_events.schedule_events
+        existing = SYNCABLES.keys.map { |key| rows.where(key => events.filter_map { |event| event[key] }) }
+                            .reduce(:or).index_by { |row| self.class.event_key(row) }
+        upsert(calendar, events, existing, force: force)
+      end
+    end
+
+    # Deletes the events and their rows. For the events that the reconcile in
+    # update_calendar_events keeps, such as past university events.
+    def delete_events(rows)
+      rows = Array(rows)
+      return 0 if rows.empty? || course_calendar.nil?
+
+      delete_rows(rows)
+      rows.size
+    end
+
+    # Puts a FriendMeeting in the calendar and tracks it with a CalendarEvent
+    # row. With invite: true and invitees, the provider sends each invitee an
+    # invitation. Returns the row, or nil when the person has no course
+    # calendar with this provider.
+    def create_friend_meeting_event(meeting, invite: true)
+      calendar = course_calendar
+      return nil unless calendar
+
+      remote = insert_friend_meeting(calendar, meeting, invite: invite)
+      calendar.calendar_events.create!(row_attributes(meeting.event_data).merge(remote).merge(friend_meeting: meeting))
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+      raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
+
+      # A concurrent publish already tracks this meeting, so the event just
+      # created is a duplicate.
+      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
+      nil
+    end
+
+    # Writes the meeting's current title, place, time, and (with attendees:
+    # true) friends over the event. The provider tells each friend about the
+    # change, and sends a cancellation to a friend who is no longer on the
+    # list. An event that is gone is made again, without attendees.
+    def update_friend_meeting_event(row, meeting, attendees:)
+      event_id = patch_friend_meeting(row, meeting, attendees: attendees)
+
+      if event_id.blank?
+        row.skip_remote_deletion = true
+        row.destroy!
+        return create_friend_meeting_event(meeting, invite: false)
+      end
+
+      row.update!(row_attributes(meeting.event_data).merge(external_event_id: event_id))
+      row
+    end
+
+    # Deletes the event of a meeting that its owner cancelled. The provider
+    # sends a cancellation to each friend on the event.
+    def delete_friend_meeting_event(row)
+      delete_friend_meeting(row)
+      row.skip_remote_deletion = true
+      row.destroy!
+    end
+
+    private
+
+    def empty_stats
+      { created: 0, updated: 0, skipped: 0 }
+    end
+
+    # Each provider raises its own error for a rate limit. The jobs retry one
+    # error class, so it leaves a sync as CourseCalendars::RateLimitError.
+    def neutral_rate_limit
+      yield
+    rescue StandardError => e
+      raise RateLimitError, e.message if rate_limited?(e)
+
+      raise
+    end
+
+    # Authorizes with the provider before the sync looks at any row, so a
+    # refused grant fails the sync also when no event changed.
+    def connect!; end
+
+    # A subclass can wait between deletes, to stay under a rate limit.
+    def each_paced(rows, &)
+      rows.each(&)
+    end
+
+    def delete_rows(rows)
+      each_paced(rows) do |row|
+        delete_event(row)
+        row.skip_remote_deletion = true
+        row.destroy
+      end
+    end
+
+    def upsert(calendar, events, existing, force:)
+      applier = Preferences::Applier.new(user)
+      records = load_syncables(events)
+      stats   = empty_stats
+
+      events.each do |event|
+        row  = existing[self.class.event_key(event)]
+        data = applier.apply(syncable_for(records, event), event)
+
+        if row.nil?
+          create_event(calendar, event, data)
+          stats[:created] += 1
+        elsif force || row.data_changed?(data)
+          result = update_event(calendar, row, event, data, force: force)
+          stats[result == :skipped_user_edit ? :skipped : :updated] += 1
+        else
+          row.mark_synced!
+          stats[:skipped] += 1
+        end
+      end
+
+      stats
+    end
+
+    def create_event(calendar, event, data)
+      remote = insert_event(calendar, data)
+      row    = calendar.calendar_events.create!(row_attributes(data).merge(syncable_ids(event)).merge(remote))
+      event_created(row, data)
+      row
+    rescue ActiveRecord::RecordNotUnique
+      # A concurrent sync already created the tracking row for this event, so
+      # the insert above made a duplicate remote event.
+      Rails.logger.warn({ message: "Duplicate event race, removing the extra remote event", user_id: user.id,
+                          calendar_id: calendar.id, external_event_id: remote&.dig(:external_event_id) }.to_json)
+      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
+      nil
+    end
+
+    # A hook for the work a provider does after the row of a new event exists.
+    def event_created(_row, _data); end
+
+    # Without force, the person's edits in their calendar win: an edited field
+    # keeps the person's value, and an edited recurrence keeps the whole
+    # event. A forced update writes the app's values and forgets the edits.
+    # An event that is gone is made again.
+    #
+    # Returns :updated, :skipped_user_edit, or :recreated.
+    def update_event(calendar, row, event, data, force:)
+      event_id = row.external_event_id
+      remote   = nil
+      edited   = []
+      merged   = data
+
+      unless force
+        remote = fetch_event(row)
+        return recreate_event(calendar, row, event, data) if remote.nil?
+
+        edits = EventEdits.new(row, remote)
+        return keep_recurrence_edit(row, remote, edits) if edits.recurrence_changed?
+
+        event_id = remote.id
+        # Rows from before EventEdits stopped counting the description can still list it.
+        edited = ((row.user_edited_fields || []) - [ "description" ] + edits.edited_fields).uniq
+        merged = edits.merge(data, edited)
+      end
+
+      event_id = patch_event(row, event_id, merged, remote: remote, force: force)
+      return recreate_event(calendar, row, event, data) if event_id.blank?
+
+      # The hash is of the app's data, not the merged data. With the person's
+      # edits in the hash, the next sync sees a change and updates again.
+      row.update!(row_attributes(merged).merge(external_event_id: event_id, user_edited_fields: edited.presence,
+                                               event_data_hash: CalendarEvent.generate_data_hash(data)))
+      :updated
+    end
+
+    # The app cannot merge a series, so it keeps the event as the person left
+    # it. The recurrence stays the one the app wrote, so the next sync still
+    # sees the person's recurrence as an edit.
+    def keep_recurrence_edit(row, remote, edits)
+      Rails.logger.info({ message: "Recurrence edited in the calendar, keeping the event", user_id: user.id,
+                          calendar_event_id: row.id }.to_json)
+      attributes = edits.remote_attributes
+      row.update!(attributes.merge(
+        external_event_id: remote.id,
+        event_data_hash:   CalendarEvent.generate_data_hash(attributes.merge(recurrence: row.recurrence)),
+        last_synced_at:    Time.current
+      ))
+      :skipped_user_edit
+    end
+
+    def recreate_event(calendar, row, event, data)
+      Rails.logger.warn({ message: "Event not found in the calendar, recreating", user_id: user.id,
+                          calendar_event_id: row.id }.to_json)
+      row.skip_remote_deletion = true
+      row.destroy!
+      create_event(calendar, event, data)
+      :recreated
+    end
+
+    def row_attributes(data)
+      {
+        summary:         data[:summary],
+        location:        data[:location],
+        start_time:      data[:start_time],
+        end_time:        data[:end_time],
+        recurrence:      data[:recurrence],
+        event_data_hash: CalendarEvent.generate_data_hash(data),
+        last_synced_at:  Time.current
+      }
+    end
+
+    def syncable_ids(event)
+      event.slice(*SYNCABLES.keys).compact.first(1).to_h
+    end
+
+    # Loads the records behind all the events in one query for each kind, with
+    # the associations that the templates read, so a sync does not send
+    # queries once for each event (#654).
+    def load_syncables(events)
+      SYNCABLES.to_h do |key, (_prefix, scope)|
+        ids = events.filter_map { |event| event[key] }.uniq
+        [ key, ids.any? ? scope.call.where(id: ids).index_by(&:id) : {} ]
+      end
+    end
+
+    def syncable_for(records, event)
+      key = SYNCABLES.keys.find { |k| event[k] }
+      raise ArgumentError, "event has no meeting_time_id, final_exam_id, or university_calendar_event_id" unless key
+
+      records[key][event[key]]
+    end
+
+    # True only when the event, with its whole recurrence, is in the past.
+    # end_time is the end of the first occurrence, so a series ends at the
+    # UNTIL of its RRULE.
+    def fully_past?(row)
+      rrule = Array(row.recurrence).find { |rule| rule.start_with?("RRULE:") }
+      if rrule
+        until_match = rrule.match(/UNTIL=(\d{8}T\d{6}Z)/)
+        return until_match ? Time.parse(until_match[1]).past? : false
+      end
+
+      row.end_time&.past?
+    end
+  end
+end

@@ -9,7 +9,6 @@ module MicrosoftGraph
   # expire, and once more when Graph answers 401.
   class Client
     BASE_URL     = "https://graph.microsoft.com/v1.0"
-    TIME_ZONE    = "Eastern Standard Time"
     OPEN_TIMEOUT = 5
     READ_TIMEOUT = 20
 
@@ -78,7 +77,7 @@ module MicrosoftGraph
         "Authorization" => "Bearer #{credential.access_token}",
         "Content-Type"  => "application/json",
         "Accept"        => "application/json",
-        "Prefer"        => %(outlook.timezone="#{TIME_ZONE}")
+        "Prefer"        => %(outlook.timezone="#{MicrosoftGraph::TIME_ZONE}")
       }
     end
 

@@ -1,15 +1,12 @@
 # frozen_string_literal: true
 
 module Preferences
+  # Finds the value of each preference field for one event. The most specific
+  # row that sets a field wins: the event's own preference, then the
+  # university category, the university wide row, the event type, and the
+  # global row (lookup_path). A field that no row sets takes a default.
   class Resolver
-    PREFERENCE_FIELDS = %i[
-      title_template
-      description_template
-      location_template
-      reminder_settings
-      color_id
-      visibility
-    ].freeze
+    PREFERENCE_FIELDS = PreferenceFields::FIELDS
 
     SYSTEM_DEFAULTS = {
       title_template: "{% if schedule_type == 'Laboratory' %}{{title | remove: ' - Lab'}} - {{schedule_type_short}}{% else %}{{title}}{% endif %}",
@@ -29,7 +26,7 @@ module Preferences
         { "time" => "1", "type" => "hours", "method" => "popup" },
         { "time" => "15", "type" => "minutes", "method" => "popup" }
       ],
-      color_id: GoogleCalendar::Colors::TOMATO,
+      color_id: Preferences::Colors::TOMATO,
       visibility: "default"
     }.freeze
 
@@ -43,7 +40,7 @@ module Preferences
       description_template: "{{description}}",
       location_template: "{{location}}",
       reminder_settings: UNI_CAL_ALL_DAY_REMINDERS,
-      color_id: GoogleCalendar::Colors::GRAPHITE,
+      color_id: Preferences::Colors::GRAPHITE,
       visibility: "default"
     }.freeze
 
@@ -78,26 +75,14 @@ module Preferences
     end
 
     def resolve_actual_for(event)
-      preferences = {}
-
-      PREFERENCE_FIELDS.each do |field|
-        preferences[field] = resolve_field(event, field, ignore_dnd: true).first
-      end
-
-      preferences
+      resolve_with_sources(event)[:preferences]
     end
 
     def resolve_with_sources(event)
-      preferences = {}
-      sources = {}
+      path     = lookup_path(event)
+      resolved = PREFERENCE_FIELDS.to_h { |field| [ field, resolve_field(event, field, path, ignore_dnd: true) ] }
 
-      PREFERENCE_FIELDS.each do |field|
-        value, source = resolve_field(event, field, ignore_dnd: true)
-        preferences[field] = value
-        sources[field] = source
-      end
-
-      { preferences: preferences, sources: sources }
+      { preferences: resolved.transform_values(&:first), sources: resolved.transform_values(&:last) }
     end
 
     def get_event_preference(event)
@@ -105,21 +90,13 @@ module Preferences
     end
 
     # The latest updated_at of the rows that resolve_for reads for this event:
-    # the event's own preference, each calendar preference on its lookup path,
-    # and the extension config (default colors). Nil when no row applies. It
-    # uses only the preloaded rows, so it runs no query. A deleted row cannot
-    # move it, so a removed preference shows only with the next other change.
+    # the rows on its lookup path and the extension config (default colors).
+    # Nil when no row applies. It uses only the preloaded rows, so it runs no
+    # query. A deleted row cannot move it, so a removed preference shows only
+    # with the next other change.
     def last_changed_at_for(event)
-      event_type = extract_event_type(event)
-      uni_cal_category = extract_uni_cal_category(event)
-      uni_cal = university_calendar_event?(event)
-
-      rows = [ @event_preferences[[ event.class.name, event.id ]] ]
-      rows << @calendar_preferences[[ "uni_cal_category", uni_cal_category ]] if uni_cal_category.present?
-      rows << @calendar_preferences[[ "uni_cal_global", nil ]] if uni_cal
-      rows << @calendar_preferences[[ "event_type", event_type ]] if event_type.present?
-      rows << @calendar_preferences[[ "global", nil ]] unless uni_cal
-      rows << @user.user_extension_config unless uni_cal
+      rows = lookup_path(event).map(&:first)
+      rows << @user.user_extension_config unless university_calendar_event?(event)
 
       rows.compact.map(&:updated_at).max
     end
@@ -137,71 +114,34 @@ module Preferences
     end
 
     def resolve_preferences(event)
-      preferences = {}
-
-      PREFERENCE_FIELDS.each do |field|
-        preferences[field] = resolve_field(event, field).first
-      end
-
-      preferences
+      path = lookup_path(event)
+      PREFERENCE_FIELDS.index_with { |field| resolve_field(event, field, path).first }
     end
 
-    def resolve_field(event, field, ignore_dnd: false)
-      if field == :reminder_settings && @notifications_disabled && !ignore_dnd
-        return [ [], "dnd_override" ]
-      end
-
-      event_pref = @event_preferences[[ event.class.name, event.id ]]
-      if event_pref.present?
-        value = event_pref.public_send(field)
-        if field == :reminder_settings ? !value.nil? : value.present?
-          return [ value, "individual" ]
-        end
-      end
-
+    # The rows that apply to the event, most specific first, each with the
+    # source name that resolve_with_sources gives.
+    def lookup_path(event)
       event_type = extract_event_type(event)
-      uni_cal_category = extract_uni_cal_category(event)
+      category   = extract_uni_cal_category(event)
+      uni_cal    = university_calendar_event?(event)
 
-      if uni_cal_category.present?
-        cat_pref = @calendar_preferences[[ "uni_cal_category", uni_cal_category ]]
-        if cat_pref.present?
-          value = cat_pref.public_send(field)
-          if field == :reminder_settings ? !value.nil? : value.present?
-            return [ value, "uni_cal_category:#{uni_cal_category}" ]
-          end
-        end
+      path = [ [ @event_preferences[[ event.class.name, event.id ]], "individual" ] ]
+      path << [ @calendar_preferences[[ "uni_cal_category", category ]], "uni_cal_category:#{category}" ] if category.present?
+      path << [ @calendar_preferences[[ "uni_cal_global", nil ]], "uni_cal_global" ] if uni_cal
+      path << [ @calendar_preferences[[ "event_type", event_type ]], "event_type:#{event_type}" ] if event_type.present?
+      path << [ @calendar_preferences[[ "global", nil ]], "global" ] unless uni_cal
+      path
+    end
+
+    def resolve_field(event, field, path, ignore_dnd: false)
+      return [ [], "dnd_override" ] if field == :reminder_settings && @notifications_disabled && !ignore_dnd
+
+      path.each do |row, source|
+        value = row&.public_send(field)
+        return [ value, source ] if row && PreferenceFields.set?(field, value)
       end
 
-      if university_calendar_event?(event)
-        uni_pref = @calendar_preferences[[ "uni_cal_global", nil ]]
-        if uni_pref.present?
-          value = uni_pref.public_send(field)
-          if field == :reminder_settings ? !value.nil? : value.present?
-            return [ value, "uni_cal_global" ]
-          end
-        end
-      end
-
-      if event_type.present?
-        type_pref = @calendar_preferences[[ "event_type", event_type ]]
-        if type_pref.present?
-          value = type_pref.public_send(field)
-          if field == :reminder_settings ? !value.nil? : value.present?
-            return [ value, "event_type:#{event_type}" ]
-          end
-        end
-      end
-
-      global_pref = @calendar_preferences[[ "global", nil ]]
-      if global_pref.present? && !university_calendar_event?(event)
-        value = global_pref.public_send(field)
-        if field == :reminder_settings ? !value.nil? : value.present?
-          return [ value, "global" ]
-        end
-      end
-
-      default_value = system_default_for(field, event, event_type)
-      [ default_value, "system_default" ]
+      [ system_default_for(field, event, extract_event_type(event)), "system_default" ]
     end
 
     def extract_event_type(event)

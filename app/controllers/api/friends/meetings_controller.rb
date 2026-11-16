@@ -126,7 +126,7 @@ module Api
       # needs a UTC offset.
       def parse_range_time(value, name)
         value = value.to_s
-        zone  = Time.find_zone!(FriendMeeting::LOCAL_TIME_ZONE)
+        zone  = Time.find_zone!(SchoolTimeZone::NAME)
         return zone.parse(Date.iso8601(value).to_s) if value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
         FriendMeetings::Creator.parse_time(value, name)
