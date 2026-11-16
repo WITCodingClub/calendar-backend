@@ -179,7 +179,7 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
 
         expect(described_class.new.call!).to be(true)
 
-        expect(Rails.logger).to have_received(:warn).with(/Skipping diff_cabinets \(25Live API returned 500 for cabinets\)/)
+        expect(Rails.logger).to have_received(:warn).with(/Skipping Cabinet \(25Live API returned 500 for cabinets\)/)
         expect(drifts.map { |d| d[:entity] }).not_to include("Cabinet")
       end
     end
