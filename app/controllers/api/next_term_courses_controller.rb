@@ -7,32 +7,27 @@ module Api
     authenticate_with_token
     include DegreePlanningFlag
 
-    # GET /api/user/next_term_courses
-    # Params (optional): term, a Banner code (202720) or a label
-    # ("Spring 2027"). Without it, the next fall or spring term.
-    # assume: course codes to count as passed before the term, separated by
-    # commas (COMP3350,MATH2300). assume_plans=true: also count the courses
-    # of the saved registration plans before the term (#996).
-    # include=candidates: add the candidates of each elective slot and
-    # choice (#993). It also takes a list separated by commas.
+    # Params (optional): term, a Banner code (202720) or a label ("Spring
+    # 2027"). assume: course codes to count as passed before the term,
+    # separated by commas. assume_plans=true: also count the courses of the
+    # saved registration plans before the term (#996). include=candidates:
+    # add the candidates of each elective slot and choice (#993); it also
+    # takes a list separated by commas.
     def show
       authorize current_user, :show?
 
-      term_uid = nil
-      if params[:term].present?
-        term_uid = TermCode.parse(params[:term].to_s)
-        return render_error("term must be a Banner term code or a label such as Spring 2027", status: :unprocessable_content) if term_uid.nil?
-      end
+      request = AcademicProfiles::NextTermRequest.new(term: params[:term], assume: params[:assume],
+                                                      assume_plans: params[:assume_plans].to_s == "true",
+                                                      include_candidates: candidates_requested?)
+      render json: request.call(current_user)
+    rescue AcademicProfiles::PlanningError => e
+      render_error e.message, status: :unprocessable_content, code: e.code
+    end
 
-      assume = AcademicProfiles::AssumedCourses.parse(params[:assume])
-      assume_plans = params[:assume_plans].to_s == "true"
-      candidates = AcademicProfiles::NextTermCourses.candidates_requested?(params[:include])
-      render json: AcademicProfiles::NextTermCourses.new(current_user, term_uid: term_uid, assume: assume, assume_plans: assume_plans,
-                                                                       include_candidates: candidates).call
-    rescue AcademicProfiles::AssumedCourses::InvalidCodesError => e
-      render_error e.message, status: :unprocessable_content
-    rescue AcademicProfiles::DegreeProgress::NoProgramError => e
-      render_error e.message, status: :unprocessable_content, code: "no_program"
+    private
+
+    def candidates_requested?
+      Array.wrap(params[:include]).flat_map { |item| item.is_a?(String) ? item.split(",") : [] }.map(&:strip).include?("candidates")
     end
   end
 end
