@@ -111,7 +111,6 @@ module CspReports
       nil
     end
 
-    # Keeps the log line on one line and short.
     def clean(value)
       value = value.to_s.gsub(/[^[:graph:]]/, "")
       value = "unknown" if value.empty?

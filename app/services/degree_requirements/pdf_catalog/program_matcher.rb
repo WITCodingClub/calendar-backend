@@ -31,7 +31,6 @@ module DegreeRequirements
         @by_subject = programs.group_by { |program| self.class.subject(program.name) }
       end
 
-      # The DegreeProgram for a PdfCatalog::Program, or nil.
       def call(pdf_program)
         title = pdf_program.title.to_s
         return nil if title.blank?

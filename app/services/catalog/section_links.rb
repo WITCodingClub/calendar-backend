@@ -24,7 +24,6 @@ module Catalog
       @course.links_fetched_at.present?
     end
 
-    # @return [Array<Array<Course>>] each group is one set of partner sections
     def options
       @options ||= if banner?
         @course.section_links.sort_by { |link| [ link.option_group, link.linked_course.crn ] }

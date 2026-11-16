@@ -36,7 +36,6 @@ class BusyBlocks
   # One busy time from one source. +begin_time+ and +end_time+ are HHMM integers.
   Interval = Data.define(:date, :begin_time, :end_time)
 
-  # The sources that make up the busy time of a user.
   def self.sources = [ MeetingSource, FinalExamSource, FriendMeetingSource ]
 
   Block = Data.define(:date, :start, :end) do
@@ -62,12 +61,10 @@ class BusyBlocks
     @to   = to
   end
 
-  # Returns the blocks sorted by date, then start time.
   def call
     blocks_from(self.class.sources.flat_map { |source| source.call(@user, @from, @to) })
   end
 
-  # Merges the intervals into blocks, sorted by date, then start time.
   def blocks_from(intervals)
     by_date = intervals.group_by(&:date)
 
@@ -81,7 +78,6 @@ class BusyBlocks
 
   private
 
-  # Merges [begin, end] pairs (HHMM integers) that overlap or touch.
   def merge(ranges)
     ranges.sort.each_with_object([]) do |(begin_time, end_time), merged|
       if merged.any? && begin_time <= merged.last[1]

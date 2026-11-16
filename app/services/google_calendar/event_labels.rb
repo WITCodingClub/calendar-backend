@@ -34,7 +34,6 @@ module GoogleCalendar
 
     private
 
-    # Maps each label color to the label id.
     def labels
       return @labels if defined?(@labels)
 

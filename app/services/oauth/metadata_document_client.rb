@@ -25,7 +25,6 @@ module Oauth
 
     class FetchError < StandardError; end
 
-    # @return [Hash] the parsed JSON object
     def fetch(uri)
       raise FetchError, "the client id must use https on port 443" unless uri.scheme == "https" && uri.port == 443
 

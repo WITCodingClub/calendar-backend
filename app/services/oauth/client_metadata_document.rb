@@ -26,8 +26,6 @@ module Oauth
       @client    = client
     end
 
-    # @return [Doorkeeper::Application]
-    # @raise [InvalidClientMetadataError]
     def application
       existing = Doorkeeper::Application.find_by(uid: @client_id)
       return existing if existing && existing.updated_at > REFRESH_AFTER.ago

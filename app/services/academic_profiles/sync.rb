@@ -38,7 +38,6 @@ module AcademicProfiles
       super()
     end
 
-    # Returns the user's AcademicProfile. Raises InvalidProfileError.
     def call
       source = payload[:source].to_s
       raise InvalidProfileError, "source must be one of: #{SOURCES.join(', ')}" unless SOURCES.include?(source)

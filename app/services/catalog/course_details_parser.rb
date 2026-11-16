@@ -119,8 +119,6 @@ module Catalog
 
       # The "Learning Objectives" of Banner's syllabus page, one line for each
       # line Banner shows.
-      #
-      # @return [String, nil]
       def learning_objectives(html)
         label = Nokogiri::HTML.fragment(html.to_s).css("span.status-bold")
                           .find { |span| span.text.squish.start_with?("Learning Objectives") }

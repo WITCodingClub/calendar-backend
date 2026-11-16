@@ -16,7 +16,6 @@ module AcademicProfiles
       @user = user
     end
 
-    # Changes the profile fields. Raises InvalidProfileError.
     def profile!(changes)
       locked do |profile|
         sync(profile_payload(profile).merge(changes.to_h.symbolize_keys.slice(*PROFILE_FIELDS)))

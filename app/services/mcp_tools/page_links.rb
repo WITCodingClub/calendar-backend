@@ -54,7 +54,6 @@ module McpTools
       { type: "resource_link", uri: url, name: name, title: title, description: description, mimeType: MIME_TYPE }.compact
     end
 
-    # page_url(:dashboard_schedule_url, term_uid: 202610)
     def page_url(helper, *args, **params)
       Rails.application.routes.url_helpers.public_send(helper, *args, **Server.url_options, **params)
     end
@@ -81,7 +80,6 @@ module McpTools
       page_link(**) if user.onboarding_complete?
     end
 
-    # The calendar-wide event settings and the university event sync.
     def calendar_settings_link
       onboarded_page_link(
         name:        "wit-calendar-calendar-settings",

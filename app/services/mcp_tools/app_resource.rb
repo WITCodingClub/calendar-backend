@@ -18,12 +18,10 @@ module McpTools
     INCLUDE   = %r{^[ \t]*(?:/\* @include ([\w/.-]+) \*/|// @include ([\w/.-]+))[ \t]*$}
 
     class << self
-      # The file of the template in app/views/mcp_apps/.
       def template(value = nil)
         value ? @template = value : @template
       end
 
-      # The _meta of a tool that shows its result in this app.
       def tool_meta = MCP::Apps.tool_meta(resource_uri: uri, legacy: true)
 
       def contents

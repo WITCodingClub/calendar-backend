@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/user/finals.
   class MyFinals < BaseTool
     tool_name "my_finals"
     title "My final exams"

@@ -14,7 +14,6 @@ module McpPlatforms
 
     class Error < StandardError; end
 
-    # @return [Array<String>] CIDR ranges
     def fetch
       response = connection.get(URL)
       raise Error, "OpenAI answered #{response.status}" unless response.status == 200
