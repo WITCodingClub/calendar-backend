@@ -32,8 +32,8 @@ class CatalogSchema < GraphQL::Schema
                    max_page_size:     default_max_page_size
 
   schema_directive Directives::RateLimit,
-                   max:    Rack::Attack.throttles.fetch("catalog/ip").limit,
-                   window: Rack::Attack.throttles.fetch("catalog/ip").period.to_i
+                   max:    Rack::Attack.throttles.fetch(Rack::Attack::CATALOG_IP_THROTTLE).limit,
+                   window: Rack::Attack.throttles.fetch(Rack::Attack::CATALOG_IP_THROTTLE).period.to_i
 
   # Filter errors are the client's fault, not a server bug, so surface the
   # message instead of a generic "Internal error".

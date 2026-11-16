@@ -187,8 +187,8 @@ RSpec.describe OauthCredential, type: :model do
       expect(described_class.where.not(refresh_token: nil)).not_to include(credential)
     end
 
-    # support_unencrypted_data is off, so a plain-text row left behind by the
-    # oauth_credentials:encrypt task fails loudly instead of reading as a token.
+    # support_unencrypted_data is off, so a plain-text row from before
+    # encryption (#713) fails loudly instead of reading as a token.
     it "raises on a legacy plain-text row" do
       credential = create(:oauth_credential)
       # Raw SQL: update_columns would encrypt the values.
