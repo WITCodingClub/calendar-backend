@@ -49,7 +49,6 @@ module Api
       head :no_content
     end
 
-    # POST /api/calendar_preferences/preview
     def preview
       template        = params[:template]
       meeting_time_id = params[:meeting_time_id]
@@ -97,7 +96,7 @@ module Api
     private
 
     def set_calendar_preference
-      @calendar_preference = calendar_preference_for_scope(params[:id] || params[:scope])
+      @calendar_preference = Preferences::ScopeParam.find_or_initialize(current_user, params[:id] || params[:scope])
     end
   end
 end

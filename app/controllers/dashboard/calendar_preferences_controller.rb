@@ -52,7 +52,7 @@ module Dashboard
     private
 
     def set_calendar_preference
-      @calendar_preference = calendar_preference_for_scope(params[:id])
+      @calendar_preference = Preferences::ScopeParam.find_or_initialize(current_user, params[:id])
     end
   end
 end

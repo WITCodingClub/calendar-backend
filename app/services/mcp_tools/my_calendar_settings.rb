@@ -49,16 +49,7 @@ module McpTools
 
     def levels
       CalendarPreferencePolicy::Scope.new(user, user.calendar_preferences).resolve.map do |preference|
-        { level: level_name(preference), **CalendarPreferenceSerializer.new(preference).as_json.except(:scope, :event_type) }
-      end
-    end
-
-    def level_name(preference)
-      case preference.scope
-      when "global"           then "all_classes"
-      when "uni_cal_global"   then "university"
-      when "uni_cal_category" then "university:#{preference.event_type}"
-      else preference.event_type
+        { level: CalendarLevels.name_for(preference), **CalendarPreferenceSerializer.new(preference).as_json.except(:scope, :event_type) }
       end
     end
 

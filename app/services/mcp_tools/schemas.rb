@@ -752,7 +752,7 @@ module McpTools
     RESOLVED_SETTINGS = object(SETTINGS_PROPERTIES).freeze
     SETTING_SOURCES = object(Preferences::Resolver::PREFERENCE_FIELDS.to_h { |field| [ field, nullable(STRING) ] }).freeze
 
-    # PreferenceParams#generate_preview.
+    # Preferences::Preview.
     PREVIEW = object(title: nullable(STRING), description: nullable(STRING), location: nullable(STRING)).freeze
 
     # unchanged: the student did not confirm the change (McpTools::Confirmation).
