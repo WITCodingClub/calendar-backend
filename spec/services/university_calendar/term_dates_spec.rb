@@ -15,14 +15,6 @@ RSpec.describe UniversityCalendar::TermDates do
       expect(described_class.registration_summary?("Fall Registration Opens")).to be(true)
       expect(described_class.registration_summary?("Last day to Add/Drop")).to be(false)
     end
-
-    it ".finals_period_summary? matches exam periods but not schedule releases" do
-      expect(described_class.finals_period_summary?("Final Exam Period")).to be(true)
-      expect(described_class.finals_period_summary?("Finals Week")).to be(true)
-      expect(described_class.finals_period_summary?("Final exam schedule posted")).to be(false)
-      expect(described_class.finals_period_summary?("Summer 2026 Final Exam Schedule Availabl")).to be(false)
-      expect(described_class.finals_period_summary?("Commencement")).to be(false)
-    end
   end
 
   describe ".event_matches_term_for_date_detection?" do
@@ -223,7 +215,8 @@ RSpec.describe UniversityCalendar::TermDates do
     end
 
     it "ignores a finals announcement for the end date" do
-      event_at("Fall 2031 Final Exam Schedule Online", Time.zone.local(2031, 12, 28, 9, 0), category: "finals")
+      summary = "Fall 2031 Final Exam Schedule Online"
+      event_at(summary, Time.zone.local(2031, 12, 28, 9, 0), category: UniversityCalendar::Category.infer(summary, nil))
 
       expect(described_class.detect(2031, :fall)[:end_date]).to be_nil
     end

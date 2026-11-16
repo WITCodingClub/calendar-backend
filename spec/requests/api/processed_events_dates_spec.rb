@@ -19,7 +19,7 @@ RSpec.describe "Class end dates in processed events", type: :request do
   before do
     create(:university_calendar_event, category: "holiday", summary: "Indigenous Peoples Day",
                                        start_time: Time.zone.local(2026, 10, 12, 0, 0), end_time: Time.zone.local(2026, 10, 12, 23, 59))
-    create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+    create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
                                        start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
     create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Period",
                                        start_time: Time.zone.local(2026, 12, 9, 0, 0), end_time: Time.zone.local(2026, 12, 15, 23, 59))

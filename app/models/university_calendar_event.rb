@@ -73,6 +73,9 @@ class UniversityCalendarEvent < ApplicationRecord
   # one of them changes the class events of every person.
   NO_CLASS_CATEGORIES = %w[holiday study_day finals].freeze
 
+  # The categories of the events that end a term's classes (finals_periods).
+  FINALS_PERIOD_CATEGORIES = %w[study_day finals].freeze
+
   # The feed gives some holidays and study days as timed events. They cover
   # whole days.
   ALL_DAY_CATEGORIES = %w[holiday study_day].freeze
@@ -109,10 +112,10 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
   scope :holidays,      -> { where(category: HOLIDAY) }
   scope :finals,        -> { where(category: "finals") }
-  # The finals events that are days with no classes. The import puts finals
-  # schedule announcements in "academic" (UniversityCalendar::Category), but
-  # rows from before that change can still hold them until the next import.
-  scope :finals_periods, -> { finals.where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%") }
+  # The study days and finals events that end a term's classes, whatever
+  # their title. UniversityCalendar::Category puts a finals schedule
+  # announcement in "academic", so it is not one of them.
+  scope :finals_periods, -> { where(category: FINALS_PERIOD_CATEGORIES) }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }

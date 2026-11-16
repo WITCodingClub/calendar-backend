@@ -35,7 +35,7 @@ module UniversityCalendar
       estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
 
       finals_period_event = matching_events
-                            .select { |event| event.category == "finals" && finals_period_summary?(event.summary) }
+                            .select { |event| event.category == "finals" }
                             .max_by { |event| event.end_time || event.start_time }
 
       finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
@@ -98,11 +98,6 @@ module UniversityCalendar
     def self.registration_summary?(summary)
       summary.to_s.match?(/registration/i)
     end
-
-    # Wider than UniversityCalendarEvent.finals_periods, which also needs a
-    # "Final Exam Period" or "Study Day" title: any finals event whose title
-    # names an exam period (Category.finals_period?) can end the term.
-    def self.finals_period_summary?(summary) = Category.finals_period?(summary)
 
     # Fills each date the term does not have with the detected one. Returns the
     # dates it wrote.

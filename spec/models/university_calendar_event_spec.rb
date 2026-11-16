@@ -238,11 +238,13 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(%w[holiday study_day finals].map { |c| described_class.all_day_category?(c) }).to eq([ true, true, false ])
     end
 
-    it ".finals_periods leaves out a finals announcement" do
-      period = create(:university_calendar_event, category: "finals", summary: "Final exam period")
-      create(:university_calendar_event, category: "finals", summary: "Final Exam Schedule Online")
+    it ".finals_periods returns every study day and finals event, whatever its title" do
+      periods = [ "Study Day", "Final Exams (15-week & 2 nd 7-week classes)", "Finals Week" ].map do |summary|
+        create(:university_calendar_event, category: UniversityCalendar::Category.infer(summary, nil), summary: summary)
+      end
+      create(:university_calendar_event, category: "academic", summary: "Spring 2027 Final Exam Schedule Available to Students")
 
-      expect(described_class.finals_periods).to contain_exactly(period)
+      expect(described_class.finals_periods).to match_array(periods)
     end
   end
 
