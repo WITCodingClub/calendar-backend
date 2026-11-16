@@ -33,6 +33,8 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
 | `Risc` | Google RISC security events |
 | `FriendMeetings`, `Friendships`, `MeetingLinks` | Friends features |
+| `Notifications` | Turning the reminders of every calendar event off and on |
+| `Passkeys` | The passkey sign-in ceremony |
 | `Faculties` | The faculty directory and RateMyProfessor |
 | `FinalsSchedules` | Finals schedule PDFs and their parsers |
 | `UniversityCalendar` | The university event calendar import |
@@ -80,6 +82,20 @@ flowchart LR
   S --> MCP["MCP catalog tools"]
   S --> D["/dashboard/courses and /dashboard/instructors"]
 ```
+
+## Shared actions
+
+An action that the API, the dashboard and an MCP tool all offer lives in one service. Each surface finds the record, authorizes it with the same policy, calls the service, and renders the result its own way (JSON, a redirect, or a tool result). Do not copy the rules of an action into a controller or a tool.
+
+```mermaid
+flowchart LR
+  API["Api:: controller"] --> S["Service: Notifications::Toggle, Friendships::Request,<br/>MeetingLinks::Removal, OauthCredentials::Disconnect,<br/>Passkeys::Authentication"]
+  D["Dashboard:: controller"] --> S
+  M["McpTools:: tool"] --> S
+  S --> Models
+```
+
+- **Flags:** a controller gates a feature with `require_feature FeatureFlags::X, "message"` (`FeatureGate`). An API controller answers 404 in the JSON error format, a dashboard controller an empty 404. `DegreePlanningFlag` and `FriendGroupsFlag` name the two gates that many controllers share. The friends flags are read with `Friendships::Features`.
 
 ## Views
 
