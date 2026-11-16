@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
-require "net/http"
-require "uri"
-require "json"
-
 namespace :risc do
+  # Runs one call of Risc::StreamClient and stops the task with a message when
+  # it fails.
+  def risc_stream
+    yield Risc::StreamClient.new
+  rescue Risc::StreamClient::Error => e
+    puts "✗ #{e.message}"
+    exit 1
+  end
+
   desc "Configure Google RISC stream (register endpoint and subscribe to events)"
   task configure: :environment do
-    puts "Configuring Google RISC stream..."
-
     receiver_url = ENV["RISC_RECEIVER_URL"]
     if receiver_url.blank?
       puts "ERROR: RISC_RECEIVER_URL environment variable not set"
@@ -17,124 +20,35 @@ namespace :risc do
       exit 1
     end
 
-    credentials_path = ENV.fetch("GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "config/service_account_key.json")
-    unless File.exist?(credentials_path)
-      puts "ERROR: Service account credentials not found at #{credentials_path}"
-      exit 1
-    end
-
-    events = SecurityEvent::ALL_EVENT_TYPES
-
-    auth_token = create_risc_auth_token(credentials_path)
-
-    config = {
-      delivery: {
-        delivery_method: "https://schemas.openid.net/secevent/risc/delivery-method/push",
-        url: receiver_url
-      },
-      events_requested: events
-    }
-
-    uri = URI.parse("https://risc.googleapis.com/v1beta/stream:update")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
-    http.read_timeout = Risc::Validator::READ_TIMEOUT
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"]  = "application/json"
-    request["Authorization"] = "Bearer #{auth_token}"
-    request.body = config.to_json
-
-    response = http.request(request)
-
-    if response.is_a?(Net::HTTPSuccess)
-      puts "✓ RISC stream configured successfully!"
-      puts "  Endpoint: #{receiver_url}"
-      puts "  Events subscribed: #{events.length}"
-    else
-      puts "✗ Failed to configure RISC stream"
-      puts "  Status: #{response.code} #{response.message}"
-      puts "  Body: #{response.body}"
-      exit 1
-    end
+    risc_stream { |client| client.configure(receiver_url) }
+    puts "✓ RISC stream configured successfully!"
+    puts "  Endpoint: #{receiver_url}"
+    puts "  Events subscribed: #{SecurityEvent::ALL_EVENT_TYPES.length}"
   end
 
   desc "Get current RISC stream configuration"
   task status: :environment do
-    puts "Fetching RISC stream configuration..."
-
-    credentials_path = ENV.fetch("GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "config/service_account_key.json")
-    unless File.exist?(credentials_path)
-      puts "ERROR: Service account credentials not found at #{credentials_path}"
-      exit 1
-    end
-
-    auth_token = create_risc_auth_token(credentials_path)
-
-    uri = URI.parse("https://risc.googleapis.com/v1beta/stream")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
-    http.read_timeout = Risc::Validator::READ_TIMEOUT
-
-    request = Net::HTTP::Get.new(uri.path)
-    request["Authorization"] = "Bearer #{auth_token}"
-
-    response = http.request(request)
-
-    if response.is_a?(Net::HTTPSuccess)
-      puts "✓ Current RISC configuration:"
-      puts JSON.pretty_generate(JSON.parse(response.body))
-    else
-      puts "✗ Failed to fetch RISC configuration"
-      puts "  Status: #{response.code} #{response.message}"
-    end
+    puts JSON.pretty_generate(risc_stream(&:stream))
   end
 
   desc "Test RISC stream by requesting a verification event"
   task test: :environment do
-    puts "Sending test verification event..."
-
-    credentials_path = ENV.fetch("GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "config/service_account_key.json")
-    unless File.exist?(credentials_path)
-      puts "ERROR: Service account credentials not found at #{credentials_path}"
-      exit 1
-    end
-
-    auth_token = create_risc_auth_token(credentials_path)
-    test_data = { state: "Test verification at #{Time.current.iso8601}" }
-
-    uri = URI.parse("https://risc.googleapis.com/v1beta/stream:verify")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
-    http.read_timeout = Risc::Validator::READ_TIMEOUT
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"]  = "application/json"
-    request["Authorization"] = "Bearer #{auth_token}"
-    request.body = test_data.to_json
-
-    response = http.request(request)
-
-    if response.is_a?(Net::HTTPSuccess)
-      puts "✓ Test event sent successfully!"
-      puts "  State: #{test_data[:state]}"
-    else
-      puts "✗ Failed to send test event"
-      puts "  Status: #{response.code} #{response.message}"
-    end
+    state = "Test verification at #{Time.current.iso8601}"
+    risc_stream { |client| client.verify(state) }
+    puts "✓ Test event sent successfully!"
+    puts "  State: #{state}"
   end
 
   desc "Enable RISC stream"
   task enable: :environment do
-    update_stream_status("enabled")
+    risc_stream { |client| client.update_status("enabled") }
+    puts "✓ RISC stream enabled"
   end
 
   desc "Disable RISC stream"
   task disable: :environment do
-    update_stream_status("disabled")
+    risc_stream { |client| client.update_status("disabled") }
+    puts "✓ RISC stream disabled"
   end
 
   desc "List recent security events"
@@ -199,55 +113,6 @@ namespace :risc do
     puts "Events by reason:"
     SecurityEvent.where.not(reason: nil).group(:reason).count.each do |reason, count|
       puts "  #{reason}: #{count}"
-    end
-  end
-
-  def create_risc_auth_token(credentials_path)
-    credentials = JSON.parse(File.read(credentials_path))
-    iat = Time.current.to_i
-
-    payload = {
-      iss: credentials["client_email"],
-      sub: credentials["client_email"],
-      aud: "https://risc.googleapis.com/google.identity.risc.v1beta.RiscManagementService",
-      iat: iat,
-      exp: iat + 3600
-    }
-
-    private_key = OpenSSL::PKey::RSA.new(credentials["private_key"])
-    JWT.encode(payload, private_key, "RS256", kid: credentials["private_key_id"])
-  end
-
-  def update_stream_status(status)
-    puts "#{status.capitalize}ing RISC stream..."
-
-    credentials_path = ENV.fetch("GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "config/service_account_key.json")
-    unless File.exist?(credentials_path)
-      puts "ERROR: Service account credentials not found at #{credentials_path}"
-      exit 1
-    end
-
-    auth_token = create_risc_auth_token(credentials_path)
-
-    uri = URI.parse("https://risc.googleapis.com/v1beta/stream/status:update")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
-    http.read_timeout = Risc::Validator::READ_TIMEOUT
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"]  = "application/json"
-    request["Authorization"] = "Bearer #{auth_token}"
-    request.body = { status: status }.to_json
-
-    response = http.request(request)
-
-    if response.is_a?(Net::HTTPSuccess)
-      puts "✓ RISC stream #{status}d successfully!"
-    else
-      puts "✗ Failed to #{status} RISC stream"
-      puts "  Status: #{response.code} #{response.message}"
-      exit 1
     end
   end
 end

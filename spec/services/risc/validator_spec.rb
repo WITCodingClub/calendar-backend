@@ -233,26 +233,21 @@ RSpec.describe Risc::Validator, type: :service do
       expect { service.validate_and_decode("not-a-jwt") }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
-    # Bug: JWT::VerificationError, JWT::InvalidIssuerError and JWT::InvalidAudError are all
-    # subclasses of JWT::DecodeError, and the `rescue JWT::DecodeError` clause comes first in
-    # Risc::Validator#validate_and_decode. It always catches these before the later,
-    # more specific rescue clauses run, so InvalidSignatureError, InvalidIssuerError and
-    # InvalidAudienceError are unreachable dead code — every one of these failures surfaces as
-    # InvalidTokenError instead. Harmless here because every caller only rescues the shared
-    # ValidationError base class, but documented as current behavior.
-    it "raises InvalidTokenError, not InvalidSignatureError, for a bad signature" do
+    # A bad signature, issuer, or audience is a JWT::DecodeError, so each one
+    # raises InvalidTokenError.
+    it "raises InvalidTokenError for a bad signature" do
       token = build_token(key: other_rsa_key)
 
       expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
-    it "raises InvalidTokenError, not InvalidIssuerError, for the wrong issuer" do
+    it "raises InvalidTokenError for the wrong issuer" do
       token = build_token(payload_overrides: { "iss" => "https://evil.example.com" })
 
       expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
-    it "raises InvalidTokenError, not InvalidAudienceError, for the wrong audience" do
+    it "raises InvalidTokenError for the wrong audience" do
       token = build_token(payload_overrides: { "aud" => "someone-elses-client-id" })
 
       expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)

@@ -31,7 +31,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
 | `McpTools` | The MCP server, its tools, prompts, and apps (`docs/mcp.md`) |
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
-| `Risc` | Google RISC security events |
+| `Risc` | Google RISC security events: the token check, the event handler, and the stream management client (`Risc::StreamClient`, used by the `risc:*` rake tasks) |
 | `FriendMeetings`, `Friendships`, `FriendGroups`, `MeetingLinks` | Friends features |
 | `Notifications` | Turning the reminders of every calendar event off and on |
 | `Passkeys` | The passkey sign-in and registration ceremonies, and their `Passkeys::Failed` messages |
