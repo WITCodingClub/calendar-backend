@@ -71,10 +71,8 @@ module UniversityCalendar
       summary = event.summary.to_s
       academic_term = event.academic_term.to_s
 
-      explicit_summary_term = extract_explicit_term_from_summary(summary)
-      if explicit_summary_term
-        return explicit_summary_term[:season] == season.to_sym && explicit_summary_term[:year] == year
-      end
+      named_term = TermCode.find_in(summary)
+      return named_term == TermCode.for(year, season) if named_term
 
       return true if term && event.term_id == term.id
       return true if summary.match?(/\b#{Regexp.escape(season_name)}\b/i) && summary.match?(/\b#{year}\b/)
@@ -85,10 +83,6 @@ module UniversityCalendar
       return false unless event_date
 
       event_date.in?(Term.date_window(year, season))
-    end
-
-    def self.extract_explicit_term_from_summary(summary)
-      TermCode.year_and_season(TermCode.find_in(summary))
     end
 
     def self.schedule_available_summary?(summary)

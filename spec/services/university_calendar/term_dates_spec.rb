@@ -22,17 +22,6 @@ RSpec.describe UniversityCalendar::TermDates do
       expect(described_class.finals_period_summary?("Final exam schedule posted")).to be(false)
       expect(described_class.finals_period_summary?("Commencement")).to be(false)
     end
-
-    it ".extract_explicit_term_from_summary reads the season and the year" do
-      expect(described_class.extract_explicit_term_from_summary("Registration for Spring 2027")).to eq(season: :spring, year: 2027)
-      expect(described_class.extract_explicit_term_from_summary("FALL 2026 begins")).to eq(season: :fall, year: 2026)
-      expect(described_class.extract_explicit_term_from_summary("Summer 2026")).to eq(season: :summer, year: 2026)
-    end
-
-    it ".extract_explicit_term_from_summary returns nil without a term" do
-      expect(described_class.extract_explicit_term_from_summary("Commencement 2026")).to be_nil
-      expect(described_class.extract_explicit_term_from_summary(nil)).to be_nil
-    end
   end
 
   describe ".event_matches_term_for_date_detection?" do
