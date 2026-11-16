@@ -142,7 +142,7 @@ module UniversityCalendar
         description = description.sub(/\AEvent Name:.*/, "Event Name: #{summary}")
       end
       category    = Category.infer(summary, event_type)
-      is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
+      is_all_day  = UniversityCalendarEvent.all_day_category?(category) || all_day_event?(ics_event)
 
       if is_all_day
         last_day   = end_time.to_date

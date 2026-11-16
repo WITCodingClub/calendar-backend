@@ -1,3 +1,2 @@
-<% tone = { "holiday" => :danger, "deadline" => :warning, "study_day" => :warning, "term_dates" => :success, "registration" => :success, "academic" => :info }.fetch(event.category, :neutral) %>
-<%= admin_badge(event.category&.titleize || "Unknown", tone) %>
+<%= admin_badge(event.category&.titleize || "Unknown", UniversityCalendarEvent.category_tone(event.category)) %>
 <%= admin_badge("No classes", :warning) if event.excludes_classes? %>

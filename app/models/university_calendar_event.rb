@@ -46,11 +46,11 @@ class UniversityCalendarEvent < ApplicationRecord
   # Every category the importer can store. Admins can see and filter events in all of them.
   CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic campus_event meeting exhibit announcement other].freeze
 
+  HOLIDAY = "holiday"
+
   # The categories a person can sync. The feed puts too much clutter in campus_event,
   # meeting, exhibit, announcement, and other, so they stay in the database but never
   # sync (issue #621).
-  HOLIDAY = "holiday"
-
   SYNCABLE_CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic].freeze
 
   # Shown to users who pick which categories to sync, in the extension and on the dashboard.
@@ -69,8 +69,28 @@ class UniversityCalendarEvent < ApplicationRecord
     CATEGORY_DESCRIPTIONS.fetch(category.to_s, "Other university events")
   end
 
-  # Categories of the events that cancel classes on their dates.
+  # Categories of the events that cancel classes on their dates. A change to
+  # one of them changes the class events of every person.
   NO_CLASS_CATEGORIES = %w[holiday study_day finals].freeze
+
+  # The feed gives some holidays and study days as timed events. They cover
+  # whole days.
+  ALL_DAY_CATEGORIES = %w[holiday study_day].freeze
+
+  # The badge tone of each category on the admin and dashboard pages.
+  CATEGORY_TONES = {
+    "holiday" => :danger, "study_day" => :danger, "finals" => :danger,
+    "deadline" => :warning, "registration" => :warning,
+    "term_dates" => :info, "academic" => :info
+  }.freeze
+
+  # The finals events that are days with no classes. The university feed puts
+  # announcements such as "Final Exam Schedule Online" in the same category.
+  FINALS_PERIOD_PATTERN = /final exam period|study day/i
+
+  def self.no_class_category?(category) = NO_CLASS_CATEGORIES.include?(category)
+  def self.all_day_category?(category) = ALL_DAY_CATEGORIES.include?(category)
+  def self.category_tone(category) = CATEGORY_TONES.fetch(category.to_s, :neutral)
 
   # The cache holds plain times, not records, so a schema change cannot break
   # an entry. The TTL covers writes that skip callbacks.
@@ -93,9 +113,8 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
   scope :holidays,      -> { where(category: HOLIDAY) }
   scope :finals,        -> { where(category: "finals") }
-  # The finals events that are days with no classes. The university feed puts
-  # announcements such as "Final Exam Schedule Online" in the same category.
-  scope :finals_periods, -> { finals.where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%") }
+  # The same events as finals_period?.
+  scope :finals_periods, -> { finals.where("summary ~* ?", FINALS_PERIOD_PATTERN.source) }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
@@ -143,7 +162,9 @@ class UniversityCalendarEvent < ApplicationRecord
     end.uniq
   end
 
-  def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
+  def excludes_classes? = self.class.no_class_category?(category)
+
+  def finals_period? = category == "finals" && summary.to_s.match?(FINALS_PERIOD_PATTERN)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish

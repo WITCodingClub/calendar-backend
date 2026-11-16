@@ -30,13 +30,11 @@ module UniversityCalendar
                                  .min_by(&:start_time)
 
       registration_event = matching_events
-                           .select { |event| registration_summary?(event.summary) }
+                           .select { |event| event.category == "registration" }
                            .min_by(&:start_time)
       estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
 
-      finals_period_event = matching_events
-                            .select { |event| event.category == "finals" && finals_period_summary?(event.summary) }
-                            .max_by { |event| event.end_time || event.start_time }
+      finals_period_event = matching_events.select(&:finals_period?).max_by { |event| event.end_time || event.start_time }
 
       finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
       course_end_fallback = term&.course_dates&.last
@@ -92,22 +90,11 @@ module UniversityCalendar
     end
 
     def self.schedule_available_summary?(summary)
-      normalized = summary.to_s
-      return false if registration_summary?(normalized)
+      summary = summary.to_s
+      return false if summary.match?(/registration/i)
 
-      normalized.match?(/course\s+schedule/i) ||
-        normalized.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
-    end
-
-    def self.registration_summary?(summary)
-      summary.to_s.match?(/registration\s+(opens|open|begins|begin)|registration/i)
-    end
-
-    def self.finals_period_summary?(summary)
-      normalized = summary.to_s
-      return false if normalized.match?(/schedule\s+(available|online|release|released|posted)/i)
-
-      normalized.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
+      summary.match?(/course\s+schedule/i) ||
+        summary.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
     end
 
     # Fills each date the term does not have with the detected one. Returns the

@@ -60,7 +60,7 @@ RSpec.describe UniversityCalendar::SyncJob do
       end
     end
 
-    %w[holiday study_day].each do |category|
+    %w[holiday study_day finals].each do |category|
       context "when a #{category} changed" do
         let(:import_result) { no_changes.merge(created: 1, changed_categories: [ category, "academic" ]) }
 
