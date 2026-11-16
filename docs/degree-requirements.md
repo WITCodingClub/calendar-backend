@@ -601,7 +601,7 @@ An elective slot names a list, not a course. With `include=candidates` (#993), `
 - A candidate has an active section in the term. When WIT Calendar has no sections of the term yet (`sections` is false), `candidates` is an empty list.
 - A course that the student did or takes (done or in progress, in any term, also through a checked `CourseCodeAlias`) is not a candidate, because it cannot fill a slot again. A course in the term itself counts too: a registered course already fills its slot. A course not passed can be a candidate.
 - An assumed course (`assume`, `assume_plans`) and a course that a `course` row of `planned` or `behind` names are not candidates either. The first counts as passed, and the row takes the second.
-- The source of the candidates depends on the row. For a choice, an HSS slot, and a slot with a list, the rules are the rules of `DegreeProgress#take_for`, so a candidate is a course that `degree_progress` counts for the row. A term elective list is only a recommendation: `degree_progress` cannot check a slot with no list, and a free elective takes any course.
+- The source of the candidates depends on the row. For a choice, an HSS slot, and a slot with a list, the rules are the rules of `RequirementFill#take_for` (held by `AcademicProfiles::ElectiveListRule`), so a candidate is a course that `degree_progress` counts for the row. A term elective list is only a recommendation: `degree_progress` cannot check a slot with no list, and a free elective takes any course.
 
 | Row | Candidates |
 |---|---|

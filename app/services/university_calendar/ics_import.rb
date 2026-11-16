@@ -277,11 +277,9 @@ module UniversityCalendar
         event.term ||= find_term_by_date_cached(attrs[:start_time])
       end
 
-      if event.term && event.academic_term.present? && attrs[:category] == "term_dates"
-        ics_season = TermCode.season_in(event.academic_term)
-        if ics_season && ics_season != event.term.season
-          event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
-        end
+      if event.term && event.academic_term.present? && attrs[:category] == "term_dates" &&
+         names_other_term?(event.academic_term, event.term)
+        event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
       end
 
       content_changed = event.changed? && (event.changed - [ "last_fetched_at" ]).any?
@@ -471,6 +469,16 @@ module UniversityCalendar
       end
 
       @term_cache[inferred]
+    end
+
+    # The ICS term name and the term of the event date differ: a name with a
+    # year must name the same term, and a name without one the same season.
+    def names_other_term?(academic_term, term)
+      named = TermCode.read(academic_term)
+      return named != term.uid if named
+
+      season = TermCode.season_in(academic_term)
+      season.present? && season != term.season
     end
 
     def fix_summary_term_reference(summary, incorrect_term, correct_term)

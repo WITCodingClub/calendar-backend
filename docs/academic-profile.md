@@ -34,7 +34,7 @@ flowchart LR
 
 - The extension keeps sending LeopardWeb data while the flag is off, so the data is ready when the flag turns on.
 - The MCP tools `my_programs`, `my_degree_progress`, `my_next_term_courses` and `update_my_planned_programs` have the same flag (`requires_flag`). While it is off, a call gets a tool error. They also need the `programs:read` or `programs:write` scope. `tools/list` still lists them, because that list is the same for every token.
-- Every error that the student must see is an `AcademicProfiles::Error` with a `code` (`PlanningError`, `InvalidProfileError`, and `CourseOutcomes::InvalidOutcomesError`). A service raises it, and no controller or tool rescues it: `Api::BaseController` answers 422 with `{ error, code }`, and `McpTools::BaseTool` gives the message as a tool error.
+- Every error that the student must see is an `AcademicProfiles::Error` with a `code` (`PlanningError`, `InvalidProfileError`, and `CourseOutcomes::InvalidOutcomesError`). A service raises it, and no API controller or MCP tool rescues it (the dashboard HTML controllers do, to show the message on the page): `Api::BaseController` answers 422 with `{ error, code }`, and `McpTools::BaseTool` gives the message as a tool error.
 - Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`). The extension can read it as `degreePlanning` from `GET /api/user/feature_flags`.
 
 ## What we do not store
