@@ -30,21 +30,26 @@ module AcademicProfiles
       "A D (passed_below_c) counts as done, but some requirements and prerequisites need a C or better.",
       "A course taken more than once counts once, with its best attempt.",
       "A course meets a requirement with the same code, or with an old or new code of the same course " \
-      "(course code aliases). Substitutions, transfer credit, and AP credit are not known."
+      "(course code aliases). Substitutions are not known.",
+      "AP, test, and transfer credit comes from the LeopardWeb transcript or from the student. It counts as a " \
+      "done course with no term, but it needs approval from the program director to count. A course taken at " \
+      "WIT wins over a transfer credit for the same course."
     ].freeze
 
     RANK = { "done" => 0, "in_progress" => 1, "not_passed" => 2 }.freeze
     PASSED = %w[c_or_better passed_below_c].freeze
 
     # A course the student took or takes. status is done, in_progress, or
-    # not_passed.
-    Taken = Struct.new(:subject_code, :course_number, :title, :term, :crn, :credits, :status, :outcome) do
+    # not_passed. A transfer credit (#1020) is done, with no term, no CRN, and
+    # its source (transcript or student). source is nil for a WIT course.
+    Taken = Struct.new(:subject_code, :course_number, :title, :term, :crn, :credits, :status, :outcome, :transfer,
+                       :source) do
       def code = "#{subject_code} #{course_number}"
       def key = [ subject_code, course_number ]
 
       def as_json(*)
-        { code: code, title: title, term: term.name, term_uid: term.uid, crn: crn, credits: credits,
-          status: status, outcome: outcome }
+        { code: code, title: title, term: term&.name, term_uid: term&.uid, crn: crn, credits: credits,
+          status: status, outcome: outcome, transfer: transfer || false, source: source }
       end
     end
 
@@ -409,7 +414,9 @@ module AcademicProfiles
         checkable:     !item.placeholder? || item.elective_group.present?,
         status:        course ? course.status : "open",
         course:        course&.code,
-        term:          course&.term&.name
+        term:          course&.term&.name,
+        # true when an AP, test, or transfer credit fills the row (#1020).
+        transfer:      course&.transfer || false
       }.merge(details_json(item, course))
     end
 
@@ -538,10 +545,17 @@ module AcademicProfiles
     # course (a retake, or an old and a new code of one course, counts
     # once), without the ones not passed.
     def attempts
-      @attempts ||= taken.group_by { |course| equivalents(course.key).min }
-                         .values
-                         .map { |tries| tries.min_by { |course| [ RANK.fetch(course.status), -course.term.uid ] } }
-                         .reject { |course| course.status == "not_passed" }
+      @attempts ||= taken.group_by { |course| equivalents(course.key).min }.values.filter_map { |tries| best_attempt(tries) }
+    end
+
+    # A course taken at WIT wins over a transfer credit for the same course
+    # (#1020). The transfer credit counts when no WIT attempt passed or is in
+    # progress. nil when nothing counts.
+    def best_attempt(tries)
+      transfer, wit = tries.partition(&:transfer)
+      best = wit.min_by { |course| [ RANK.fetch(course.status), -course.term.uid ] }
+      best = transfer.first if transfer.any? && (best.nil? || best.status == "not_passed")
+      best unless best.status == "not_passed"
     end
 
     # The best unused course that meets one of the codes: a done course
@@ -570,28 +584,52 @@ module AcademicProfiles
       @aliases ||= CourseCodeAlias.reviewed_pairs
     end
 
-    # Each enrolled course, newest term first.
+    # Each enrolled course, newest term first, then the transfer credits.
     def taken
-      @taken ||= begin
-        enrollments = @user.enrollments.includes(course: :term).to_a
-        outcomes = CourseOutcome.where(user: @user).to_h { |outcome| [ [ outcome.term_uid, outcome.crn ], outcome.outcome ] }
+      @taken ||= wit_courses + transfer_courses
+    end
 
-        # A lecture and its lab share the code, so the sections of one course
-        # in one term are one course: the most credits of a section (as
-        # Catalog::ScheduleCheck counts them), and not passed when any
-        # section was not passed.
-        # A section stores the subject as Banner's label, "Computer Science
-        # (COMP)". The requirements name a course by its subject code.
-        sections = enrollments.map(&:course).uniq
-                              .group_by { |course| [ course.term_id, Course.prefix_of(course.subject).upcase, course.course_number ] }
-        sections.map do |(_, subject_code, _), group|
-          section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
-          failed = section_outcomes.find { |_, outcome| PASSED.exclude?(outcome) }
-          course, outcome = failed || section_outcomes.first || [ group.first, nil ]
-          Taken.new(subject_code, course.course_number, course.title, course.term, course.crn,
-                    group.filter_map(&:credit_hours).max, taken_status(course.term, outcome), outcome)
-        end.sort_by { |course| [ -course.term.uid, course.code ] }
+    # The AP, test, and transfer credit of the student (#1020), as done
+    # courses with no term. A credit with no title or credits takes those of
+    # its CatalogCourse.
+    def transfer_courses
+      credits = @user.transfer_credits.order(:code).to_a.select(&:key)
+      catalog = catalog_courses(credits.map(&:key))
+      credits.map do |credit|
+        subject_code, course_number = credit.key
+        course = catalog[credit.key]
+        Taken.new(subject_code, course_number, credit.title || course&.title || credit.code, nil, nil,
+                  credit.credits || course&.credit_hours, "done", nil, true, credit.source)
       end
+    end
+
+    def catalog_courses(keys)
+      return {} if keys.empty?
+
+      keys.map { |subject, number| CatalogCourse.where(subject_code: subject, course_number: number) }
+          .reduce(:or).to_a.index_by { |course| [ course.subject_code, course.course_number ] }
+    end
+
+    # Each course taken at WIT, newest term first.
+    def wit_courses
+      enrollments = @user.enrollments.includes(course: :term).to_a
+      outcomes = CourseOutcome.where(user: @user).to_h { |outcome| [ [ outcome.term_uid, outcome.crn ], outcome.outcome ] }
+
+      # A lecture and its lab share the code, so the sections of one course
+      # in one term are one course: the most credits of a section (as
+      # Catalog::ScheduleCheck counts them), and not passed when any
+      # section was not passed.
+      # A section stores the subject as Banner's label, "Computer Science
+      # (COMP)". The requirements name a course by its subject code.
+      sections = enrollments.map(&:course).uniq
+                            .group_by { |course| [ course.term_id, Course.prefix_of(course.subject).upcase, course.course_number ] }
+      sections.map do |(_, subject_code, _), group|
+        section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
+        failed = section_outcomes.find { |_, outcome| PASSED.exclude?(outcome) }
+        course, outcome = failed || section_outcomes.first || [ group.first, nil ]
+        Taken.new(subject_code, course.course_number, course.title, course.term, course.crn,
+                  group.filter_map(&:credit_hours).max, taken_status(course.term, outcome), outcome)
+      end.sort_by { |course| [ -course.term.uid, course.code ] }
     end
 
     def taken_status(term, outcome)

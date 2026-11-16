@@ -466,7 +466,7 @@ module McpTools
              min_credits: nullable(INTEGER), subject_codes: STRINGS)
     ).freeze
     # Why a row of the estimate is not in its plan term (#1011).
-    ESTIMATE_MOVES = %w[taken behind prerequisite offered co_op load].freeze
+    ESTIMATE_MOVES = %w[transfer taken behind prerequisite offered co_op load].freeze
     DEGREE_REQUIREMENT = object(
       {
         year:          INTEGER,
@@ -483,6 +483,8 @@ module McpTools
         status:        PROGRESS_STATUS,
         course:        nullable(STRING),
         term:          nullable(STRING),
+        # true when an AP, test, or transfer credit fills the row (#1020).
+        transfer:      BOOLEAN,
         courses:       STRINGS,
         # The real term of the plan semester (#990), or null.
         planned_term:     nullable(STRING),
@@ -501,7 +503,7 @@ module McpTools
         list:          PROGRESS_LIST,
         filled_course: nullable(object(code: STRING, title: nullable(STRING), **COURSE_DETAILS))
       },
-      optional: %i[year season code label options hss_category min_courses min_credits course term courses
+      optional: %i[year season code label options hss_category min_courses min_credits course term transfer courses
                    title description credit_hours typically_offered list filled_course expected_term expected_term_uid moved]
     ).freeze
     # The humanities and social science requirement of a major.
@@ -619,16 +621,20 @@ module McpTools
           optional:     %i[overlap]
         )
       ),
+      # A transfer credit (#1020) has transfer true, its source, and no
+      # term or CRN.
       courses:     array(
         object(
           code:     STRING,
           title:    STRING,
-          term:     STRING,
-          term_uid: INTEGER,
-          crn:      INTEGER,
+          term:     nullable(STRING),
+          term_uid: nullable(INTEGER),
+          crn:      nullable(INTEGER),
           credits:  nullable(INTEGER),
           status:   { type: "string", enum: %w[done in_progress not_passed] },
-          outcome:  { type: %w[string null], enum: [ *CourseOutcome::OUTCOMES.values, nil ] }
+          outcome:  { type: %w[string null], enum: [ *CourseOutcome::OUTCOMES.values, nil ] },
+          transfer: BOOLEAN,
+          source:   { type: %w[string null], enum: [ *TransferCredit::SOURCES.values, nil ] }
         )
       ),
       assumptions: STRINGS

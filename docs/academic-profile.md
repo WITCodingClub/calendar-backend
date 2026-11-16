@@ -1,11 +1,12 @@
 # Academic profile and course outcomes
 
-The extension reads two LeopardWeb pages and sends what it finds to the backend (#529, calendar-extension#203). The degree requirement features use this data to find the requirements of each student (#526, #799).
+The extension reads three LeopardWeb pages and sends what it finds to the backend (#529, calendar-extension#203, #1020). The degree requirement features use this data to find the requirements of each student (#526, #799).
 
 | LeopardWeb page | Endpoint | Stored in |
 |---|---|---|
 | Student Profile | `PUT /api/user/academic_profile` | `AcademicProfile`, `StudentProgram` |
 | Student Grades | `PUT /api/user/course_outcomes` | `CourseOutcome` |
+| Academic Transcript (transfer credit section) | `PUT /api/user/transfer_credits` | `TransferCredit` |
 
 `GET /api/user/academic_profile` returns the profile and the active programs. The full request and response shapes are in the [API contract](https://github.com/WITCodingClub/calendar-extension/issues/203#issuecomment-6354478653).
 
@@ -20,6 +21,7 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 | `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `my_next_term_courses`, `update_my_planned_programs`) |
 | `GET /api/user/degree_progress` and `GET /api/user/next_term_courses` | |
 | `GET`, `PUT`, and `DELETE /api/user/registration_plans*` | |
+| `GET`, `PUT`, `POST`, and `DELETE /api/user/transfer_credits*` | |
 
 ```mermaid
 flowchart LR
@@ -235,6 +237,37 @@ flowchart TD
 - Each term in a request replaces the outcomes of that term: a stored CRN that is not in the request is removed. A term that is not in the request does not change.
 - A CRN must belong to a course the user is enrolled in. Other CRNs come back in `unknown_crns`, and the extension processes that term first. The stored outcome of an unknown CRN in the request does not change, because its enrollment can be missing for a short time.
 - An outcome names its course by term code and CRN, not by course id. `Courses::Reprocessor` deletes and creates enrollments, and `rake catalog:refresh` deletes and imports the courses of a term again. The outcome stays through both.
+
+## Transfer credit
+
+A student's AP, test, and transfer credit (#1020). The Academic Transcript page of LeopardWeb (`StudentSelfService/ssb/academicTranscript`) has a transfer credit section. It lists each AP exam and transfer course with the WIT course it counts as and the credits. The extension reads it during course sync, the same way it reads the Grades and Student Profile pages. The student can also add a credit by hand when the transcript does not list it. `DegreeProgress` counts each credit as a done course (`docs/degree-requirements.md`).
+
+Each `TransferCredit` row has `code` (a WIT course code, stored as `ENGL 1100`), `title`, `credits`, `source` (`transcript` or `student`), and `kind` (`ap`, `transfer`, `test`, or null). A student has one row for each code.
+
+All routes are behind the `degree_planning` flag:
+
+| Route | What it does |
+|---|---|
+| `GET /api/user/transfer_credits` | The list, sorted by code. |
+| `PUT /api/user/transfer_credits` | Body `{ "credits": [{ "code", "title", "credits", "kind" }] }`, at most 60 entries. Replaces the `transcript` entries. The `student` entries stay. A `student` entry with a code in the body becomes a `transcript` entry. |
+| `POST /api/user/transfer_credits` | The student adds one: `code`, and optional `credits` and `kind`. 422 `unknown_course` for a code that is not a `CatalogCourse`, 422 `duplicate` for a code the student already has. Blank `credits` takes the credit hours of the catalog course. |
+| `DELETE /api/user/transfer_credits/:code` | Removes a `student` entry (`ENGL%201100` or `ENGL1100`). 422 `transcript_entry` for a `transcript` entry, because the next sync would bring it back. 404 for a code the student does not have. |
+
+- `GET`, `PUT`, and `POST` answer `{ credits: [{ code, title, credits, source, kind, removable, updated_at }] }`. `POST` answers the one new entry. `removable` is true for a `student` entry.
+- In a `PUT`, an entry whose code is not a WIT course code (a generic credit such as `HUMN 1XXX`) is not stored. It comes back in `skipped` with the reason `not_a_course_code`. A second entry with the same code comes back with the reason `duplicate`. A transcript code does not need a `CatalogCourse` row.
+- A `PUT` with a body that is not a list, an entry that is not an object, a code that is not a string, credits that are not a whole number from 0 to 30, or an unknown kind gets 422 `invalid_transfer_credit`, and nothing changes.
+- An empty list removes every `transcript` entry.
+
+```mermaid
+flowchart TD
+  P[PUT credits] --> V{Every entry valid?}
+  V -- no --> E[422 invalid_transfer_credit, no change]
+  V -- yes --> K{Code is a WIT course code and not a repeat?}
+  K -- no --> S[skipped]
+  K -- yes --> U[Upsert as transcript]
+  U --> D[Delete transcript rows not in the body]
+  D --> R[200 with the list and skipped]
+```
 
 ## One-time backfills
 

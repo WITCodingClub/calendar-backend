@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_12_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -1279,6 +1279,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_180000) do
     t.check_constraint "year >= 2012", name: "terms_year_not_before_first_term"
   end
 
+  create_table "transfer_credits", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "code", null: false
+    t.string "title"
+    t.integer "credits"
+    t.string "source", null: false
+    t.string "kind"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "code"], name: "index_transfer_credits_on_user_id_and_code", unique: true
+  end
+
   create_table "twenty_five_live_event_categories", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "defn_state", default: 1, null: false
@@ -1544,6 +1556,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_180000) do
   add_foreign_key "term_elective_lists", "terms", on_delete: :cascade
   add_foreign_key "term_processing_statuses", "terms"
   add_foreign_key "term_processing_statuses", "users"
+  add_foreign_key "transfer_credits", "users", on_delete: :cascade
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_backfills", "users", on_delete: :cascade
   add_foreign_key "user_extension_configs", "users"

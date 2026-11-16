@@ -32,8 +32,12 @@ module McpTools
                 "my active programs that the extra courses of a minor fill (slots), the extra courses with no " \
                 "slot (unplaced), and expected_end_with_minor. That is an estimate: it does not check that a " \
                 "course is offered in the term of a slot. " \
-                "This is a help for planning, not a degree audit: it does not know substitutions, " \
-                "transfer credit, or AP credit, and the history can have gaps. The student's official degree " \
+                "AP, test, and transfer credit from my LeopardWeb transcript, or that I added, counts as a " \
+                "done course with no term: its row has transfer true and moved transfer, and its entry in " \
+                "courses has transfer true and its source (transcript or student). A course I took at WIT " \
+                "wins over a transfer credit for the same course. " \
+                "This is a help for planning, not a degree audit: it does not know substitutions, transfer " \
+                "credit needs approval from my program director, and the history can have gaps. The student's official degree " \
                 "audit is Stellic. Without arguments it checks each of my programs in its own catalog year. " \
                 "Read assumptions in the result."
     requires_scope "programs:read"
