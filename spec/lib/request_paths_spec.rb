@@ -14,6 +14,7 @@ RSpec.describe RequestPaths do
 
   it "names paths that the router still draws" do
     expect(routes?(described_class::MCP, :post)).to be(true)
+    expect(routes?(described_class::OAUTH_AUTHORIZE, :get)).to be(true)
     described_class::OAUTH_CLIENT.each { |path| expect(routes?(path, :post)).to be(true), path }
     expect(routes?("#{described_class::OAUTH_METADATA_PREFIX}authorization-server", :get)).to be(true)
     expect(routes?("#{described_class::PUBLIC_CATALOG_PREFIX}/terms", :get)).to be(true)
