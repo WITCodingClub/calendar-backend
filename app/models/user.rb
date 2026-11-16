@@ -45,7 +45,6 @@
 #
 class User < ApplicationRecord
   include GoogleOauthable
-  include CourseScheduleSyncable
   include CalendarTokenable
   include EncodedIds::HashidIdentifiable
 
