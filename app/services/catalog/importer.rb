@@ -2,8 +2,6 @@
 
 module Catalog
   class Importer < ApplicationService
-    include ApplicationHelper
-
     attr_reader :catalog_courses
 
     def initialize(catalog_courses)
@@ -173,7 +171,7 @@ module Catalog
                                                  course_data["subject"] || course_data["subjectCode"])
         c.course_number = course_data["courseNumber"]
         c.schedule_type = schedule_type_key
-        c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])
+        c.section_number = Catalog::SectionNumber.normalize(course_data["sequenceNumber"] || course_data["sectionNumber"])
         c.credit_hours = credit_hours
         c.grade_mode = nil
         c.start_date = start_date

@@ -9,8 +9,6 @@ module Catalog
   # Catalog::CourseDataSyncJob calls it for every section of the active terms
   # each night, and Catalog::SectionRefreshJob for the sections of one schedule.
   class SectionSync
-    include ApplicationHelper
-
     # Sections share buildings and rooms, so callers pass one Locations for a
     # whole run.
     def initialize(locations: Catalog::MeetingTimesIngest::Locations.new)
@@ -112,7 +110,7 @@ module Catalog
       fresh_title           = fresh_data[:title].present? ? Course.normalize_value_for(:title, fresh_data[:title].strip) : nil
       fresh_grade_mode      = fresh_data[:grade_mode]&.strip
       fresh_subject         = fresh_data[:subject]&.strip
-      fresh_section_number  = normalize_section_number(fresh_data[:section_number])
+      fresh_section_number  = Catalog::SectionNumber.normalize(fresh_data[:section_number])
       fresh_schedule_type   = extract_schedule_type(fresh_data[:schedule_type])
 
       [
@@ -133,7 +131,7 @@ module Catalog
       attrs[:title]          = Course.normalize_value_for(:title, fresh_data[:title].strip) if fresh_data[:title].present?
       attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
       attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
-      attrs[:section_number] = normalize_section_number(fresh_data[:section_number]) if fresh_data[:section_number]
+      attrs[:section_number] = Catalog::SectionNumber.normalize(fresh_data[:section_number]) if fresh_data[:section_number]
 
       schedule_type = extract_schedule_type(fresh_data[:schedule_type])
       attrs[:schedule_type] = schedule_type if schedule_type
