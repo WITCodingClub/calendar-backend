@@ -6,7 +6,6 @@ module Api
   class CourseOutcomesController < BaseController
     authenticate_with_token
 
-    # PUT /api/user/course_outcomes
     def update
       authorize current_user, :update?
 

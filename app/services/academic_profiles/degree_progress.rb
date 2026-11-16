@@ -120,7 +120,6 @@ module AcademicProfiles
                               taken: attempts.map(&:key)).call(entry)
     end
 
-    # The admit term of the academic profile, read once for every program.
     def admit_term_uid
       return @admit_term_uid if defined?(@admit_term_uid)
 
