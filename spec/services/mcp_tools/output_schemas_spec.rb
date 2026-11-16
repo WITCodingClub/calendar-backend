@@ -489,6 +489,21 @@ RSpec.describe "MCP tool output schemas" do
       expect(program[:expected_end]).to include(plan_end: "Fall 2027")
     end
 
+    it "matches degree progress with a transfer credit (#1020)" do
+      allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall))
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      plan = create(:program_plan, requirement_set: set)
+      create(:program_plan_item, program_plan: plan, year_index: 2, season: "spring", subject_code: "ENGL", course_number: 1100)
+      create(:program_plan_item, program_plan: plan, year_index: 2, season: "spring", subject_code: "WDGT", course_number: 2000)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
+      create(:transfer_credit, user: user, code: "ENGL 1100", kind: "ap")
+
+      result = expect_valid(McpTools::MyDegreeProgress)
+
+      expect(result[:programs].first[:requirements].pluck(:transfer, :moved)).to eq([ [ true, "transfer" ], [ false, nil ] ])
+      expect(result[:courses].sole).to include(term: nil, crn: nil, transfer: true, source: "transcript")
+    end
+
     it "matches the HSS details of degree progress (#991)" do
       term = create(:term, year: 2026, season: :fall)
       set = create(:requirement_set, degree_program: major, catalog_year: catalog_year, hss_requirement: {

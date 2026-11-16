@@ -603,11 +603,14 @@ module AcademicProfiles
       end
     end
 
+    # One query for every key: the subjects and numbers match apart, so the
+    # rows are filtered to the pairs after the query.
     def catalog_courses(keys)
       return {} if keys.empty?
 
-      keys.map { |subject, number| CatalogCourse.where(subject_code: subject, course_number: number) }
-          .reduce(:or).to_a.index_by { |course| [ course.subject_code, course.course_number ] }
+      CatalogCourse.where(subject_code: keys.map(&:first).uniq, course_number: keys.map(&:last).uniq)
+                   .select(:subject_code, :course_number, :title, :credit_hours)
+                   .index_by { |course| [ course.subject_code, course.course_number ] }.slice(*keys)
     end
 
     # Each course taken at WIT, newest term first.

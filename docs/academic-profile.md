@@ -249,21 +249,26 @@ All routes are behind the `degree_planning` flag:
 | Route | What it does |
 |---|---|
 | `GET /api/user/transfer_credits` | The list, sorted by code. |
-| `PUT /api/user/transfer_credits` | Body `{ "credits": [{ "code", "title", "credits", "kind" }] }`, at most 60 entries. Replaces the `transcript` entries. The `student` entries stay. A `student` entry with a code in the body becomes a `transcript` entry. |
-| `POST /api/user/transfer_credits` | The student adds one: `code`, and optional `credits` and `kind`. 422 `unknown_course` for a code that is not a `CatalogCourse`, 422 `duplicate` for a code the student already has. Blank `credits` takes the credit hours of the catalog course. |
+| `PUT /api/user/transfer_credits` | Body `{ "credits": [{ "code", "title", "credits", "kind" }] }`, at most 60 entries. Replaces the `transcript` entries. The `student` entries do not change. |
+| `POST /api/user/transfer_credits` | The student adds one: `code`, and optional `credits` and `kind`. 422 `unknown_course` for a code that is not a `CatalogCourse`, 422 `duplicate` for a code the student already has, 422 `too_many` after 60 student entries. Blank `credits` takes the credit hours of the catalog course. |
 | `DELETE /api/user/transfer_credits/:code` | Removes a `student` entry (`ENGL%201100` or `ENGL1100`). 422 `transcript_entry` for a `transcript` entry, because the next sync would bring it back. 404 for a code the student does not have. |
 
 - `GET`, `PUT`, and `POST` answer `{ credits: [{ code, title, credits, source, kind, removable, updated_at }] }`. `POST` answers the one new entry. `removable` is true for a `student` entry.
-- In a `PUT`, an entry whose code is not a WIT course code (a generic credit such as `HUMN 1XXX`) is not stored. It comes back in `skipped` with the reason `not_a_course_code`. A second entry with the same code comes back with the reason `duplicate`. A transcript code does not need a `CatalogCourse` row.
-- A `PUT` with a body that is not a list, an entry that is not an object, a code that is not a string, credits that are not a whole number from 0 to 30, or an unknown kind gets 422 `invalid_transfer_credit`, and nothing changes.
-- An empty list removes every `transcript` entry.
+- In a `PUT`, these entries are not stored. Each one comes back in `skipped` as `{ code, reason }`, and the other entries are stored:
+  - `not_a_course_code`: the code is not a WIT course code, such as a generic credit `HUMN 1XXX`.
+  - `duplicate`: a second entry with the same code.
+  - `student_entry`: the student added this code. The student entry stays as it is, so a later sync without the code does not remove it.
+  - `invalid`: credits that are not a whole number from 0 to 30, or an unknown kind. `message` says why.
+- `credits` can be `4`, `4.0`, `"4"`, or `"4.000"` (Banner prints credit hours with three decimals). `kind` is not case sensitive. A transcript code does not need a `CatalogCourse` row.
+- A `PUT` with a body that is not a list, an entry that is not an object, or a code that is not a string gets 422 `invalid_transfer_credit`, and nothing changes.
+- An empty list removes every `transcript` entry. If the extension cannot read the transcript, it must not send an empty list.
 
 ```mermaid
 flowchart TD
-  P[PUT credits] --> V{Every entry valid?}
+  P[PUT credits] --> V{A list of objects with string codes?}
   V -- no --> E[422 invalid_transfer_credit, no change]
-  V -- yes --> K{Code is a WIT course code and not a repeat?}
-  K -- no --> S[skipped]
+  V -- yes --> K{Course code, not a repeat, not a student code, valid credits and kind?}
+  K -- no --> S[skipped with the reason]
   K -- yes --> U[Upsert as transcript]
   U --> D[Delete transcript rows not in the body]
   D --> R[200 with the list and skipped]
