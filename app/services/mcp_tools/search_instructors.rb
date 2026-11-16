@@ -9,25 +9,16 @@ module McpTools
                 "good\" and \"who teaches networking\"."
     requires_scope "catalog"
     input_schema(
-      properties: {
-        q:        { type: "string", description: "A name, for example \"ada lovelace\". With semantic, what they teach." },
-        semantic: { type: "boolean", description: "Rank q by meaning instead of by the name." },
-        term_uid: { type: "integer", description: "Only instructors who teach in this term." },
-        page:     PAGE_SCHEMA,
-        per_page: per_page_schema(:instructors)
-      }
+      properties: CatalogFilters.properties(Catalog::InstructorQuery).merge(page: PAGE_SCHEMA, per_page: per_page_schema(:instructors))
     )
     output_schema(Schemas.object(instructors: Schemas.array(Schemas::INSTRUCTOR), meta: Schemas::PAGE_META))
 
-    def perform(q: nil, semantic: false, term_uid: nil, page: nil, per_page: nil)
-      spend_semantic_search!(q, semantic)
-      page  = Catalog::Page.new(:instructors, page: page, per_page: per_page, surface: :mcp)
-      scope = Catalog::InstructorQuery.new.call(term_uid: term_uid, q: q, semantic: semantic)
+    def perform(page: nil, per_page: nil, **arguments)
+      spend_semantic_search!(arguments[:q], arguments[:semantic])
+      list = Catalog::ListRequest.new(:instructors, CatalogFilters.filters(Catalog::InstructorQuery, arguments),
+                                      page: page, per_page: per_page, surface: :mcp)
 
-      {
-        instructors: page.of(scope).map { |person| Catalog::InstructorSerializer.new(person).as_json },
-        meta:        page.meta(scope.count)
-      }
+      { instructors: list.rows, meta: list.meta }
     end
   end
 end

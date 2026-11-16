@@ -35,7 +35,9 @@ module Types
     field :course, CourseType, null: true,
           description: "The course across terms, with the description and prerequisites. Null until Banner's details are loaded."
     field :description, String, null: true, description: "The course description"
-    field :prerequisites, GraphQL::Types::JSON, null: true, description: "The course prerequisites, as on course"
+    field :prerequisites, GraphQL::Types::JSON, null: true,
+          description: "The course prerequisite tree as Banner gives it, as in the REST section. course.prerequisites " \
+                       "adds each course's code, title, and whether WIT Calendar knows it"
 
     # Each call runs its own vector query, so the field costs more than a
     # column and says so. It is empty until the course has been embedded.
@@ -61,25 +63,18 @@ module Types
     end
 
     def prerequisites
-      catalog_course = course
-      catalog_course && ::Catalog::CourseRequisites.new(catalog_course).prerequisites
+      course&.prerequisites
     end
 
     def schedule_type_code
       Course::ScheduleType.new(object.schedule_type).code
     end
 
-    def seats
-      { capacity: object.seats_capacity, available: object.seats_available }
-    end
-
-    def waitlist
-      { capacity: object.waitlist_capacity, available: object.waitlist_available }
-    end
+    def seats    = ::Catalog::Fields.seats(object)
+    def waitlist = ::Catalog::Fields.waitlist(object)
 
     def cross_list = ::Catalog::Fields.cross_list(object)
 
-    # The same answer as the REST API, from Catalog::SectionLinks.
     def linked
       ::Catalog::SectionLinks.new(object).as_json
     end

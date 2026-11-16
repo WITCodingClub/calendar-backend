@@ -53,30 +53,19 @@ module Types
 
     field :courses, CourseType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:courses, surface: :graphql),
           description: "Courses (not sections) by code or title words" do
-      argument :q, String, required: false
-      argument :subject, [ String ], required: false, description: "Subject codes, e.g. [\"COMP\"]"
-      argument :term_uid, Integer, required: false, description: "Only courses with a section in this term"
+      CatalogFilterArguments.define(self, ::Catalog::CourseQuery)
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:courses]
     end
 
     field :instructors, InstructorType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:instructors, surface: :graphql),
           description: "Faculty who teach at least one section" do
-      argument :term_uid, Integer, required: false
-      argument :q, String, required: false, description: "Each word must match the first, last, or display name"
-      argument :semantic, Boolean, required: false, default_value: false,
-               description: "Rank q by meaning instead of by the literal name. " \
-                            "A query can run one semantic search."
+      CatalogFilterArguments.define(self, ::Catalog::InstructorQuery)
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:instructors]
     end
 
     field :reviews, ReviewType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:reviews, surface: :graphql),
           description: "Rate My Professors reviews of WIT instructors" do
-      argument :instructor, String, required: false, description: "An instructor public id"
-      argument :q, String, required: false, description: "Free text over the comment and the course"
-      argument :semantic, Boolean, required: false, default_value: false,
-               description: "Rank q by meaning instead of by the literal words. " \
-                            "A query can run one semantic search."
-      argument :sentiment, String, required: false, description: "\"positive\" or \"negative\""
+      CatalogFilterArguments.define(self, ::Catalog::ReviewQuery)
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:reviews]
     end
 
@@ -97,32 +86,27 @@ module Types
     end
 
     def sections(filter: nil)
-      filters  = filter ? filter.to_query_filters : {}
-      relation = ::Catalog::SectionQuery.new.call(**filters)
-
-      ::Catalog::SectionQuery.with_associations(relation)
+      ::Catalog::ListRequest.scope(:sections, filter.to_h.compact)
     end
 
     def section(crn:, term_uid: nil)
       ::Catalog::SectionQuery.find(crn, term_uid)
     end
 
-    def reviews(instructor: nil, q: nil, semantic: false, sentiment: nil)
-      relation = ::Catalog::ReviewQuery.new.call(instructor: instructor, q: q, semantic: semantic, sentiment: sentiment)
-
-      ::Catalog::ReviewQuery.with_associations(relation)
+    def reviews(**filters)
+      ::Catalog::ListRequest.scope(:reviews, filters)
     end
 
     def course(code:)
       ::Catalog::CourseQuery.new.find(code)
     end
 
-    def courses(q: nil, subject: nil, term_uid: nil)
-      ::Catalog::CourseQuery.new.call(q: q, subject: subject, term_uid: term_uid)
+    def courses(**filters)
+      ::Catalog::ListRequest.scope(:courses, filters)
     end
 
-    def instructors(term_uid: nil, q: nil, semantic: false)
-      ::Catalog::InstructorQuery.new.call(term_uid: term_uid, q: q, semantic: semantic)
+    def instructors(**filters)
+      ::Catalog::ListRequest.scope(:instructors, filters)
     end
   end
 end

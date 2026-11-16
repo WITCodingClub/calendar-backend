@@ -1,18 +1,21 @@
 # frozen_string_literal: true
 
 module Catalog
-  # Filters Rate My Professors reviews for the public catalog API and for the
-  # admin pages. Both the REST controller and the GraphQL schema use this
-  # object, so the two surfaces filter alike.
+  # Filters Rate My Professors reviews for the public catalog API, the MCP
+  # tools, and the admin pages.
   #
   # Only reviews that carry a comment are offered. A row with ratings and no
   # words says nothing a reader can search.
   class ReviewQuery
-    class FilterError < ::Catalog::FilterError; end
-
-    FILTERS = %i[instructor q semantic sentiment].freeze
+    extend Filters
 
     SENTIMENTS = %w[positive negative].freeze
+
+    filter :instructor, :string, "Only reviews of this instructor: the pub_id from the instructors list, not a name.",
+           mcp: :instructor_id
+    filter :q, :string, "Words to find in the comment or the course."
+    filter :semantic, :flag, "Rank q by meaning instead of by the literal words. A request can run one semantic search."
+    filter :sentiment, :enum, "Positive or negative reviews only.", values: SENTIMENTS
 
     DEFAULT_ORDER = { rating_date: :desc, id: :desc }.freeze
 
@@ -21,8 +24,7 @@ module Catalog
     end
 
     def call(**filters)
-      unknown = filters.keys.map(&:to_sym) - FILTERS
-      raise FilterError, "Unknown filter(s): #{unknown.join(', ')}" if unknown.any?
+      self.class.check_filters!(filters)
 
       relation = @scope.where.not(comment: [ nil, "" ])
       relation = apply_instructor(relation, filters[:instructor])

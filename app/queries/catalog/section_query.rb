@@ -3,17 +3,33 @@
 module Catalog
   # Filters course sections for the public catalog API.
   #
-  # Both the REST controllers and the GraphQL schema use this object, so filter
-  # behaviour stays identical across the two surfaces. Every filter is optional
-  # and unknown values raise FilterError, which callers turn into a 400.
+  # The REST controllers, the GraphQL schema, and the MCP tools use this
+  # object, so a filter means the same on every surface. Every filter is
+  # optional, and an unknown filter or value raises FilterError, which the
+  # callers turn into a 400 or a tool error.
   class SectionQuery
-    class FilterError < ::Catalog::FilterError; end
+    extend Filters
 
-    FILTERS = %i[
-      term_uid subject course_number crns pub_ids q semantic schedule_types
-      meets_on free_days begins_after ends_before
-      credit_hours instructor include_cancelled open_only include_waitlist
-    ].freeze
+    filter :term_uid, :integer, "The term uid, for example 202710."
+    filter :subject, :strings, "Subject codes, for example COMP or MATH, or the full label."
+    filter :course_number, :integers, "Course numbers, for example 1000."
+    filter :crns, :integers, "Section CRNs.", param: :crn
+    filter :pub_ids, :strings, "Section public ids, which stay unique across terms.", param: :pub_id
+    filter :q, :string, "Words to find in the title, subject, or course number."
+    filter :semantic, :flag, "Rank q by meaning instead of by the literal words. Falls back to the literal match " \
+                             "when semantic search is off. A request can run one semantic search."
+    filter :schedule_types, :schedule_types, "Schedule types, for example lecture or LEC.", param: :schedule_type
+    filter :meets_on, :days, "Keep sections that meet on any of these days."
+    filter :free_days, :days, "Drop sections that meet on any of these days."
+    filter :begins_after, :time, "Drop sections with any meeting before this time. HH:MM, 24-hour."
+    filter :ends_before, :time, "Drop sections with any meeting that ends after this time. HH:MM, 24-hour."
+    filter :credit_hours, :integers, "Credit hours, for example 4."
+    filter :instructor, :string, "Part of an instructor name."
+    filter :include_cancelled, :flag, "Also return cancelled sections."
+    filter :open_only, :strict_flag, "Keep only sections with a free seat. Drops sections with no seat data. " \
+                                     "During registration, #{Freshness::SEAT_AGE}."
+    filter :include_waitlist, :strict_flag, "With open_only, also keep full sections whose waitlist has room. " \
+                                            "No effect without open_only."
 
     DEFAULT_ORDER = "courses.subject ASC, courses.course_number ASC, courses.section_number ASC"
 
@@ -22,8 +38,7 @@ module Catalog
     end
 
     def call(**filters)
-      unknown = filters.keys.map(&:to_sym) - FILTERS
-      raise FilterError, "Unknown filter(s): #{unknown.join(', ')}" if unknown.any?
+      self.class.check_filters!(filters)
 
       relation = @scope
       relation = relation.active unless Params.boolean(filters[:include_cancelled])

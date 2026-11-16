@@ -10,11 +10,20 @@ module Catalog
   # meaning instead, and falls back to the name match when the embeddings API
   # cannot answer.
   class InstructorQuery
+    extend Filters
+
+    filter :term_uid, :integer, "Only instructors who teach in this term."
+    filter :q, :string, "A name, for example \"ada lovelace\": each word must match the first, last, or display " \
+                        "name. With semantic, what they teach."
+    filter :semantic, :flag, "Rank q by meaning instead of by the name. A request can run one semantic search."
+
     def initialize(scope = Faculty.all)
       @scope = scope
     end
 
-    def call(term_uid: nil, q: nil, semantic: false)
+    def call(**filters)
+      self.class.check_filters!(filters)
+      term_uid, q, semantic = filters.values_at(:term_uid, :q, :semantic)
       # Subquery rather than joins(:courses): a join would multiply rows by
       # section count and break both the page size and the total.
       relation = @scope.where(id: Faculty.joins(:courses).select("faculties.id")).includes(:rating_distribution)

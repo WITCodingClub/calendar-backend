@@ -36,8 +36,8 @@ module Catalog
         credit_hours:       @course.credit_hours,
         grade_mode:         @course.grade_mode,
         status:             @course.status,
-        seats:              seats,
-        waitlist:           waitlist,
+        seats:              Fields.seats(@course),
+        waitlist:           Fields.waitlist(@course),
         linked:             linked,
         cross_list:         Fields.cross_list(@course),
         part_of_term:       @course.part_of_term,
@@ -75,19 +75,6 @@ module Catalog
 
     def term
       { uid: @course.term.uid, name: @course.term.name }
-    end
-
-    # Enrollment numbers from Banner. The catalog import sets them, and
-    # Catalog::CourseDataSyncJob and Catalog::SeatRefreshJob refresh them
-    # (Catalog::Freshness). Do not present them as a real-time seat count. Null when Banner did not return
-    # enrollment data for the CRN.
-    def seats
-      { capacity: @course.seats_capacity, available: @course.seats_available }
-    end
-
-    # The waitlist counts, from the same Banner data and jobs as seats.
-    def waitlist
-      { capacity: @course.waitlist_capacity, available: @course.waitlist_available }
     end
 
     # Banner marks the sections a student has to register together, most often a

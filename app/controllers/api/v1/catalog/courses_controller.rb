@@ -7,10 +7,8 @@ module Api
       # with Banner's description and prerequisites (Catalog::CourseDetailsSync).
       class CoursesController < Api::V1::PublicController
         def index
-          page     = page_for(:courses)
-          relation = ::Catalog::CourseQuery.new.call(q: params[:q], subject: array_param(:subject), term_uid: params[:term_uid])
-
-          render_collection(page.of(relation).map { |course| ::Catalog::CourseSerializer.summary(course) }, meta: page.meta(relation.count))
+          list = list_request(:courses)
+          render_collection(list.rows, meta: list.meta)
         end
 
         def show
