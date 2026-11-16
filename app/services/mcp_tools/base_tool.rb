@@ -182,6 +182,8 @@ module McpTools
         links = PageLinks.supported?(server_context) ? tool.page_links(data) : []
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *links ], structured_content: data)
+      rescue Catalog::ProgramQuery::UnknownProgramError => e
+        error_response("#{e.message}. Call list_programs to find the slug.")
       rescue *ANSWER_ERRORS => e
         error_response(e.message)
       rescue Pundit::NotAuthorizedError
@@ -299,15 +301,14 @@ module McpTools
       raise ToolError, "#{name} must be a date in YYYY-MM-DD format"
     end
 
+    # Both dates are required here. The API routes default a blank date.
     def date_range(start_date, end_date)
-      from = parse_date(start_date, "start_date")
-      to   = parse_date(end_date, "end_date")
-      raise ToolError, "end_date must not be before start_date" if to < from
-
-      days = (to - from).to_i + 1
-      raise ToolError, "the range must be #{BusyBlocks::MAX_DAYS} days or fewer" if days > BusyBlocks::MAX_DAYS
-
-      [ from, to ]
+      { "start_date" => start_date, "end_date" => end_date }.each do |name, value|
+        raise ToolError, "#{name} must be a date in YYYY-MM-DD format" if value.blank?
+      end
+      BusyBlocks::DateRange.parse(start_date, end_date)
+    rescue BusyBlocks::DateRange::InvalidError => e
+      raise ToolError, e.message
     end
 
     def limit_value(value, default:, max:)

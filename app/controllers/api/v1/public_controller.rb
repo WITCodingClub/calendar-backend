@@ -37,11 +37,14 @@ module Api
         render_error exception.message, status: :bad_request, code: "INVALID_FILTER"
       end
 
-      # A page of a catalog list, with the filters its query object declares
-      # (Catalog::Filters), read from the request by their types.
       def list_request(list)
-        filters = ::Catalog::ListRequest.query(list).filters.to_h { |filter| [ filter.name, filter_param(filter) ] }.compact
-        ::Catalog::ListRequest.new(list, filters, page: params[:page], per_page: params[:per_page])
+        ::Catalog::ListRequest.new(list, filter_params(::Catalog::ListRequest.query(list)), page: params[:page], per_page: params[:per_page])
+      end
+
+      # The filters that a query object declares (Catalog::Filters), read
+      # from the request by their types.
+      def filter_params(query)
+        query.filters.to_h { |filter| [ filter.name, filter_param(filter) ] }.compact
       end
 
       def boolean_param(key)
@@ -52,8 +55,18 @@ module Api
         case filter.type
         when *::Catalog::Filters::LIST_TYPES then array_param(filter.param)
         when :strict_flag then ::Catalog::Params.strict_boolean(params[filter.param], filter.param)
+        when :string then string_param(filter.param)
         else params[filter.param]
         end
+      end
+
+      # ?q[]=x would give the words of the array's text, and the edge cache
+      # would keep the wrong answer for an hour.
+      def string_param(key)
+        value = params[key]
+        return value if value.nil? || value.is_a?(String)
+
+        raise ::Catalog::FilterError, "#{key} must be one value"
       end
 
       # The term that ?term_uid= names, or nil without one.

@@ -17,7 +17,7 @@ RSpec.describe AcademicProfiles::PlannedPrograms do
 
   def error_code
     yield
-  rescue AcademicProfiles::InvalidProfileError => e
+  rescue AcademicProfiles::InvalidProfileError, Catalog::ProgramQuery::FilterError => e
     e.code
   end
 

@@ -48,6 +48,17 @@ RSpec.describe Catalog::SeatRefreshJob do
     expect(Catalog::SeatRefresh).to have_received(:call).once
   end
 
+  it "stops when a cooldown opens during a term" do
+    create(:term, uid: 202730, season: :summer, year: 2027, start_date: Date.new(2027, 5, 4), end_date: Date.new(2027, 8, 10))
+      .then { |summer| create(:course, term: summer) }
+    allow(Catalog::SeatRefresh).to receive(:call).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    reports = capture_error_reports { described_class.perform_now }
+
+    expect(Catalog::SeatRefresh).to have_received(:call).once
+    expect(reports).to be_empty
+  end
+
   it "skips the run while Banner cools down" do
     allow(Catalog::BannerThrottle).to receive(:cooldown_remaining).and_return(120)
 

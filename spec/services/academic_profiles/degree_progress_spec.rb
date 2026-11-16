@@ -535,7 +535,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
     expect(progress(program: "widget-design-bs")[:programs].first[:catalog_year]).to eq("2025-2026")
     expect(progress(program: "widget-design-bs", catalog_year: "2026-2027")[:programs].first[:catalog_year]).to eq("2026-2027")
-    expect { progress(program: "basket-weaving-bs") }.to raise_error(Catalog::FilterError, /list_programs/)
+    expect { progress(program: "basket-weaving-bs") }.to raise_error(Catalog::ProgramQuery::UnknownProgramError, /No program basket-weaving-bs/)
   end
 
   it "uses the standard plan, or the plan the student names" do
@@ -544,7 +544,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
     expect(progress[:programs].first).to include(plan: "Four Year Program", plans: [ "Four Year Program", "Three Year Program" ])
     expect(progress(plan: "three year program")[:programs].first[:plan]).to eq("Three Year Program")
-    expect { progress(plan: "Ten Year Program") }.to raise_error(Catalog::FilterError, /Three Year Program/)
+    expect { progress(plan: "Ten Year Program") }.to raise_error(AcademicProfiles::ProgramSelection::UnknownPlanError, /Three Year Program/)
   end
 
   it "uses the plan the student picked, and the standard plan when an import renamed it" do

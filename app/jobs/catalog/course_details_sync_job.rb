@@ -14,12 +14,19 @@ module Catalog
     # One term at a time, so the requests to Banner never pile up.
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "course_details_sync" }, duration: 6.hours
 
+    # Banner stopped answering. The courses fetched before the stop are fresh,
+    # so the next attempt goes on with the rest. The window matches the
+    # nightly Catalog::CourseDataSyncJob that enqueues this job.
+    include Catalog::BannerCooldownRetry
+    retry_banner_cooldown within: 4.hours
+
     def perform(term_uid)
       term = Term.find_by(uid: term_uid)
       return Rails.logger.warn("[Catalog::CourseDetailsSyncJob] No term #{term_uid}") if term.nil?
 
       result = Catalog::CourseDetailsSync.new(term).call
-      # The time of a full run, for the MCP advisory (Catalog::Freshness).
+      # The time of a full run, for the MCP advisory (Catalog::Freshness). A
+      # run that stops on a Banner cooldown raises before this line.
       term.update_column(:details_synced_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
       Rails.logger.info "[Catalog::CourseDetailsSyncJob] #{term.name}: #{result.fetched} fetched, " \
                         "#{result.skipped} skipped, #{result.failed} failed"

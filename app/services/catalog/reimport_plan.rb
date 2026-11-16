@@ -18,10 +18,7 @@ module Catalog
 
     # @raise [Catalog::LeopardWebClient::RequestError] when Banner does not list its terms
     def call
-      result = Catalog::LeopardWebClient.get_active_terms
-      raise Catalog::LeopardWebClient::RequestError, "Banner did not list its terms: #{result[:error]}" unless result[:success]
-
-      banner_uids = result[:terms].map { |term| term[:code].to_i }.select { |uid| in_bounds?(uid) }
+      banner_uids = Catalog::LeopardWebClient.get_active_terms.map { |term| term[:code].to_i }.select { |uid| in_bounds?(uid) }
       db_uids     = Term.pluck(:uid).select { |uid| in_bounds?(uid) }
 
       Result.new(

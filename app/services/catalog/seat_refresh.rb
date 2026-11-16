@@ -17,13 +17,13 @@ module Catalog
     end
 
     # Returns the number of sections whose counts changed, or nil when Banner
-    # did not answer.
+    # did not answer. A Banner cooldown goes up to the job.
     def call
       fetched_at = Time.current
-      result = LeopardWebClient.get_course_catalog(term: @term.uid)
-      return nil unless result[:success]
+      sections = BannerThrottle.report_unless_cooldown(term_uid: @term.uid) { LeopardWebClient.get_course_catalog(term: @term.uid) }
+      return nil unless sections
 
-      fresh = result[:courses].to_h do |data|
+      fresh = sections.to_h do |data|
         section = BannerSection.from_search(data)
         [ section.crn.to_i, section.counts ]
       end

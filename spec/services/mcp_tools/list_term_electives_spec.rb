@@ -31,8 +31,12 @@ RSpec.describe McpTools::ListTermElectives do
     expect(call.structured_content[:lists].size).to eq(2)
   end
 
+  it "takes a list of schools, as the REST API does" do
+    expect(described_class.input_schema.to_h[:properties][:school]).to include(type: "array", items: { type: "string" })
+  end
+
   it "takes a school, a course, and heading words" do
-    expect(call(term_uid: term.uid, school: "hss").structured_content[:lists].size).to eq(1)
+    expect(call(term_uid: term.uid, school: [ "hss" ]).structured_content[:lists].size).to eq(1)
     expect(call(term_uid: term.uid, course: "COMP 2000").structured_content[:lists].first[:courses].pluck(:code)).to eq([ "COMP 2000" ])
     expect(call(term_uid: term.uid, q: "social").structured_content[:lists].pluck(:school)).to eq(%w[HSS])
   end

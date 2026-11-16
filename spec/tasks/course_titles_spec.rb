@@ -38,7 +38,7 @@ RSpec.describe "course title rake tasks" do
 
   describe "courses:refresh_titles" do
     def banner_catalog(*rows)
-      { success: true, courses: rows.map { |crn, title| { "courseReferenceNumber" => crn.to_s, "courseTitle" => title } } }
+      rows.map { |crn, title| { "courseReferenceNumber" => crn.to_s, "courseTitle" => title } }
     end
 
     it "writes the Banner title again, which a stored title cannot give back" do
@@ -67,10 +67,19 @@ RSpec.describe "course title rake tasks" do
       expect(current.reload.title).to eq("Studio 07 (AI-Urbino)")
     end
 
+    it "skips a term whose Banner answer is not JSON" do
+      course = course_with_stored_title(current_term, "Intro To Co - Op")
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog).and_raise(JSON::ParserError, "unexpected token")
+
+      expect { run_task("courses:refresh_titles", current_term.uid.to_s) }.to output(/Failed to fetch courses: unexpected token/).to_stdout
+
+      expect(course.reload.title).to eq("Intro To Co - Op")
+    end
+
     it "skips a term that Banner does not answer for" do
       course = course_with_stored_title(current_term, "Intro To Co - Op")
       allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
-        .and_return({ success: false, error: "timeout", courses: [] })
+        .and_raise(Catalog::LeopardWebClient::RequestError, "timeout")
 
       expect { run_task("courses:refresh_titles", current_term.uid.to_s) }.to output(/Failed to fetch courses: timeout/).to_stdout
 

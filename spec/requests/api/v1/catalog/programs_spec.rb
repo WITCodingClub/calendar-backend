@@ -66,6 +66,10 @@ RSpec.describe "Catalog programs API", type: :request do
 
       get "/api/v1/catalog/programs", params: { catalog_year: "last year" }
       expect(response).to have_http_status(:bad_request)
+
+      get "/api/v1/catalog/programs", params: { q: [ "widget" ] }
+      expect(response).to have_http_status(:bad_request)
+      expect(json["error"]).to eq("q must be one value")
     end
 
     it "answers 404 for a catalog year that is not imported" do

@@ -7,16 +7,19 @@ module Catalog
   class TermElectiveQuery
     Match = Data.define(:list, :courses)
 
+    extend Filters
+    filter :school, :strings, "Only the lists of these schools: #{TermElectives::SCHOOLS.join(', ')}."
+    filter :course, :string, "Only this course, for example COMP2000, to see which lists name it."
+    filter :q, :string, "Words in the heading, for example computer science."
+
     # The lists of the term, by school and then title. With a filter, each
     # list keeps only the matching courses, and a list with no match is left
     # out.
     #
-    # school: one code or more, such as "SCDS" (TermElectives::SCHOOLS).
-    # course: a code, such as "COMP2000" or "COMP 2000".
-    # q: words that each must be in the heading of a course.
-    #
     # @return [Array<Match>]
-    def call(term:, school: nil, course: nil, q: nil)
+    def call(term:, **filters)
+      self.class.check_filters!(filters)
+      school, course, q = filters.values_at(:school, :course, :q)
       lists = term.term_elective_lists.includes(courses: :catalog_course).order(:school, :title, :id)
       lists = lists.where(school: validated_schools(school)) if school.present?
       filters = [ course_filter(course), *heading_filters(q) ].compact

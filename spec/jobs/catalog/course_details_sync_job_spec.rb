@@ -27,6 +27,13 @@ RSpec.describe Catalog::CourseDetailsSyncJob do
     expect(Catalog::CourseDetailsSync).not_to have_received(:new)
   end
 
+  it "tries again after a Banner cooldown" do
+    term = create(:term)
+    allow(Catalog::CourseDetailsSync).to receive(:new).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    expect { described_class.perform_now(term.uid) }.to have_enqueued_job(described_class).with(term.uid)
+  end
+
   it "runs one term at a time under a fixed group" do
     expect(described_class.concurrency_group).to eq("CatalogCourseDetailsSyncJob")
     expect(described_class.concurrency_limit).to eq(1)

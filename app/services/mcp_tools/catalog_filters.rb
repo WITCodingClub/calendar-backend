@@ -26,7 +26,11 @@ module McpTools
     def properties(query)
       query.filters.to_h do |filter|
         schema = SCHEMAS.fetch(filter.type).merge(description: filter.description)
-        schema[:enum] = filter.values if filter.values
+        if filter.values && filter.list?
+          schema[:items] = schema[:items].merge(enum: filter.values)
+        elsif filter.values
+          schema[:enum] = filter.values
+        end
         [ filter.mcp, schema ]
       end
     end

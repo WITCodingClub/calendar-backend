@@ -31,12 +31,7 @@ module Catalog
       Scored = Data.define(:units, :score, :avoid_hits, :highlights)
 
       # "9 AM", "1:30 PM".
-      def self.clock(hhmm)
-        hour, minute = hhmm.divmod(100)
-        suffix = hour < 12 || hour == 24 ? "AM" : "PM"
-        hour12 = ((hour - 1) % 12) + 1
-        minute.zero? ? "#{hour12} #{suffix}" : format("%d:%02d %s", hour12, minute, suffix)
-      end
+      def self.clock(hhmm) = Hhmm.format_12h(hhmm, short: true)
 
       def initialize(preferences)
         @preferences = preferences
@@ -126,10 +121,8 @@ module Catalog
 
         private
 
-        def minutes(hhmm) = ((hhmm / 100) * 60) + (hhmm % 100)
-
         def merge(list)
-          list.map { |slot| [ minutes(slot.begin_time), minutes(slot.end_time) ] }.sort.each_with_object([]) do |(from, to), merged|
+          list.map { |slot| [ Hhmm.minutes(slot.begin_time), Hhmm.minutes(slot.end_time) ] }.sort.each_with_object([]) do |(from, to), merged|
             if merged.any? && from <= merged.last[1]
               merged.last[1] = [ merged.last[1], to ].max
             else

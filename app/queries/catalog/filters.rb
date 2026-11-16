@@ -13,7 +13,8 @@ module Catalog
   #
   # Types:
   # - :string, :integer, :time ("HH:MM"), :enum (one of values:)
-  # - :strings, :integers, :days, :schedule_types (lists)
+  # - :strings (with values:, each one of them), :integers, :days,
+  #   :schedule_types (lists)
   # - :flag: any true value. :strict_flag: true or false only
   #   (Catalog::Params.strict_boolean).
   #

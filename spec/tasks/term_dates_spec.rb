@@ -8,7 +8,7 @@ RSpec.describe "terms:fix_implausible_dates" do
     Rails.application.load_tasks if Rake::Task.tasks.empty?
   end
 
-  before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: false, terms: []) }
+  before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise(Catalog::LeopardWebClient::RequestError, "down") }
 
   def run_task
     task = Rake::Task["terms:fix_implausible_dates"]

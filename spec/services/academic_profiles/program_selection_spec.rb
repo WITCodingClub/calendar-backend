@@ -29,6 +29,6 @@ RSpec.describe AcademicProfiles::ProgramSelection do
     standard = create(:program_plan, requirement_set: set)
 
     expect(selection.plan(set, "Old Plan")).to eq(standard)
-    expect { selection(plan: "Old Plan").plan(set, "Old Plan") }.to raise_error(Catalog::FilterError, /No plan Old Plan/)
+    expect { selection(plan: "Old Plan").plan(set, "Old Plan") }.to raise_error(AcademicProfiles::ProgramSelection::UnknownPlanError, /No plan Old Plan/)
   end
 end

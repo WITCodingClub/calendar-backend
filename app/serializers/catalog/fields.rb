@@ -47,13 +47,9 @@ module Catalog
       course.filtered_meeting_times.sort_by { |mt| [ Course::MeetingTime.day_of_weeks[mt.day_of_week], mt.begin_time ] }
     end
 
-    # begin_time and end_time are HHMM integers, so plain subtraction would
-    # make 09:45 to 10:00 look like 55 minutes.
     def duration_minutes(meeting_time)
-      minutes(meeting_time.end_time) - minutes(meeting_time.begin_time)
+      Hhmm.minutes(meeting_time.end_time) - Hhmm.minutes(meeting_time.begin_time)
     end
-
-    def minutes(hhmm) = ((hhmm / 100) * 60) + (hhmm % 100)
 
     # Rate My Professors joins the tags of one review with "--".
     def review_tags(rating)

@@ -50,10 +50,7 @@ module Catalog
       result.term_uids
     end
 
-    # The flag shows the term as importing on the admin pages, for this term
-    # only. Catalog::ImportJob clears it when it ends, whatever the result.
     def import(uid, remaining:)
-      Term.where(uid: uid).update_all(catalog_importing: true, catalog_import_failed: false)
       result = Catalog::ImportJob.perform_now(uid)
 
       Rails.logger.info(

@@ -17,7 +17,7 @@ module Dashboard
       planned.save_pathway!(pathway, programs)
 
       redirect_to dashboard_programs_path(anchor: "planned-programs"), notice: "#{pathway.name} added to your planned programs."
-    rescue AcademicProfiles::InvalidProfileError => e
+    rescue AcademicProfiles::InvalidProfileError, Catalog::ProgramQuery::FilterError => e
       # build_pathway raises before a record exists to authorize. The policy
       # allows a student to plan programs only for themselves, and
       # build_pathway makes the rows for current_user, so no other check is

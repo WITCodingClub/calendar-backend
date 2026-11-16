@@ -87,6 +87,13 @@ RSpec.describe "Catalog courses API", type: :request do
   end
 
   describe "GET /api/v1/catalog/courses" do
+    it "refuses a string filter given as an array" do
+      get "/api/v1/catalog/courses", params: { q: [ "data" ] }
+
+      expect(response).to have_http_status(:bad_request)
+      expect(json).to include("error" => "q must be one value", "code" => "INVALID_FILTER")
+    end
+
     it "finds courses by title words, code, or subject" do
       create(:catalog_course, subject_code: "MATH", course_number: 2860, title: "Linear Algebra")
 

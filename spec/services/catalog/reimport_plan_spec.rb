@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe Catalog::ReimportPlan do
   def banner_lists(*uids)
     allow(Catalog::LeopardWebClient).to receive(:get_active_terms)
-      .and_return({ success: true, terms: uids.map { |uid| { code: uid.to_s, description: "Term #{uid}" } } })
+      .and_return(uids.map { |uid| { code: uid.to_s, description: "Term #{uid}" } })
   end
 
   before do
@@ -33,7 +33,7 @@ RSpec.describe Catalog::ReimportPlan do
   end
 
   it "raises when Banner does not list its terms" do
-    allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return({ success: false, error: "down", terms: [] })
+    allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise(Catalog::LeopardWebClient::RequestError, "down")
 
     expect { described_class.new.call }.to raise_error(Catalog::LeopardWebClient::RequestError, /down/)
   end

@@ -68,6 +68,22 @@ RSpec.describe Catalog::SectionLinksSync do
     expect(lecture.reload.links_fetched_at).to be_nil
   end
 
+  it "fails on an error that is not a Banner failure" do
+    allow(Catalog::LeopardWebClient).to receive(:fetch_linked_sections).and_raise(NoMethodError, "bug")
+
+    expect { described_class.call(lecture) }.to raise_error(NoMethodError)
+  end
+
+  it "stops on a Banner cooldown, so the job can try again later" do
+    allow(Catalog::LeopardWebClient).to receive(:fetch_linked_sections).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+    reports = capture_error_reports do
+      expect { described_class.call(lecture) }.to raise_error(Catalog::BannerThrottle::CooldownError)
+    end
+
+    expect(reports).to be_empty
+  end
+
   it "clears the links of a section that is no longer linked, with no request" do
     create(:section_link, course: lecture, linked_course: lab)
     lecture.update!(is_section_linked: false)
@@ -85,7 +101,7 @@ RSpec.describe Catalog::SectionLinksSync do
       stub_links(20455, "linked_sections_lab.json", status: 500)
 
       reports = capture_error_reports do
-        expect(described_class.for_term(term, pause: 0)).to eq(synced: 1, failed: 1)
+        expect(described_class.for_term(term)).to eq(synced: 1, failed: 1)
       end
 
       expect(reports.size).to eq(1)

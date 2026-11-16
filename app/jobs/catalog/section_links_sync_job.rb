@@ -14,6 +14,10 @@ module Catalog
     # few minutes, so a waiting job keeps its turn for longer than the default.
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "section_links_sync" }, duration: 2.hours
 
+    # Banner stopped answering. Try the term again after each cooldown.
+    include Catalog::BannerCooldownRetry
+    retry_banner_cooldown within: 2.hours
+
     def perform(term_uid)
       term = Term.find_by(uid: term_uid)
       return Rails.logger.warn("[Catalog::SectionLinksSyncJob] No term #{term_uid}") if term.nil?

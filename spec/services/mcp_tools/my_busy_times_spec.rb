@@ -16,6 +16,11 @@ RSpec.describe McpTools::MyBusyTimes do
     expect(result.structured_content[:busy]).to eq([ { date: "2026-12-17", weekday: "thursday", start: "08:00", end: "10:00" } ])
   end
 
+  it "refuses a blank date, which the API routes would default" do
+    expect(call(start_date: "", end_date: "2026-12-17").content.first[:text]).to eq("start_date must be a date in YYYY-MM-DD format")
+    expect(call(start_date: "2026-12-17", end_date: "").content.first[:text]).to eq("end_date must be a date in YYYY-MM-DD format")
+  end
+
   it "refuses an end date before the start date" do
     expect(call(start_date: "2026-12-17", end_date: "2026-12-01").content.first[:text]).to include("must not be before")
   end

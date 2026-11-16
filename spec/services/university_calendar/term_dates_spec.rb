@@ -119,38 +119,38 @@ RSpec.describe UniversityCalendar::TermDates do
     end
 
     it "returns nil when Banner fails" do
-      stub_active_terms(success: false, terms: [])
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise(Catalog::LeopardWebClient::RequestError, "down")
 
       expect(described_class.leopard_web_registration_open_date(2031, :fall, term)).to be_nil
     end
 
     it "returns nil when the term is not active" do
-      stub_active_terms(success: true, terms: [ { code: "209910" } ])
+      stub_active_terms([ { code: "209910" } ])
 
       expect(described_class.leopard_web_registration_open_date(2031, :fall, term)).to be_nil
     end
 
     it "returns today when the term has no start date yet" do
-      stub_active_terms(success: true, terms: [ { code: term.uid.to_s } ])
+      stub_active_terms([ { code: term.uid.to_s } ])
 
       expect(described_class.leopard_web_registration_open_date(2031, :fall, term)).to eq(Time.zone.today)
     end
 
     it "keeps a stored start date that is in the past" do
       term.update!(start_date: Date.new(2026, 9, 1))
-      stub_active_terms(success: true, terms: [ { "code" => term.uid } ])
+      stub_active_terms([ { code: term.uid } ])
 
       expect(described_class.leopard_web_registration_open_date(2031, :fall, term)).to eq(Date.new(2026, 9, 1))
     end
 
     it "uses a generated uid when there is no term row" do
-      stub_active_terms(success: true, terms: [ { code: "203210" } ])
+      stub_active_terms([ { code: "203210" } ])
 
       expect(described_class.leopard_web_registration_open_date(2031, :fall, nil)).to eq(Time.zone.today)
     end
 
     it "returns nil for an unknown season without a term" do
-      stub_active_terms(success: true, terms: [])
+      stub_active_terms([])
 
       expect(described_class.leopard_web_registration_open_date(2031, :winter, nil)).to be_nil
     end
@@ -169,7 +169,7 @@ RSpec.describe UniversityCalendar::TermDates do
 
     let(:term) { create(:term, year: 2031, season: :fall) }
 
-    before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: false, terms: []) }
+    before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise(Catalog::LeopardWebClient::RequestError, "down") }
 
     def event_at(summary, start_time, end_time: start_time + 1.hour, **attrs)
       create(:university_calendar_event, summary: summary, start_time: start_time, end_time: end_time, **attrs)
@@ -189,7 +189,7 @@ RSpec.describe UniversityCalendar::TermDates do
     end
 
     it "prefers the LeopardWeb registration date" do
-      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return([ { code: term.uid } ])
       event_at("Fall 2031 Course Schedule Available", Time.zone.local(2031, 3, 20, 9, 0))
 
       travel_to(Time.zone.local(2031, 4, 2, 12)) do
@@ -198,7 +198,7 @@ RSpec.describe UniversityCalendar::TermDates do
     end
 
     it "ignores a LeopardWeb listing that comes before the term's window" do
-      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return([ { code: term.uid } ])
 
       travel_to(Time.zone.local(2030, 7, 25, 12)) do
         expect(described_class.detect(2031, :fall)[:start_date]).to be_nil
@@ -209,7 +209,7 @@ RSpec.describe UniversityCalendar::TermDates do
     # 2026, and the Summer 2026 finals event carried its term id.
     it "keeps a summer term's dates out of the year before" do
       summer = create(:term, year: 2031, season: :summer)
-      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: summer.uid } ])
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return([ { code: summer.uid } ])
       event_at("Final Exam Period", Time.zone.local(2030, 8, 5, 9, 0), end_time: Time.zone.local(2030, 8, 11, 17, 0),
                                     category: "finals", term: summer)
 

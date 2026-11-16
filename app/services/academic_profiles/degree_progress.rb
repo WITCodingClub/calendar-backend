@@ -67,7 +67,8 @@ module AcademicProfiles
       end
     end
 
-    # Raises NoProgramError, or Catalog::FilterError for a bad catalog year.
+    # Raises PlanningError, or Catalog::ProgramQuery::FilterError for a
+    # program or catalog year that the catalog does not have.
     def call
       entries = @selection.entries
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?

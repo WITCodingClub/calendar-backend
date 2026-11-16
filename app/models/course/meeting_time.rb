@@ -66,21 +66,10 @@ class Course::MeetingTime < ApplicationRecord
   enum :day_of_week,           { sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
                                  thursday: 4, friday: 5, saturday: 6 }
 
-  def fmt_begin_time
-    format_12_hour(begin_time / 100, begin_time % 100)
-  end
-
-  def fmt_end_time
-    format_12_hour(end_time / 100, end_time % 100)
-  end
-
-  def fmt_begin_time_military
-    format("%02d:%02d", begin_time / 100, begin_time % 100)
-  end
-
-  def fmt_end_time_military
-    format("%02d:%02d", end_time / 100, end_time % 100)
-  end
+  def fmt_begin_time          = Hhmm.format_12h(begin_time)
+  def fmt_end_time            = Hhmm.format_12h(end_time)
+  def fmt_begin_time_military = Hhmm.format(begin_time)
+  def fmt_end_time_military   = Hhmm.format(end_time)
 
   def formatted_time_range
     "#{fmt_begin_time} - #{fmt_end_time}"
@@ -130,10 +119,4 @@ class Course::MeetingTime < ApplicationRecord
   private
 
   def room_list(rooms) = rooms.map(&:formatted_number).join(Room::LIST_SEPARATOR)
-
-  def format_12_hour(hours, minutes)
-    meridian = hours >= 12 ? "PM" : "AM"
-    display_hour = hours == 0 ? 12 : (hours > 12 ? hours - 12 : hours)
-    format("%d:%02d %s", display_hour, minutes, meridian)
-  end
 end

@@ -26,15 +26,6 @@ RSpec.describe Catalog::ReimportAllTermsJob do
     expect(Rails.logger).to have_received(:warn).with(/not in the database, skipped: 202730/)
   end
 
-  it "shows the term as importing on the admin pages while it runs" do
-    allow(Catalog::ImportJob).to receive(:perform_now) do
-      expect(term.reload.catalog_importing).to be(true)
-      counts
-    end
-
-    described_class.perform_now(term_uids: [ 202720 ])
-  end
-
   it "stops after the last term" do
     allow(Catalog::ImportJob).to receive(:perform_now).and_return(counts)
 

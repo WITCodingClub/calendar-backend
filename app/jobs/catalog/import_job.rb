@@ -1,20 +1,32 @@
 # frozen_string_literal: true
 
 module Catalog
+  # Imports every section of one term from Banner's class search.
+  #
+  # The job owns the import flags of the term, which the admin pages show:
+  # catalog_importing while it runs, and catalog_import_failed when it raised.
+  # Start it with ImportJob.enqueue(term), which shows the term as importing
+  # before the job is in the queue, or with perform_now.
   class ImportJob < ApplicationJob
     queue_as :low
 
+    # Sets the flags first, so a job that ends before this method returns
+    # cannot leave the term marked as importing. A job that did not reach the
+    # queue clears them again. Returns the job, or false.
+    def self.enqueue(term)
+      job = new(term.uid)
+      term.update!(catalog_importing: true, catalog_import_failed: false, catalog_import_job_id: job.job_id)
+      enqueued = job.enqueue
+    ensure
+      term.update!(catalog_importing: false, catalog_import_job_id: nil) if job && !enqueued
+    end
+
     def perform(term_uid)
+      terms = Term.where(uid: term_uid)
+      terms.update_all(catalog_importing: true, catalog_import_failed: false)
       Rails.logger.info "[Catalog::ImportJob] Starting import for term #{term_uid}"
 
-      result = Catalog::LeopardWebClient.get_course_catalog(term: term_uid)
-
-      unless result[:success]
-        Rails.logger.error "[Catalog::ImportJob] Failed to fetch courses: #{result[:error]}"
-        raise "Failed to fetch course catalog: #{result[:error]}"
-      end
-
-      courses = result[:courses]
+      courses = Catalog::LeopardWebClient.get_course_catalog(term: term_uid)
       Rails.logger.info "[Catalog::ImportJob] Fetched #{courses.count} courses for term #{term_uid}"
 
       if courses.empty?
@@ -34,11 +46,11 @@ module Catalog
       Rails.logger.info "[Catalog::ImportJob] Completed import for term #{term_uid}: " \
                         "#{result[:created]} added, #{result[:updated]} updated, #{result[:unchanged]} unchanged"
       result
-    rescue => e
-      Term.where(uid: term_uid).update_all(catalog_import_failed: true)
+    rescue StandardError
+      terms.update_all(catalog_import_failed: true)
       raise
     ensure
-      Term.where(uid: term_uid).update_all(catalog_importing: false)
+      terms.update_all(catalog_importing: false)
     end
   end
 end
