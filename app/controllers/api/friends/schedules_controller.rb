@@ -113,22 +113,13 @@ module Api
       # the friend's public id. It loads only those rows, so the cost does not
       # grow with the user's total number of friends.
       def requested_friendships(friend_ids)
-        user_ids = friend_ids.filter_map { |id| decode_user_public_id(id) }
+        user_ids = friend_ids.filter_map { |id| PublicIds.decode(User, id) }
         return {} if user_ids.empty?
 
         current_user.accepted_friendships
                     .where("friendships.requester_id IN (:ids) OR friendships.addressee_id IN (:ids)", ids: user_ids)
                     .includes(:requester, :addressee)
                     .index_by { |friendship| friendship.friend_for(current_user).public_id }
-      end
-
-      # The user id in a public id such as "usr_abc123", or nil when the id
-      # is not a user public id. It sends no query.
-      def decode_user_public_id(public_id)
-        prefix, hash = public_id.split("_", 2)
-        return nil unless prefix == User.get_public_id_prefix && hash.present?
-
-        User.decode_id(hash)
       end
 
       # One entry of the batch response. An unknown id gives NOT_FRIENDS, the

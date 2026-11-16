@@ -111,27 +111,20 @@ module Api
     # Reads an id the way Course::MeetingTime.find does: a public id with its
     # prefix, a bare hashid, or a database id. Returns nil for no match.
     def meeting_time_record_id(id)
-      separator = EncodedIds.configuration.separator
+      return PublicIds.decode(Course::MeetingTime, id) if PublicIds.public_id?(id)
 
-      if id.include?(separator)
-        prefix, _, hash = id.rpartition(separator)
-        return nil unless prefix == Course::MeetingTime.get_public_id_prefix
-
-        Course::MeetingTime.decode_id(hash)
-      else
-        Course::MeetingTime.decode_id(id) || Integer(id, exception: false)
-      end
+      Course::MeetingTime.decode_id(id) || Integer(id, exception: false)
     end
 
     def set_preferenceable
       if params[:meeting_time_id]
         id    = params[:meeting_time_id]
         scope = Course::MeetingTime.eager_load(course: :faculties)
-        @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
+        @preferenceable = find_by_any_id!(scope, id)
       elsif calendar_event_param
         id    = calendar_event_param
         scope = CalendarEvent.eager_load(meeting_time: { course: :faculties })
-        @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
+        @preferenceable = find_by_any_id!(scope, id)
         # A CalendarEvent belongs to a specific user's calendar; enforce
         # ownership here so another user's event id can't leak preference data.
         authorize @preferenceable, :show?
