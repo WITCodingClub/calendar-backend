@@ -36,9 +36,8 @@ module Calendar
     end
 
     # support_unencrypted_data stays at its default (false): an encrypted
-    # column that holds plain text raises on read. Production ran
-    # `bin/rails oauth_credentials:encrypt` on 2026-10-09 (#713). A local
-    # database with older rows needs the same task.
+    # column that holds plain text raises on read. Production encrypted its
+    # old plain-text rows on 2026-10-09 (#713).
 
     config.active_job.queue_adapter = :solid_queue
 
@@ -50,6 +49,9 @@ module Calendar
     # Where people write to us: security reports and "this was not me" replies
     # to account emails. contact@calendar.witcc.dev does not receive mail.
     config.x.contact_email = "calendarwit@gmail.com"
+
+    # The maintainer who reviews 25Live constant drift (TwentyFiveLiveMailer).
+    config.x.maintainer_email = ENV.fetch("MAINTAINER_EMAIL", "mayonej@wit.edu")
 
     # The Chrome Web Store page of the extension. The website (calendar-website,
     # src/lib/server/pages.ts) links to the same page.

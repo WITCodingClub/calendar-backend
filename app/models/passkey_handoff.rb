@@ -39,6 +39,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class PasskeyHandoff < ApplicationRecord
+  include Expirable
+
   TTL = 2.minutes
 
   PURPOSES = %w[register session].freeze
@@ -49,12 +51,8 @@ class PasskeyHandoff < ApplicationRecord
   validates :purpose,     presence: true, inclusion: { in: PURPOSES }
   validates :expires_at,  presence: true
 
-  scope :expired, -> { where(expires_at: ...Time.current) }
-
   # Returns the raw code. It is never recoverable afterwards.
   def self.issue!(user:, purpose:)
-    expired.delete_all
-
     code = SecureRandom.urlsafe_base64(32)
     create!(
       user:        user,
@@ -71,7 +69,7 @@ class PasskeyHandoff < ApplicationRecord
     return nil if code.blank?
 
     record = find_by(code_digest: digest(code), purpose: purpose)
-    return nil if record.nil? || record.expires_at <= Time.current
+    return nil if record.nil? || record.expired?
 
     record.user
   end
@@ -85,7 +83,7 @@ class PasskeyHandoff < ApplicationRecord
     return nil if record.nil?
 
     record.destroy!
-    return nil if record.expires_at <= Time.current
+    return nil if record.expired?
 
     record.user
   end

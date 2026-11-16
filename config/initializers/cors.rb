@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require Rails.root.join("app/lib/request_paths")
+
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   # The MCP server and its OAuth endpoints (docs/mcp.md). A bearer token, not
   # a cookie, signs these requests in, so any origin may call them, and
@@ -8,17 +10,17 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins "*"
 
-    resource "/api/mcp",
+    resource RequestPaths::MCP,
              headers: :any,
              methods: [ :post, :options ],
              credentials: false,
              expose: [ "WWW-Authenticate", "Mcp-Session-Id" ]
 
-    %w[/api/oauth/token /api/oauth/revoke /api/oauth/register].each do |path|
+    RequestPaths::OAUTH_CLIENT.each do |path|
       resource path, headers: :any, methods: [ :post, :options ], credentials: false
     end
 
-    resource "/.well-known/oauth-*",
+    resource "#{RequestPaths::OAUTH_METADATA_PREFIX}*",
              headers: :any,
              methods: [ :get, :options, :head ],
              credentials: false
@@ -36,13 +38,13 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     # the catalog rule, because Rack::Cors uses the first resource that
     # matches the path.
     # expose: a browser on another origin can read Retry-After of a 503.
-    resource "/api/v1/catalog/schedule_options*",
+    resource "#{RequestPaths::PUBLIC_CATALOG_PREFIX}/schedule_options*",
              headers: :any,
              methods: [ :post, :options ],
              credentials: false,
              expose: [ "Retry-After" ]
 
-    resource "/api/v1/catalog/*",
+    resource "#{RequestPaths::PUBLIC_CATALOG_PREFIX}/*",
              headers: :any,
              methods: [ :get, :options, :head ],
              credentials: false
@@ -70,16 +72,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins "*"
 
-    resource "/api/v1/graphql",
-             headers: :any,
-             methods: [ :post, :options, :head ],
-             credentials: false
-
     # The old path answers 308 to /api/v1/graphql. A browser follows the
     # redirect only when this response also allows the origin.
-    resource "/api/graphql",
-             headers: :any,
-             methods: [ :post, :options, :head ],
-             credentials: false
+    RequestPaths::GRAPHQL.each do |path|
+      resource path, headers: :any, methods: [ :post, :options, :head ], credentials: false
+    end
   end
 end

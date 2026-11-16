@@ -29,6 +29,7 @@
 # group or opt out of it (FriendGroupMembership#status).
 class FriendGroup < ApplicationRecord
   include EncodedIds::HashidIdentifiable
+  include Expirable
 
   set_public_id_prefix :fgr
 
@@ -39,11 +40,10 @@ class FriendGroup < ApplicationRecord
   has_many :friendships, through: :memberships
   has_many :opt_outs, class_name: "FriendGroupOptOut", dependent: :delete_all, inverse_of: :friend_group
 
-  # A group with an end date in the past is gone for the owner, even before
-  # FriendGroups::RemoveExpiredJob deletes the row. FriendGroupPolicy::Scope
-  # reads only unexpired groups. The friendships in the group stay.
-  scope :unexpired, -> { where("friend_groups.expires_at IS NULL OR friend_groups.expires_at > ?", Time.current) }
-  scope :expired,   -> { where(expires_at: ..Time.current) }
+  # A group with an end date in the past is gone for the owner (Expirable).
+  # FriendGroupPolicy::Scope reads only unexpired groups. When the row goes,
+  # the database removes its memberships (on_delete: :cascade). The
+  # friendships in the group stay.
 
   # The shared groups of other owners that hold the user as a member, with any
   # member status. A membership points at a friendship of the owner, so when
@@ -67,12 +67,6 @@ class FriendGroup < ApplicationRecord
                    uniqueness: { scope: :user_id, case_sensitive: false }
   validates :color, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
   validate :expires_at_in_future, if: :will_save_change_to_expires_at?
-
-  # The API routes and the dashboard UI for groups are off until the privacy
-  # policy update. Flipper matches the user on "User;<id>".
-  def self.enabled_for?(user)
-    user.present? && Flipper.enabled?(FeatureFlags::FRIEND_GROUPS, user)
-  end
 
   # Returns { friend user id => [groups] } for every group the user owns, in two
   # queries, so a friends list can show each friend's groups without one query
@@ -116,7 +110,7 @@ class FriendGroup < ApplicationRecord
   # either.
   def shared_people
     visible = memberships_by_member.reject do |friend, membership|
-      membership.opted_out? || !FriendGroup.enabled_for?(friend)
+      membership.opted_out? || !Friendships::Features.groups?(friend)
     end
     [ user, *visible.keys ]
   end
@@ -171,23 +165,12 @@ class FriendGroup < ApplicationRecord
     self
   end
 
-  def expired?
-    expires_at.present? && expires_at <= Time.current
-  end
-
   private
 
   def remove_expired_namesake
     return if user_id.nil? || name.blank?
 
-    FriendGroup.expired.where(user_id: user_id).where("lower(name) = ?", name.downcase).delete_all
-  end
-
-  # nil means the group does not end. A date in the past would remove it at once.
-  def expires_at_in_future
-    return if expires_at.nil?
-
-    errors.add(:expires_at, "must be in the future") if expires_at <= Time.current
+    FriendGroup.where(user_id: user_id).where("lower(name) = ?", name.downcase).purge_expired
   end
 
   # Two queries plus one preload, for any number of ids.

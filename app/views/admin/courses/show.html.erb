@@ -17,8 +17,8 @@
       <% d.item("Campus") { @course.campus } %>
       <% d.item("Dates") { "#{@course.start_date.strftime('%m/%d/%Y')} – #{@course.end_date.strftime('%m/%d/%Y')}" } %>
       <% d.item("Status") { @course.status.capitalize } %>
-      <% d.item("Seats") { admin_open_count(@course.seats_available, @course.seats_capacity) } %>
-      <% d.item("Waitlist") { admin_open_count(@course.waitlist_available, @course.waitlist_capacity) } %>
+      <% d.item("Seats") { open_seats_text(@course.seats_available, @course.seats_capacity) } %>
+      <% d.item("Waitlist") { open_seats_text(@course.waitlist_available, @course.waitlist_capacity) } %>
       <% d.item("Instructors", wide: true) do %>
         <% if @course.faculties.any? %>
           <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-primary hover:underline" }, ", ") %>
@@ -29,7 +29,7 @@
       <% if @course.cross_list_identifier %>
         <% d.item("Cross-listed with", wide: true) do %>
           <%= safe_join(relations.cross_listed_sections.map { |section| link_to("#{section.prefix} #{section.course_number} (#{section.section_number}) · CRN #{section.crn}", admin_course_path(section), class: "text-primary hover:underline whitespace-nowrap", title: section.title) }, ", ") %>
-          <div class="text-xs text-on-surface-variant">Group <%= @course.cross_list_identifier %><% if (count = admin_open_count(@course.cross_list_available, @course.cross_list_capacity)) %>: <%= count %> across the group<% end %></div>
+          <div class="text-xs text-on-surface-variant">Group <%= @course.cross_list_identifier %><% if (count = open_seats_text(@course.cross_list_available, @course.cross_list_capacity)) %>: <%= count %> across the group<% end %></div>
         <% end %>
       <% end %>
     <% end %>
@@ -48,7 +48,7 @@
         <% d.item("Levels") { catalog.levels.join(", ") } %>
         <% d.item("Grading modes") { catalog.grading_modes.join(", ") } %>
         <% d.item("Typically offered") { catalog.typically_offered.map(&:capitalize).join(", ") } %>
-        <% d.item("Fees", wide: true) { safe_join(catalog.fees.map { |fee| tag.div(admin_fee(fee)) }) } %>
+        <% d.item("Fees", wide: true) { safe_join(catalog.fees.map { |fee| tag.div(fee_text(fee)) }) } %>
         <% d.item("Restrictions", wide: true) do %>
           <% catalog.restrictions.each do |group| %>
             <div><span class="font-medium"><%= group["heading"] %>:</span> <%= group["values"].join(", ") %></div>

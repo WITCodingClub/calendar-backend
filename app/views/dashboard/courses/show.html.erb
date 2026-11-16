@@ -59,7 +59,7 @@
         <% if @course[:fees].present? %>
           <div>
             <dt class="text-xs text-on-surface-variant">Fees</dt>
-            <dd><%= safe_join(@course[:fees].map { |fee| tag.div(catalog_fee(fee)) }) %></dd>
+            <dd><%= safe_join(@course[:fees].map { |fee| tag.div(fee_text(fee)) }) %></dd>
           </div>
         <% end %>
       </dl>

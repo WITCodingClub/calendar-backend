@@ -13,7 +13,7 @@ module Api
 
       # Analyzers::SemanticSearchLimit refused a semantic search because the
       # IP address used up the catalog/semantic budget.
-      if request.env["rack.attack.matched"] == "catalog/semantic"
+      if request.env["rack.attack.matched"] == Rack::Attack::CATALOG_SEMANTIC_THROTTLE
         response.headers["Retry-After"] = Rack::Attack.seconds_until_reset(request.env["rack.attack.match_data"]).to_s
         render json: result, status: :too_many_requests
       else

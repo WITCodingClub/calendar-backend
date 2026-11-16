@@ -14,7 +14,6 @@ module DegreeRequirements
   class ImportShrankError < Error; end
 
   SITE_URL = "https://catalog.wit.edu"
-  USER_AGENT = "WITCalendarBot/1.0"
 
   # The Double Leopard (4+1 master's) page. The catalog does not list these
   # programs, so PathwaySync reads them here.

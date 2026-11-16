@@ -25,33 +25,21 @@ RSpec.describe UniversityCalendar::SyncJob do
   end
 
   before do
-    allow(TwentyFiveLive::Client).to receive(:call).and_return(true)
     allow(UniversityCalendar::IcsImport).to receive(:call).and_return(import_result)
-    allow(UniversityCalendarEvent).to receive(:detect_term_dates).and_return({ start_date: nil, end_date: nil })
+    allow(UniversityCalendar::TermDates).to receive(:detect).and_return({ start_date: nil, end_date: nil })
   end
 
-  it "refreshes the 25Live data, imports the feed, and returns the import result" do
+  it "imports the feed and returns the import result, and leaves 25Live to its own job" do
+    allow(TwentyFiveLive::Client).to receive(:call)
+
     expect(described_class.perform_now).to eq(import_result)
 
-    expect(TwentyFiveLive::Client).to have_received(:call)
     expect(UniversityCalendar::IcsImport).to have_received(:call)
+    expect(TwentyFiveLive::Client).not_to have_received(:call)
   end
 
   it "belongs to the fixed concurrency group" do
     expect(described_class::CONCURRENCY_GROUP).to eq("UniversityCalendarSyncJob")
-  end
-
-  describe "25Live reference data" do
-    it "reports a failure and still imports the feed" do
-      error = StandardError.new("synthetic 25Live failure")
-      allow(TwentyFiveLive::Client).to receive(:call).and_raise(error)
-      allow(Rails.error).to receive(:report)
-
-      expect(described_class.perform_now).to eq(import_result)
-
-      expect(Rails.error).to have_received(:report).with(error, handled: true)
-      expect(UniversityCalendar::IcsImport).to have_received(:call)
-    end
   end
 
   describe "user calendar syncs" do
@@ -121,7 +109,7 @@ RSpec.describe UniversityCalendar::SyncJob do
     let!(:term) { create(:term, year: year, season: :fall) }
 
     it "fills in missing start and end dates" do
-      allow(UniversityCalendarEvent).to receive(:detect_term_dates).with(year, "fall")
+      allow(UniversityCalendar::TermDates).to receive(:detect).with(year, "fall")
                                                                     .and_return({ start_date: Date.new(year, 9, 1), end_date: Date.new(year, 12, 20) })
 
       described_class.perform_now
@@ -131,7 +119,7 @@ RSpec.describe UniversityCalendar::SyncJob do
 
     it "does not overwrite dates that are already set" do
       term.update!(start_date: Date.new(year, 8, 25), end_date: Date.new(year, 12, 18))
-      allow(UniversityCalendarEvent).to receive(:detect_term_dates).and_return({ start_date: Date.new(year, 9, 1), end_date: Date.new(year, 12, 20) })
+      allow(UniversityCalendar::TermDates).to receive(:detect).and_return({ start_date: Date.new(year, 9, 1), end_date: Date.new(year, 12, 20) })
 
       described_class.perform_now
 
@@ -147,13 +135,13 @@ RSpec.describe UniversityCalendar::SyncJob do
 
       described_class.perform_now
 
-      expect(UniversityCalendarEvent).not_to have_received(:detect_term_dates).with(old_term.year, anything)
+      expect(UniversityCalendar::TermDates).not_to have_received(:detect).with(old_term.year, anything)
     end
 
     it "reports an error for one term and goes on to the next" do
       other = create(:term, year: year, season: :spring)
       allow(Rails.error).to receive(:report)
-      allow(UniversityCalendarEvent).to receive(:detect_term_dates) do |_year, season|
+      allow(UniversityCalendar::TermDates).to receive(:detect) do |_year, season|
         raise ArgumentError, "synthetic failure" if season.to_s == "fall"
 
         { start_date: Date.new(year, 1, 20), end_date: nil }

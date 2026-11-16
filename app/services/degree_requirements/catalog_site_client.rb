@@ -2,22 +2,9 @@
 
 module DegreeRequirements
   # Fetches pages of the catalog site, of a Wayback Machine copy, or the
-  # Double Leopard page on wit.edu. It waits
-  # `delay` seconds between requests, so an import of a whole year does not
-  # load either site.
+  # Double Leopard page on wit.edu. It waits `delay` seconds between
+  # requests, so an import of a whole year does not load either site.
   class CatalogSiteClient
-    require "faraday"
-    require "faraday/retry"
-
-    RETRY_OPTIONS = {
-      max:            3,
-      interval:       2,
-      backoff_factor: 2,
-      retry_statuses: [ 429, 502, 503, 504 ],
-      methods:        %i[get]
-    }.freeze
-    MAX_REDIRECTS = 3
-
     # The Wayback Machine refuses connections from a client that asks for
     # more than about 15 pages a minute.
     WAYBACK_HOST = "web.archive.org"
@@ -34,46 +21,24 @@ module DegreeRequirements
     # nearest capture. With binary: true the body is returned as bytes, for
     # a PDF.
     def get(url, binary: false)
-      MAX_REDIRECTS.succ.times do
-        (URI(url).host == WAYBACK_HOST ? @wayback_pacer : @pacer).wait
-        response = connection.get(url)
-        return nil if response.status == 404
+      body = fetcher.get(url)
+      return body if body.nil? || binary
 
-        if response.status.in?(300..399) && response.headers["location"].present?
-          url = redirect_target(url, response.headers["location"])
-          next
-        end
-        raise FetchError, "GET #{url}: HTTP #{response.status}" unless response.success?
-        return response.body.to_s.b if binary
-
-        # A stray byte from another encoding would make every regex on the
-        # page raise, so it is replaced.
-        return response.body.to_s.dup.force_encoding(Encoding::UTF_8).scrub
-      end
-      raise FetchError, "GET #{url}: too many redirects"
-    rescue Faraday::Error => e
-      raise FetchError, "GET #{url}: #{e.message}"
+      # A stray byte from another encoding would make every regex on the page
+      # raise, so it is replaced.
+      body.force_encoding(Encoding::UTF_8).scrub
     end
 
     private
 
-    # A redirect is followed only to the catalog site, the Wayback Machine, or wit.edu,
-    # over HTTPS, so a bad redirect cannot send the server to another host.
-    def redirect_target(from, location)
-      target = URI.join(from, location)
-      unless target.scheme == "https" && target.host.in?(ALLOWED_HOSTS)
-        raise FetchError, "GET #{from}: redirect to #{target.host || location} is not allowed"
-      end
-
-      target.to_s
-    end
-
-    def connection
+    def fetcher
       # A catalog PDF is about 5 MB.
-      @connection ||= Faraday.new(request: { open_timeout: 10, timeout: 60 }) do |f|
-        f.request :retry, RETRY_OPTIONS
-        f.headers["User-Agent"] = USER_AGENT
-      end
+      @fetcher ||= HttpFetcher.new(
+        allowed_hosts:  ALLOWED_HOSTS,
+        error:          FetchError,
+        timeout:        60,
+        before_request: ->(url) { (URI(url).host == WAYBACK_HOST ? @wayback_pacer : @pacer).wait }
+      )
     end
   end
 end

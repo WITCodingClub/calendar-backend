@@ -13,9 +13,11 @@ flowchart LR
   job --> sync[Calendar re-sync for the term]
 ```
 
+The re-sync reaches every user with a course in the term and a course calendar, on Google or Microsoft (`CourseCalendars::ResyncAudience.enrolled_in`).
+
 ## The parser
 
-`FinalsSchedules::PdfText` runs the `pdftotext` command from poppler. The production image installs `poppler-utils` in the `Dockerfile`, and `mise bootstrap` installs poppler for development. Without it, the job fails with "pdftotext is not installed". The final stage of the `Dockerfile` runs `pdftotext -v`, so `docker build` fails, and the deploy stops before the push, when the package is missing.
+`PdfText` runs the `pdftotext` command from poppler for the finals PDFs, the catalog PDFs, and the term elective lists. The production image installs `poppler-utils` in the `Dockerfile`, and `mise bootstrap` installs poppler for development. Without it, the job fails with "pdftotext is not installed". The final stage of the `Dockerfile` runs `pdftotext -v`, so `docker build` fails, and the deploy stops before the push, when the package is missing.
 
 The registrar changes the columns, the headers, and the page breaks of the PDF each term. `FinalsSchedules::TableParser` does not use column positions or headers. It reads `pdftotext -layout` text, where each exam is one line, and finds a row by its content:
 
@@ -42,18 +44,3 @@ bin/rails finals:check_corpus DIR=~/Desktop/WIT/Finals\ Schedules
 
 It prints the count of CRNs and the warnings for each PDF. When a PDF gives warnings or a low count, add a fixture with made-up data in the same layout and change `TableParser`.
 
-## Fix stored finals: `finals:reparse`
-
-Until October 2026, four format parsers read the PDFs. Some saved wrong dates, times, or rooms, and some missed CRNs. `finals:reparse` parses the latest completed upload of each term again:
-
-```sh
-bin/rails finals:reparse                  # dry run: prints each change
-bin/rails finals:reparse TERM_UID=202520  # one term
-bin/rails finals:reparse APPLY=1          # save
-```
-
-- `+ 10001` is a new exam. `~ 10001: start_time 800 -> 1015` is a change.
-- The task keeps a stored exam that the PDF does not have, and lists it under "Not in the PDF (kept)".
-- With `APPLY=1`, it starts a calendar re-sync only for the current term and later terms that changed.
-
-Remove the task when it has run on production.

@@ -1,5 +1,6 @@
-# All times are in the application's configured timezone (EST).
-# Jobs run on the 'low' queue unless otherwise noted.
+# Times are in the application time zone (America/New_York).
+# The queue of each task overrides the queue_as of its job class: an admin
+# button can start the same job on another queue.
 
 production:
   # ---------------------------------------------------------------------------
@@ -40,18 +41,12 @@ production:
     queue: low
     schedule: every hour at minute 42
 
-  # Expired friendships already grant nothing. This only deletes the rows.
-  remove_expired_friendships:
-    class: Friendships::RemoveExpiredJob
+  # Expired friendships, friend groups and passkey tokens already grant
+  # nothing. This only deletes the rows.
+  remove_expired_records:
+    class: Cleanup::ExpiredRecordsJob
     queue: low
-    schedule: every hour at minute 27
-
-  # Expired friend groups are already hidden. This only deletes the rows. The
-  # friendships in them stay.
-  remove_expired_friend_groups:
-    class: FriendGroups::RemoveExpiredJob
-    queue: low
-    schedule: every hour at minute 29
+    schedule: every hour at minute 25
 
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
@@ -62,8 +57,14 @@ production:
     queue: low
     schedule: every 6 hours
 
+  # The ChatGPT connector addresses that skip the per-IP limits (McpPlatforms).
+  refresh_openai_mcp_ranges:
+    class: McpPlatforms::RefreshOpenaiRangesJob
+    queue: low
+    schedule: every 6 hours
+
   # ---------------------------------------------------------------------------
-  # NIGHTLY (3:30am–8am window, staggered 30 min apart)
+  # NIGHTLY (3:30am to 6:30am, at different minutes)
   # ---------------------------------------------------------------------------
 
   # The schools send new elective lists during registration. Files that did
@@ -76,7 +77,7 @@ production:
   cleanup_orphaned_google_calendars:
     class: Cleanup::OrphanedGoogleCalendarsJob
     queue: low
-    schedule: every day at 4am
+    schedule: every day at 3:45am
 
   course_data_sync:
     class: Catalog::CourseDataSyncJob
@@ -99,23 +100,6 @@ production:
     queue: low
     schedule: every day at 4:50am
 
-  # The ChatGPT connector addresses that skip the per-IP limits (McpPlatforms).
-  refresh_openai_mcp_ranges:
-    class: McpPlatforms::RefreshOpenaiRangesJob
-    queue: low
-    schedule: every 6 hours
-
-  # The catalog sync starts the backfill itself, when its details batch ends
-  # (Catalog::CourseDataSyncJob#enqueue_details_sync). This run is the
-  # fallback for a night with no finished sync, and for instructor or review
-  # text that changed. It comes after the sync's 8am cooldown window. Text
-  # that did not change never reaches the API, so a run after the batch's own
-  # run costs one table scan.
-  backfill_embeddings:
-    class: Embeddings::BackfillJob
-    queue: low
-    schedule: every day at 11am
-
   cleanup_orphaned_calendar_events:
     class: Cleanup::OrphanedCalendarEventsJob
     queue: low
@@ -137,6 +121,21 @@ production:
     command: "PgHero.clean_space_stats"
     queue: low
     schedule: every day at 6:30am
+
+  # ---------------------------------------------------------------------------
+  # DAYTIME
+  # ---------------------------------------------------------------------------
+
+  # The catalog sync starts the backfill itself, when its details batch ends
+  # (Catalog::CourseDataSyncJob#enqueue_details_sync). This run is the
+  # fallback for a night with no finished sync, and for instructor or review
+  # text that changed. It comes after the sync's 8am cooldown window. Text
+  # that did not change never reaches the API, so a run after the batch's own
+  # run costs one table scan.
+  backfill_embeddings:
+    class: Embeddings::BackfillJob
+    queue: low
+    schedule: every day at 11am
 
   # ---------------------------------------------------------------------------
   # WEEKLY

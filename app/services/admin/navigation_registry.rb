@@ -100,10 +100,7 @@ module Admin
     end
 
     def self.user_has_access?(user, min_role)
-      return false unless user
-
-      levels = { user: 0, admin: 1, super_admin: 2, owner: 3 }
-      (levels[user.access_level.to_sym] || 0) >= (levels[min_role.to_sym] || 0)
+      user.present? && user.access_at_least?(min_role)
     end
 
     def self.items_for(user, items)

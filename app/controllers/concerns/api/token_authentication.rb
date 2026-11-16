@@ -71,10 +71,7 @@ module Api
     end
 
     def extract_token_from_header
-      auth_header = request.headers["Authorization"]
-      return nil unless auth_header
-
-      auth_header.gsub(/^Bearer\s+/, "")
+      BearerToken.from(request.headers["Authorization"])
     end
   end
 end

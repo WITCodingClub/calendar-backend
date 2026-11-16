@@ -1,31 +1,19 @@
 # frozen_string_literal: true
 
-class CalendarEventPolicy < ApplicationPolicy
-  def index?   = admin?
-  def show?    = owner_through_calendar? || admin?
-  def create?  = owner_through_calendar? || super_admin?
-  def update?  = owner_through_calendar? || super_admin?
-  def destroy? = owner_through_calendar? || can_perform_destructive_action?
+class CalendarEventPolicy < OwnedRecordPolicy
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      return scope.all if user&.admin_access?
+
+      scope.joins(course_calendar: :oauth_credential).where(oauth_credentials: { user_id: user&.id })
+    end
+  end
 
   private
 
-  def owner_through_calendar?
+  def owned?
     return false unless user && record.respond_to?(:course_calendar)
 
-    calendar = record.course_calendar
-    return false unless calendar.respond_to?(:oauth_credential)
-
-    calendar.oauth_credential&.user_id == user.id
-  end
-
-  class Scope < ApplicationPolicy::Scope
-    def resolve
-      if user&.admin_access?
-        scope.all
-      else
-        scope.joins(course_calendar: :oauth_credential)
-             .where(oauth_credentials: { user_id: user&.id })
-      end
-    end
+    record.course_calendar&.oauth_credential&.user_id == user.id
   end
 end

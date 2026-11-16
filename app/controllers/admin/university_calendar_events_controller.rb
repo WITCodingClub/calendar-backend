@@ -15,11 +15,8 @@ module Admin
         @university_calendar_events = @university_calendar_events.with_location
       end
 
-      if params[:search].present?
-        @university_calendar_events = @university_calendar_events
-                                      .where("summary ILIKE ? OR description ILIKE ?",
-                                             "%#{params[:search]}%", "%#{params[:search]}%")
-      end
+      @university_calendar_events = search_scope(@university_calendar_events, "university_calendar_events.summary",
+                                           "university_calendar_events.description")
 
       if @category_filter
         @university_calendar_events = @university_calendar_events.where(category: @category_filter)
@@ -46,6 +43,7 @@ module Admin
       authorize UniversityCalendarEvent
 
       UniversityCalendar::SyncJob.perform_later
+      TwentyFiveLive::SyncJob.perform_later
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
 

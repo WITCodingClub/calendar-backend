@@ -33,7 +33,8 @@ class OauthCredential < ApplicationRecord
 
   # Blazer gives admins SQL access, so the tokens are stored as ciphertext.
   # Non-deterministic: no code looks a credential up by its token value. A
-  # plain-text row raises on read; `oauth_credentials:encrypt` rewrites it (#713).
+  # plain-text row raises on read. Production encrypted its old plain-text rows
+  # on 2026-10-09 (#713).
   encrypts :access_token, :refresh_token
 
   belongs_to :user

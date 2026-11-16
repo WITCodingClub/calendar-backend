@@ -9,9 +9,7 @@ module Admin
                    .order(updated_at: :desc)
 
       if params[:search].present?
-        query = "%#{CourseCalendar.sanitize_sql_like(params[:search].strip)}%"
-        @calendars = @calendars.joins(oauth_credential: :user)
-                               .where("users.email ILIKE :q OR oauth_credentials.email ILIKE :q", q: query)
+        @calendars = search_scope(@calendars.joins(oauth_credential: :user), "users.email", "oauth_credentials.email")
       end
       @calendars = @calendars.where(provider: params[:provider]) if params[:provider].present?
 

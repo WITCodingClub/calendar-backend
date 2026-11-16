@@ -13,9 +13,9 @@ module FeatureFlags
     # Each group name, and the test that a user must pass to be in that group.
     MATCHERS = {
       users:        ->(_user) { true },
-      admins:       ->(user) { user.admin_access? },
-      super_admins: ->(user) { user.super_admin? || user.owner? },
-      owners:       ->(user) { user.owner? }
+      admins:       ->(user) { user.access_at_least?(:admin) },
+      super_admins: ->(user) { user.access_at_least?(:super_admin) },
+      owners:       ->(user) { user.access_at_least?(:owner) }
     }.freeze
 
     ALL = MATCHERS.keys.freeze

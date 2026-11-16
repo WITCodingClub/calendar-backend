@@ -21,7 +21,7 @@ module FinalsSchedules
       validate!
 
       parser  = TableParser.new
-      entries = parser.parse(PdfText.extract(pdf_content))
+      entries = parser.parse(::PdfText.extract(pdf_content))
       results = dry_run ? rolled_back { process_exam_entries(entries) } : process_exam_entries(entries)
 
       {

@@ -4,6 +4,10 @@ module Faculties
   class DirectorySyncJob < ApplicationJob
     queue_as :low
 
+    # Faculty#enqueue_directory_lookup reads this key: after a full sync, a new
+    # faculty row needs no lookup of its own.
+    LAST_FULL_SYNC_CACHE_KEY = "faculty_directory_last_full_sync_at"
+
     def perform
       Rails.logger.info({ message: "Faculties::DirectorySyncJob starting", job_id: job_id }.to_json)
 
@@ -24,7 +28,7 @@ module Faculties
 
       result[:faculty].each { |faculty_data| process_faculty(faculty_data, stats) }
 
-      Rails.cache.write("faculty_directory_last_full_sync_at", Time.current, expires_in: 2.days)
+      Rails.cache.write(LAST_FULL_SYNC_CACHE_KEY, Time.current, expires_in: 2.days)
 
       Rails.logger.info({ message: "Faculties::DirectorySyncJob completed", job_id: job_id,
                           total_fetched: result[:total_count], created: stats[:created],
@@ -43,22 +47,16 @@ module Faculties
         return
       end
 
-      name_parts = parse_name(faculty_data[:display_name])
       faculty = @faculty_cache&.fetch(email, nil) || Faculty.new(email: email)
       was_new = faculty.new_record?
 
-      if was_new && (name_parts[:first_name].blank? || name_parts[:last_name].blank?)
+      if was_new && DirectoryMerge.name_parts(faculty_data[:display_name]).values_at(:first_name, :last_name).any?(&:blank?)
         stats[:skipped] += 1
         return
       end
 
-      attrs = merge_faculty_attributes(faculty, faculty_data, name_parts)
-      faculty.assign_attributes(attrs)
-
-      if faculty.changed?
-        faculty.save!
+      if DirectoryMerge.apply(faculty, faculty_data).any?
         was_new ? stats[:created] += 1 : stats[:updated] += 1
-        faculty.update_photo_from_url!(faculty.photo_url) if faculty.saved_change_to_photo_url? && faculty.photo_url.present?
       else
         stats[:skipped] += 1
       end
@@ -67,53 +65,6 @@ module Faculties
       Rails.logger.error({ message: "Faculties::DirectorySyncJob error processing faculty",
                            email: email, error: e.message, job_id: job_id }.to_json)
       stats[:errors] << { email: email, error: e.message }
-    end
-
-    def merge_faculty_attributes(faculty, directory_data, name_parts)
-      attrs = { directory_raw_data: build_raw_data(directory_data), directory_last_synced_at: Time.current }
-
-      if name_parts[:first_name].present? && (faculty.first_name.blank? || name_parts[:first_name].length > faculty.first_name.length)
-        attrs[:first_name] = name_parts[:first_name]
-      end
-      if name_parts[:last_name].present? && (faculty.last_name.blank? || name_parts[:last_name].length > faculty.last_name.length)
-        attrs[:last_name] = name_parts[:last_name]
-      end
-      attrs[:middle_name]    = name_parts[:middle_name]       if name_parts[:middle_name].present? && faculty.middle_name.blank?
-      attrs[:display_name]   = directory_data[:display_name]  if directory_data[:display_name].present? && (faculty.display_name.blank? || directory_data[:display_name].length > faculty.display_name.to_s.length)
-      attrs[:title]          = directory_data[:title]         if directory_data[:title].present? && faculty.title != directory_data[:title]
-      attrs[:phone]          = directory_data[:phone]         if directory_data[:phone].present? && faculty.phone != directory_data[:phone]
-      attrs[:office_location] = directory_data[:office_location] if directory_data[:office_location].present? && faculty.office_location.blank?
-      attrs[:department]     = directory_data[:department]    if directory_data[:department].present? && faculty.department.blank?
-      attrs[:school]         = directory_data[:school]        if directory_data[:school].present? && faculty.school.blank?
-      attrs[:photo_url]      = directory_data[:photo_url]     if directory_data[:photo_url].present? && faculty.photo_url != directory_data[:photo_url]
-      attrs[:employee_type]  = determine_employee_type(directory_data) if faculty.employee_type.blank?
-      attrs
-    end
-
-    def parse_name(display_name)
-      return {} if display_name.blank?
-
-      parts = display_name.strip.split(/\s+/)
-      case parts.length
-      when 0 then {}
-      when 1 then { first_name: parts[0], last_name: parts[0] }
-      when 2 then { first_name: parts[0], last_name: parts[1] }
-      else { first_name: parts[0], middle_name: parts[1..-2].join(" "), last_name: parts[-1] }
-      end
-    end
-
-    def determine_employee_type(faculty_data)
-      title = faculty_data[:title]&.downcase || ""
-      %w[professor instructor lecturer dean chair faculty adjunct].any? { |kw| title.include?(kw) } ? "faculty" : "staff"
-    end
-
-    def build_raw_data(faculty_data)
-      {
-        fetched_at:  Time.current.iso8601,
-        raw_html:    faculty_data[:raw_html],
-        profile_url: faculty_data[:profile_url],
-        source_url:  Faculties::Directory::BASE_URL
-      }
     end
   end
 end

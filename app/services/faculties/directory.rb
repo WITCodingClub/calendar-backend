@@ -18,7 +18,6 @@ module Faculties
       @employee_type = employee_type
       @search = search
       @force = force
-      super()
     end
 
     def call
@@ -30,13 +29,6 @@ module Faculties
     rescue => e
       Rails.error.report(e, handled: true, context: { page: page })
       { success: false, error: e.message, faculty: [], total_count: 0 }
-    end
-
-    def call!
-      result = call
-      raise result[:error] unless result[:success]
-
-      result
     end
 
     private
@@ -94,13 +86,7 @@ module Faculties
     end
 
     def connection
-      @connection ||= Faraday.new(url: BASE_URL) do |faraday|
-        faraday.request :url_encoded
-        faraday.headers["User-Agent"] = "WITCalendarBot/1.0"
-        faraday.adapter Faraday.default_adapter
-        faraday.options.timeout = 30
-        faraday.options.open_timeout = 10
-      end
+      @connection ||= HttpFetcher.connection(url: BASE_URL) { |faraday| faraday.request :url_encoded }
     end
 
     def parse_directory_page(html)

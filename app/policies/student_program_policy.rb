@@ -11,9 +11,5 @@ class StudentProgramPolicy < ApplicationPolicy
   # A student picks the plan of study of an active or a planned program.
   def update_plan? = owner_of_record? && !record.ended?
 
-  class Scope < ApplicationPolicy::Scope
-    def resolve
-      user&.admin_access? ? scope.all : scope.where(user_id: user&.id)
-    end
-  end
+  class Scope < ApplicationPolicy::OwnerScope; end
 end

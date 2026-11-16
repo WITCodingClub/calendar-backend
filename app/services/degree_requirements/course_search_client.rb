@@ -43,9 +43,7 @@ module DegreeRequirements
     end
 
     def connection
-      @connection ||= Faraday.new(url: URL, request: { open_timeout: 10, timeout: 30 }) do |f|
-        f.request :retry, CatalogSiteClient::RETRY_OPTIONS.merge(methods: %i[post])
-        f.headers["User-Agent"] = USER_AGENT
+      @connection ||= HttpFetcher.connection(url: URL, retry_methods: %i[post]) do |f|
         f.headers["Content-Type"] = "application/json"
       end
     end

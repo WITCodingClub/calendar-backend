@@ -92,14 +92,7 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming,      -> { where(start_time: Time.current.beginning_of_day..) }
   scope :past,          -> { where(start_time: ...Time.current) }
   scope :holidays,      -> { where(category: "holiday") }
-  scope :term_dates,    -> { where(category: "term_dates") }
-  scope :registration,  -> { where(category: "registration") }
-  scope :deadlines,     -> { where(category: "deadline") }
-  scope :study_days,    -> { where(category: "study_day") }
   scope :finals,        -> { where(category: "finals") }
-  scope :graduation,    -> { where(category: "graduation") }
-  scope :academic,      -> { where(category: "academic") }
-  scope :campus_events, -> { where(category: "campus_event") }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
@@ -109,10 +102,6 @@ class UniversityCalendarEvent < ApplicationRecord
 
   def self.holidays_between(start_date, end_date)
     holidays.in_date_range(start_date, end_date).order(:start_time)
-  end
-
-  def self.no_class_days_between(start_date, end_date)
-    where(category: NO_CLASS_CATEGORIES).in_date_range(start_date, end_date).order(:start_time)
   end
 
   # The no-class spans that overlap the range, earliest first. They come from
@@ -146,164 +135,6 @@ class UniversityCalendarEvent < ApplicationRecord
       last  = [ span.end_time.in_time_zone.to_date, first ].max
       ([ first, start_date.to_date ].max..[ last, end_date.to_date ].min).to_a
     end.uniq
-  end
-
-  # Detect term dates for a term.
-  #
-  # Date rules:
-  # - start_date: The day LeopardWeb reports registration open for the term.
-  #               Once captured, keep the stored past start_date stable across
-  #               later syncs.
-  # - end_date:   Last day of finals period for the term.
-  #               Falls back to latest imported course end_date for the term
-  #               when finals period events are unavailable.
-  #
-  # Both dates must fall inside term_detection_date_window, and the end date
-  # in the term's own year. Without this, Summer 2027 took 2026-07-25 (the day
-  # LeopardWeb first listed it) and the Summer 2026 finals end (2026-08-11).
-  #
-  # @param year [Integer] The academic year
-  # @param season [Symbol] The season (:fall, :spring, :summer)
-  # @return [Hash] Hash with :start_date and :end_date keys
-  def self.detect_term_dates(year, season)
-    term = Term.find_by(year: year, season: season)
-
-    window = term_detection_date_window(year, season)
-    candidate_events = where(start_time: window.first.beginning_of_day..window.last.end_of_day)
-    matching_events = candidate_events.select { |event| event_matches_term_for_date_detection?(event, year, season, term) }
-
-    leopard_web_start_date = leopard_web_registration_open_date(year, season, term)
-    leopard_web_start_date = nil unless leopard_web_start_date&.in?(window)
-
-    schedule_available_event = matching_events
-                               .select { |event| schedule_available_summary?(event.summary) }
-                               .min_by(&:start_time)
-
-    registration_event = matching_events
-                         .select { |event| registration_summary?(event.summary) }
-                         .min_by(&:start_time)
-    estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
-
-    finals_period_event = matching_events
-                          .select { |event| event.category == "finals" && finals_period_summary?(event.summary) }
-                          .max_by { |event| event.end_time || event.start_time }
-
-    finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
-    course_end_fallback = fallback_end_date_from_courses(term)
-
-    start_date = leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date
-    end_date   = finals_end_date || course_end_fallback
-
-    {
-      start_date: (start_date if start_date&.in?(window)),
-      end_date:   (end_date if term_end_date?(end_date, year, window))
-    }
-  end
-
-  # Classes end in the term's own year for every season.
-  def self.term_end_date?(date, year, window = nil)
-    return false if date.nil? || date.year != year
-
-    window.nil? || date.in?(window)
-  end
-
-  def self.leopard_web_registration_open_date(year, season, term)
-    result = Catalog::LeopardWebClient.get_active_terms
-    return nil unless result[:success]
-
-    target_uid = term&.uid || TermCode.for(year, season)
-    return nil unless target_uid
-
-    active_term_found = Array(result[:terms]).any? do |active_term|
-      (active_term[:code] || active_term["code"]).to_i == target_uid
-    end
-    return nil unless active_term_found
-
-    existing_start_date = term&.start_date
-    return existing_start_date if existing_start_date.present? && existing_start_date <= Time.zone.today
-
-    Time.zone.today
-  rescue => e
-    Rails.error.report(e, handled: true, context: { year: year, season: season.to_s })
-    nil
-  end
-
-  def self.event_matches_term_for_date_detection?(event, year, season, term)
-    season_name = season.to_s.capitalize
-    summary = event.summary.to_s
-    academic_term = event.academic_term.to_s
-
-    explicit_summary_term = extract_explicit_term_from_summary(summary)
-    if explicit_summary_term
-      return explicit_summary_term[:season] == season.to_sym && explicit_summary_term[:year] == year
-    end
-
-    return true if term && event.term_id == term.id
-    return true if summary.match?(/\b#{Regexp.escape(season_name)}\b/i) && summary.match?(/\b#{year}\b/)
-
-    return false unless academic_term.match?(/\b#{Regexp.escape(season_name)}\b/i)
-
-    event_date = event.start_time&.to_date
-    return false unless event_date
-
-    event_date.in?(term_detection_date_window(year, season))
-  end
-
-  def self.extract_explicit_term_from_summary(summary)
-    match = summary.to_s.match(/\b(Fall|Spring|Summer)\s+(\d{4})\b/i)
-    return nil unless match
-
-    season = case match[1].downcase
-    when "fall" then :fall
-    when "spring" then :spring
-    when "summer" then :summer
-    end
-
-    return nil unless season
-
-    { season: season, year: match[2].to_i }
-  end
-
-  def self.term_detection_date_window(year, season)
-    case season.to_sym
-    when :spring
-      Date.new(year - 1, 8, 1)..Date.new(year, 6, 30)
-    when :summer
-      Date.new(year, 1, 1)..Date.new(year, 8, 31)
-    when :fall
-      Date.new(year, 1, 1)..Date.new(year, 12, 31)
-    else
-      Date.new(year - 1, 1, 1)..Date.new(year + 1, 12, 31)
-    end
-  end
-
-  def self.schedule_available_summary?(summary)
-    normalized = summary.to_s
-    return false if registration_summary?(normalized)
-
-    normalized.match?(/course\s+schedule/i) ||
-      normalized.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
-  end
-
-  def self.registration_summary?(summary)
-    summary.to_s.match?(/registration\s+(opens|open|begins|begin)|registration/i)
-  end
-
-  def self.finals_period_summary?(summary)
-    normalized = summary.to_s
-    return false if normalized.match?(/schedule\s+(available|online|release|released|posted)/i)
-
-    normalized.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
-  end
-
-  def self.fallback_end_date_from_courses(term)
-    return nil unless term
-
-    term.courses.where.not(start_date: nil)
-        .where.not(end_date: nil)
-        .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", term.year - 1, term.year)
-        .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", term.year, term.year + 1)
-        .maximum(:end_date)
   end
 
   def self.infer_category(summary, event_type_raw)
@@ -354,7 +185,6 @@ class UniversityCalendarEvent < ApplicationRecord
     end
   end
 
-  def term_boundary_event? = category == "term_dates"
   def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
 
   def formatted_date

@@ -15,10 +15,6 @@ class VersionService < ApplicationService
     }
   end
 
-  def call!
-    call
-  end
-
   # The admin layout renders this on every page. The running code does not
   # change until the process restarts, so start git once per process, not once
   # per page.
@@ -66,33 +62,26 @@ class VersionService < ApplicationService
   end
 
   def fetch_latest_release
-    response = Faraday.get("https://api.github.com/repos/#{GITHUB_REPO}/releases/latest") do |req|
-      req.headers["Accept"]     = "application/vnd.github.v3+json"
-      req.headers["User-Agent"] = "WIT-Calendar"
-      req.options.timeout       = 5
-      req.options.open_timeout  = 2
-    end
-
-    JSON.parse(response.body)["tag_name"] if response.success?
-  rescue Faraday::Error, JSON::ParserError
-    nil
+    github_get("releases/latest")&.fetch("tag_name", nil)
   end
 
   def fetch_latest_tag
-    response = Faraday.get("https://api.github.com/repos/#{GITHUB_REPO}/tags") do |req|
+    tag_names = Array(github_get("tags")).map { |t| t["name"] } # rubocop:disable Rails/Pluck
+    tag_names.grep(/\Av?\d+\.\d+\.\d+\z/).max_by { |v| Gem::Version.new(normalize_version(v)) }
+  end
+
+  # The parsed JSON body, or nil when GitHub does not answer with a success.
+  def github_get(path)
+    response = Faraday.get("https://api.github.com/repos/#{GITHUB_REPO}/#{path}") do |req|
       req.headers["Accept"]     = "application/vnd.github.v3+json"
       req.headers["User-Agent"] = "WIT-Calendar"
       req.options.timeout       = 5
       req.options.open_timeout  = 2
     end
 
-    if response.success?
-      tags       = JSON.parse(response.body)
-      tag_names  = tags.map { |t| t["name"] } # rubocop:disable Rails/Pluck
-      semver_tags = tag_names.grep(/\Av?\d+\.\d+\.\d+\z/)
-      semver_tags.max_by { |v| Gem::Version.new(normalize_version(v)) }
-    end
-  rescue Faraday::Error, JSON::ParserError, ArgumentError
+    JSON.parse(response.body) if response.success?
+  rescue Faraday::Error, JSON::ParserError => e
+    Rails.error.report(e, handled: true, context: { path: path })
     nil
   end
 

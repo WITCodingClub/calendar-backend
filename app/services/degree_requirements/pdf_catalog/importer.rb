@@ -47,7 +47,7 @@ module DegreeRequirements
         # the grid years reads its PDF again once they are stored.
         credits = KnownCredits.call(start_year) if PdfCatalog.parser_for(start_year) == ListParser
         digest = Digest::SHA256.hexdigest("#{VERSION}:#{pdf}#{":#{credits.sort}" if credits}")
-        programs = parse(Text.extract(pdf, columns: two_columns? ? 2 : 1), credits)
+        programs = parse(PdfText.extract(pdf, columns: two_columns? ? 2 : 1), credits)
         matched, unmatched = match(programs)
         log("no program for: #{unmatched.join('; ')}") if unmatched.any?
 

@@ -10,7 +10,5 @@ class FinalsSchedulePolicy < ApplicationPolicy
   def process_schedule?  = admin?
   def destroy? = super_admin?
 
-  class Scope < ApplicationPolicy::Scope
-    def resolve = scope.all
-  end
+  class Scope < ApplicationPolicy::AllScope; end
 end

@@ -59,7 +59,7 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
     event = SecurityEvent.find_by(jti: "verify-jti")
     expect(event).to be_present
     expect(event.processed).to be(true)
-    expect(event.verification_event?).to be(true)
+    expect(event.event_type).to eq(SecurityEvent::VERIFICATION)
   end
 
   # Bug: SecurityEvent requires google_subject to be present, but a real RISC

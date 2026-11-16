@@ -37,10 +37,7 @@ module UniversityCalendar
     def fetch_ics_content
       url = ics_url.gsub(/^webcal:\/\//, "https://")
 
-      response = Faraday.get(url) do |req|
-        req.options.timeout = 30
-        req.options.open_timeout = 10
-      end
+      response = HttpFetcher.connection.get(url)
 
       unless response.success?
         raise "Failed to fetch ICS feed: #{response.status}"
@@ -105,12 +102,12 @@ module UniversityCalendar
       return if uids.empty?
 
       uids.each do |uid|
-        event = @existing_events_by_uid&.[](uid)
+        event = @existing_events_by_uid[uid]
 
         # If no direct match, check whether this UID is the root of a merged record
         # (stored as "merged:<uid>+<count>"). Non-root constituent UIDs of a merged
         # event are not stored, so only the root cancellation triggers cleanup here.
-        if event.nil? && @existing_events_by_uid
+        if event.nil?
           merged_prefix = "merged:#{uid}+"
           _key, event = @existing_events_by_uid.find { |k, _v| k.start_with?(merged_prefix) }
         end
@@ -307,46 +304,24 @@ module UniversityCalendar
       end
     end
 
+    # The import loads every stored event first (preload_existing_events), so
+    # the lookups read memory, not the table.
     def find_duplicate_by_content(attrs)
       content_key = [ attrs[:summary], attrs[:start_time], attrs[:end_time], attrs[:category] ]
+      exact = (@existing_events_by_content[content_key] || []).find { |e| e.ics_uid != attrs[:ics_uid] }
+      return exact if exact
 
-      if @existing_events_by_content
-        candidates = (@existing_events_by_content[content_key] || []).reject { |e| e.ics_uid == attrs[:ics_uid] }
-        return candidates.first if candidates.any?
-      else
-        exact_match = UniversityCalendarEvent.where(
-          summary:    attrs[:summary],
-          start_time: attrs[:start_time],
-          end_time:   attrs[:end_time],
-          category:   attrs[:category]
-        ).where.not(ics_uid: attrs[:ics_uid]).first
-        return exact_match if exact_match
-      end
-
-      fuzzy_matches = if @existing_events_by_content
-                        find_fuzzy_duplicates_in_memory(attrs)
-      else
-                        UniversityCalendarEvent.find_fuzzy_duplicates(
-                          summary:     attrs[:summary],
-                          start_time:  attrs[:start_time],
-                          end_time:    attrs[:end_time],
-                          category:    attrs[:category],
-                          exclude_uid: attrs[:ics_uid]
-                        )
-      end
-
+      fuzzy_matches = find_fuzzy_duplicates_in_memory(attrs)
       return nil if fuzzy_matches.empty?
 
       UniversityCalendarEvent.preferred_event(fuzzy_matches)
     end
 
     def add_event_to_content_cache(event)
-      return unless @existing_events_by_content
-
       content_key = [ event.summary, event.start_time, event.end_time, event.category ]
       @existing_events_by_content[content_key] ||= []
       @existing_events_by_content[content_key] << event
-      @existing_events_by_uid[event.ics_uid] = event if @existing_events_by_uid
+      @existing_events_by_uid[event.ics_uid] = event
     end
 
     def find_fuzzy_duplicates_in_memory(attrs)

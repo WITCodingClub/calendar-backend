@@ -34,6 +34,7 @@
 #
 class Friendship < ApplicationRecord
   include EncodedIds::HashidIdentifiable
+  include Expirable
 
   set_public_id_prefix :frn, min_hash_length: 10
 
@@ -54,11 +55,9 @@ class Friendship < ApplicationRecord
   enum :requester_visibility, VISIBILITIES, default: :full, prefix: :requester
   enum :addressee_visibility, VISIBILITIES, default: :full, prefix: :addressee
 
-  # A friendship with an expiry date in the past grants nothing, even before
-  # Friendships::RemoveExpiredJob deletes the row. Every scope that finds a
-  # friend or a request filters on unexpired, so an expired row never shows.
-  scope :unexpired, -> { where("friendships.expires_at IS NULL OR friendships.expires_at > ?", Time.current) }
-  scope :expired,   -> { where(expires_at: ..Time.current) }
+  # A friendship with an expiry date in the past grants nothing (Expirable).
+  # Every scope that finds a friend or a request filters on unexpired, so an
+  # expired row never shows.
   scope :active,    -> { accepted.unexpired }
 
   scope :involving,      ->(user) { where(requester: user).or(where(addressee: user)) }
@@ -93,6 +92,16 @@ class Friendship < ApplicationRecord
   # Ex-friends come off each other's future meetings.
   after_destroy_commit :remove_from_friend_meetings, if: :accepted?
 
+  # Ex-friends come off each other's future meetings, also when expired rows
+  # go with delete_all.
+  def self.before_purge(rows)
+    remove_from_friend_meetings(rows.accepted.pluck(:requester_id, :addressee_id))
+  end
+
+  def self.remove_from_friend_meetings(pairs)
+    pairs.each { |requester_id, addressee_id| FriendMeetings::AttendeeRemover.call(requester_id, addressee_id) }
+  end
+
   def self.valid_visibility?(level) = VISIBILITIES.key?(level.to_s.to_sym)
 
   def friend_for(user)
@@ -103,8 +112,6 @@ class Friendship < ApplicationRecord
   def friend_id_for(user)
     requester_id == user.id ? addressee_id : requester_id
   end
-
-  def involves?(user_id) = requester_id == user_id || addressee_id == user_id
 
   def requester?(user) = requester_id == user.id
   def addressee?(user) = addressee_id == user.id
@@ -129,10 +136,6 @@ class Friendship < ApplicationRecord
     visibility_set_by(friend_for(viewer)) == "full"
   end
 
-  def expired?
-    expires_at.present? && expires_at <= Time.current
-  end
-
   def temporary? = expires_at.present?
 
   # == End date consent
@@ -143,8 +146,7 @@ class Friendship < ApplicationRecord
   # accept the request with its current end date and answer the proposal
   # later. To end the friendship at once, a user removes the friend.
 
-  # An open proposal. An expired friendship has none: it grants nothing, and
-  # Friendships::RemoveExpiredJob deletes the row.
+  # An open proposal. An expired friendship has none: it grants nothing.
   def expiry_proposal? = proposed_by_id.present? && !expired?
 
   def proposed_expiry = proposed_permanent? ? nil : proposed_expires_at
@@ -215,19 +217,13 @@ class Friendship < ApplicationRecord
   end
 
   def remove_from_friend_meetings
-    FriendMeetings::AttendeeRemover.call(requester_id, addressee_id)
+    self.class.remove_from_friend_meetings([ [ requester_id, addressee_id ] ])
   end
 
   def remove_expired_pair
     return if requester_id.nil? || addressee_id.nil?
 
-    expired = Friendship.expired.between(requester_id, addressee_id)
-    # delete_all skips remove_from_friend_meetings, and the cleanup job can no
-    # longer find the row, so take ex-friends off each other's meetings here.
-    if expired.accepted.exists?
-      FriendMeetings::AttendeeRemover.call(requester_id, addressee_id)
-    end
-    expired.delete_all
+    Friendship.between(requester_id, addressee_id).purge_expired
   end
 
   def cannot_friend_self
@@ -238,13 +234,6 @@ class Friendship < ApplicationRecord
     return unless Friendship.exists?(requester_id: addressee_id, addressee_id: requester_id)
 
     errors.add(:base, "A friendship request already exists between these users")
-  end
-
-  # nil means permanent. A date in the past would end the friendship at once.
-  def expires_at_in_future
-    return if expires_at.nil?
-
-    errors.add(:expires_at, "must be in the future") if expires_at <= Time.current
   end
 
   def proposal_from_participant

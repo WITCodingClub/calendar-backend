@@ -48,12 +48,7 @@ class FinalsSchedule < ApplicationRecord
   scope :for_term,  ->(term) { where(term: term) }
 
   def trigger_calendar_resyncs_for_term
-    users_to_sync = User
-      .joins(oauth_credentials: :course_calendar)
-      .joins(enrollments: :course)
-      .where(courses: { term_id: term_id })
-      .where(oauth_credentials: { provider: "google" })
-      .distinct
+    users_to_sync = CourseCalendars::ResyncAudience.enrolled_in(term_id)
 
     CourseCalendars::SyncJob.perform_bulk_in_batch(users_to_sync, reason: "finals", description: resync_batch_description,
                                                                   force: true)

@@ -161,13 +161,6 @@ RSpec.describe FinalExam do
       expect(described_class.orphan).to contain_exactly(orphan)
     end
 
-    it ".for_crn returns the exam of one crn" do
-      match = create(:final_exam, term: term, crn: 81_111)
-      create(:final_exam, term: term, crn: 82_222)
-
-      expect(described_class.for_crn(81_111)).to contain_exactly(match)
-    end
-
     it ".upcoming includes today and later" do
       travel_to(Date.new(2026, 12, 10)) do
         today = create(:final_exam, term: term, exam_date: Date.new(2026, 12, 10))
@@ -177,12 +170,6 @@ RSpec.describe FinalExam do
         expect(described_class.upcoming).to contain_exactly(today, later)
       end
     end
-  end
-
-  # An exam saved with no course while its course exists. update_column skips
-  # the before_save link, as rows from before it were saved.
-  def unlinked_exam(**attrs)
-    create(:final_exam, **attrs).tap { |exam| exam.update_column(:course_id, nil) } # rubocop:disable Rails/SkipsModelValidations
   end
 
   describe "linking the course on save" do
@@ -207,52 +194,6 @@ RSpec.describe FinalExam do
       create(:course, crn: 82_222)
 
       expect(create(:final_exam, term: term, crn: 82_222).course).to be_nil
-    end
-  end
-
-  describe ".link_orphan_exams_to_courses" do
-    let(:term) { create(:term) }
-
-    it "links orphan exams that have a course with the same crn and term" do
-      course = create(:course, term: term, crn: 83_333)
-      match = unlinked_exam(term: term, crn: 83_333)
-      other = create(:final_exam, term: term, crn: 84_444)
-
-      expect(described_class.link_orphan_exams_to_courses(term: term)).to eq(1)
-      expect(match.reload.course).to eq(course)
-      expect(other.reload.course).to be_nil
-    end
-
-    it "ignores a course with the same crn in another term" do
-      create(:course, crn: 83_333)
-      create(:final_exam, term: term, crn: 83_333)
-
-      expect(described_class.link_orphan_exams_to_courses(term: term)).to eq(0)
-    end
-  end
-
-  describe "#link_to_course!" do
-    let(:term) { create(:term) }
-
-    it "links the course and returns it" do
-      course = create(:course, term: term, crn: 85_555)
-      exam = unlinked_exam(term: term, crn: 85_555)
-
-      expect(exam.link_to_course!).to eq(course)
-      expect(exam.reload.course).to eq(course)
-    end
-
-    it "returns nil when no course matches" do
-      exam = create(:final_exam, term: term)
-
-      expect(exam.link_to_course!).to be_nil
-      expect(exam.reload).to be_orphan
-    end
-
-    it "does nothing when the exam already has a course" do
-      exam = create(:final_exam, term: term, course: create(:course, term: term))
-
-      expect(exam.link_to_course!).to be_nil
     end
   end
 
@@ -323,9 +264,9 @@ RSpec.describe FinalExam do
     end
 
     it "delegates course fields with a prefix" do
-      exam = build(:final_exam, course: build(:course, title: "Intro Course", subject: "MATH"))
+      exam = build(:final_exam, course: build(:course, title: "Intro Course"))
 
-      expect([ exam.course_title, exam.course_subject ]).to eq([ "Intro Course", "MATH" ])
+      expect(exam.course_title).to eq("Intro Course")
       expect(build(:final_exam).course_title).to be_nil
     end
 

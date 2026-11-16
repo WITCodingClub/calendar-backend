@@ -5,6 +5,9 @@ require "rails_helper"
 RSpec.describe UniversityCalendar::IcsImport, type: :service do
   let(:feed_url) { described_class::ICS_FEED_URL }
 
+  # HttpFetcher waits between retries. A spec has no need to wait.
+  before { stub_const("HttpFetcher::RETRY_OPTIONS", HttpFetcher::RETRY_OPTIONS.merge(interval: 0)) }
+
   def stub_feed(fixture, url: feed_url, status: 200)
     stub_request(:get, url).to_return(status: status, body: file_fixture("university_calendar/#{fixture}").read)
   end
@@ -397,6 +400,15 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
     end
 
     context "when the download fails" do
+      it "retries a busy server and sends the bot user agent" do
+        request = stub_request(:get, feed_url).with(headers: { "User-Agent" => HttpFetcher::USER_AGENT })
+                                              .to_return({ status: 503 }, { status: 200, body: file_fixture("university_calendar/feed.ics").read })
+
+        described_class.call
+
+        expect(request).to have_been_requested.twice
+      end
+
       it "raises with the HTTP status for a server error" do
         stub_feed("feed.ics", status: 500)
 
@@ -415,39 +427,6 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
 
         expect { described_class.call }.to raise_error(Faraday::Error)
       end
-    end
-  end
-
-  describe "private helpers without a preloaded cache" do
-    subject(:importer) { described_class.new }
-
-    let(:attrs) do
-      { ics_uid: "new@example.test", summary: "Campus Fair 2026", category: "campus_event",
-        start_time: at(2026, 10, 1, 9), end_time: at(2026, 10, 1, 10) }
-    end
-
-    it "finds an exact content match in the database" do
-      match = create(:university_calendar_event, summary: "Campus Fair 2026", category: "campus_event",
-                                                 start_time: attrs[:start_time], end_time: attrs[:end_time])
-
-      expect(importer.send(:find_duplicate_by_content, attrs)).to eq(match)
-    end
-
-    it "finds a fuzzy match in the database" do
-      match = create(:university_calendar_event, summary: "Campus Fair", category: "campus_event",
-                                                 start_time: attrs[:start_time], end_time: attrs[:end_time])
-
-      expect(importer.send(:find_duplicate_by_content, attrs)).to eq(match)
-    end
-
-    it "returns nil when nothing resembles the entry" do
-      expect(importer.send(:find_duplicate_by_content, attrs)).to be_nil
-    end
-
-    it "ignores the content cache when none was loaded" do
-      event = build(:university_calendar_event)
-
-      expect(importer.send(:add_event_to_content_cache, event)).to be_nil
     end
   end
 end

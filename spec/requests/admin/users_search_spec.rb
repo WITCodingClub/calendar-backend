@@ -22,4 +22,13 @@ RSpec.describe "Admin users search", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body).to match(%r{<!--email_off-->.*student@wit\.edu.*<!--/email_off-->}m)
   end
+
+  it "matches % and _ in the search text as themselves" do
+    create(:user, email: "other@wit.edu")
+
+    get admin_users_path, params: { search: "%" }
+
+    expect(response.body).not_to include("student@wit.edu")
+    expect(response.body).not_to include("other@wit.edu")
+  end
 end

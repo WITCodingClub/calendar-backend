@@ -2,7 +2,6 @@
 
 class ApplicationController < ActionController::Base
   include Pundit::Authorization
-  include Authentication
 
   allow_browser versions: :modern
 

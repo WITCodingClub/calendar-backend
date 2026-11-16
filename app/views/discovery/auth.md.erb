@@ -102,8 +102,8 @@ The person can see and end their sessions:
 ## Rate limits
 
 <% throttles = Rack::Attack.throttles %>
-- <%= throttles.fetch("api/user").limit %> requests per minute for each signed-in person on `/api/`
-- <%= throttles.fetch("api/ip").limit %> requests per minute for each IP address on `/api/` without a credential
-- <%= throttles.fetch("catalog/ip").limit %> requests per minute for each IP address on the public catalog
+- <%= throttles.fetch(Rack::Attack::API_USER_THROTTLE).limit %> requests per minute for each signed-in person on `/api/`
+- <%= throttles.fetch(Rack::Attack::API_IP_THROTTLE).limit %> requests per minute for each IP address on `/api/` without a credential
+- <%= throttles.fetch(Rack::Attack::CATALOG_IP_THROTTLE).limit %> requests per minute for each IP address on the public catalog
 
 A request over a limit gets `429`. Wait for the number of seconds in `Retry-After`.

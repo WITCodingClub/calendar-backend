@@ -19,11 +19,8 @@ module Admin
         if search_term.match?(/^\d+$/)
           @users = @users.where(id: search_term.to_i)
         else
-          name_search = "%#{search_term}%"
-          @users = @users.where(
-            "users.email ILIKE ? OR CONCAT(users.first_name, users.last_name) ILIKE ? OR CONCAT(users.first_name, ' ', users.last_name) ILIKE ?",
-            name_search, name_search, name_search
-          )
+          @users = search_scope(@users, "users.email", "CONCAT(users.first_name, users.last_name)",
+                          "CONCAT(users.first_name, ' ', users.last_name)", term: search_term)
         end
       end
 

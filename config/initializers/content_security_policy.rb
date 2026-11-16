@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require Rails.root.join("app/lib/request_paths")
+
 # Content Security Policy. See the Securing Rails Applications Guide:
 # https://guides.rubyonrails.org/security.html#content-security-policy-header
 #
@@ -38,7 +40,7 @@ Rails.application.configure do
     policy.font_src        :self, :data
     policy.connect_src     :self
     policy.manifest_src    :self
-    policy.report_uri      "/api/csp_reports"
+    policy.report_uri      RequestPaths::CSP_REPORTS
   end
 
   # One nonce per session, not per request. Turbo Drive swaps the body

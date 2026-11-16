@@ -154,6 +154,12 @@ RSpec.describe Rack::Attack do
       expect(JsonWebTokenService).to have_received(:decode).once
     end
 
+    it "reads no user from a token without the Bearer prefix" do
+      user = create(:user)
+
+      expect(described_class.extract_user_id(request_with(api_token_for(user)))).to be_nil
+    end
+
     it "does not share the answer between requests" do
       other = create(:user)
 

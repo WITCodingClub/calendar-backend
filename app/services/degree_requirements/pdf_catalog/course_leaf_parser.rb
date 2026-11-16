@@ -3,7 +3,7 @@
 module DegreeRequirements
   module PdfCatalog
     # Reads the plans of study of the 2025-2026 CourseLeaf PDF. Its pages
-    # have two columns, so Text extracts each half of a page on its own and
+    # have two columns, so PdfText extracts each half of a page on its own and
     # puts the left half first. A plan reads:
     #
     #   Four Year Program

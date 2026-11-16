@@ -54,8 +54,7 @@ module TermElectives
         return list.term_id
       end
 
-      # Postgres refuses a NUL byte in a text column.
-      text = FinalsSchedules::PdfText.extract(pdf).scrub.delete("\0")
+      text = PdfText.extract(pdf)
       parsed = PdfParser.parse(text)
       term = Term.find_by(year: parsed.year, season: parsed.season) if parsed.year
       if term.nil?

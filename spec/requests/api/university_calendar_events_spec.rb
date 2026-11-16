@@ -177,9 +177,12 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
   end
 
   describe "POST /api/university_calendar_events/sync" do
-    before { allow(UniversityCalendar::SyncJob).to receive(:perform_later) }
+    before do
+      allow(UniversityCalendar::SyncJob).to receive(:perform_later)
+      allow(TwentyFiveLive::SyncJob).to receive(:perform_later)
+    end
 
-    it "queues the sync for an admin" do
+    it "queues the calendar and 25Live syncs for an admin" do
       admin = create(:user, :admin)
 
       post "/api/university_calendar_events/sync", headers: auth_headers_for(admin)
@@ -187,6 +190,7 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json).to eq("message" => "University calendar sync queued")
       expect(UniversityCalendar::SyncJob).to have_received(:perform_later)
+      expect(TwentyFiveLive::SyncJob).to have_received(:perform_later)
     end
 
     it "answers FORBIDDEN for a regular user and queues nothing" do

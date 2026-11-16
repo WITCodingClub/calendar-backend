@@ -5,6 +5,9 @@ require "rails_helper"
 RSpec.describe Faculties::Directory, type: :service do
   let(:base_url) { Faculties::Directory::BASE_URL }
 
+  # HttpFetcher waits between retries. A spec has no need to wait.
+  before { stub_const("HttpFetcher::RETRY_OPTIONS", HttpFetcher::RETRY_OPTIONS.merge(interval: 0)) }
+
   def stub_page(page:, fixture:, status: 200, employee_type: "All")
     stub_request(:get, base_url)
       .with(query: hash_including("page" => page.to_s, "employee_type" => employee_type))
@@ -13,6 +16,14 @@ RSpec.describe Faculties::Directory, type: :service do
   end
 
   describe "#call" do
+    it "retries a page that the server is too busy to send" do
+      request = stub_request(:get, base_url).with(query: hash_including("page" => "0"))
+                                            .to_return({ status: 503 }, { status: 200, body: file_fixture("faculty_directory/page_single.html").read })
+
+      expect(described_class.new(page: 0, fetch_all: false).call[:success]).to be(true)
+      expect(request).to have_been_requested.twice
+    end
+
     it "fetches a single page when a page number is given" do
       stub_page(page: 0, fixture: "page_single.html")
 
@@ -151,22 +162,6 @@ RSpec.describe Faculties::Directory, type: :service do
 
       expect(result[:success]).to be(true)
       expect(result[:faculty].first[:email]).to eq("byrona@wit.edu")
-    end
-  end
-
-  describe "#call!" do
-    it "returns the result when the fetch succeeds" do
-      stub_page(page: 0, fixture: "page_single.html")
-
-      result = described_class.new(page: 0, fetch_all: false).call!
-
-      expect(result[:success]).to be(true)
-    end
-
-    it "raises with the underlying error message when the fetch fails" do
-      stub_page(page: 0, fixture: "page_single.html", status: 503)
-
-      expect { described_class.new(page: 0, fetch_all: false).call! }.to raise_error("HTTP 503")
     end
   end
 end
