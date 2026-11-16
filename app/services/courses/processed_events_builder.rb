@@ -82,8 +82,6 @@ module Courses
       course = enrollment.course
       faculty = course.faculties.first
 
-      filtered_meeting_times = filter_meeting_times(course.meeting_times)
-
       {
         title: course.title,
         crn: course.crn,
@@ -97,7 +95,7 @@ module Courses
           year: enrollment.term.year
         },
         professor: build_professor_data(faculty),
-        meeting_times: build_meeting_times_data(filtered_meeting_times)
+        meeting_times: build_meeting_times_data(course.filtered_meeting_times)
       }
     end
 
@@ -111,19 +109,6 @@ module Courses
         email: faculty.email,
         rmp_id: faculty.rmp_id
       }
-    end
-
-    def filter_meeting_times(meeting_times)
-      meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
-                   .map do |_key, group|
-                     non_tbd = group.reject { |mt| tbd_location?(mt) }
-                     non_tbd.any? ? non_tbd.first : group.first
-                   end
-    end
-
-    def tbd_location?(meeting_time)
-      LocationHelper.tbd_building?(meeting_time.building) ||
-        meeting_time.rooms.all? { |r| LocationHelper.tbd_room?(r) }
     end
 
     def build_meeting_times_data(meeting_times)

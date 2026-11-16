@@ -103,6 +103,19 @@ RSpec.describe Course, type: :model do
            is_section_linked: link_identifier.present?)
   end
 
+  describe "#filtered_meeting_times" do
+    it "keeps one meeting time for each day and hours, the first with a real room" do
+      course = create(:course)
+      no_room = create(:course_meeting_time, course: course, day_of_week: :monday, begin_time: 900, end_time: 1015)
+      real = create(:course_meeting_time, course: course, day_of_week: :monday, begin_time: 900, end_time: 1015)
+      create(:course_meeting_time_room, meeting_time: real, room: create(:room, number: "101"))
+      other_day = create(:course_meeting_time, course: course, day_of_week: :tuesday, begin_time: 900, end_time: 1015)
+
+      expect(course.reload.filtered_meeting_times).to contain_exactly(real, other_day)
+      expect(no_room).to be_tbd_location
+    end
+  end
+
   describe "#catalog_course" do
     it "finds the catalog course by the code in the subject and the number" do
       catalog = create(:catalog_course, subject_code: "COMP", course_number: 1050)

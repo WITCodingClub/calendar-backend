@@ -236,32 +236,19 @@ class Course < ApplicationRecord
     Course.where(id: ids).in_order_of(:id, ids)
   end
 
-  # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.
+  # One meeting time for each day and hours. A concurrent ingest can save a
+  # TBD row next to the real one; the first row with a real room wins.
   def filtered_meeting_times
     mts = meeting_times.loaded? ? meeting_times : meeting_times.includes(rooms: :building)
     mts.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
        .map do |_key, group|
          next group.first if group.size == 1
 
-         non_tbd = group.reject { |mt| tbd_location?(mt) }
-         non_tbd.any? ? non_tbd.first : group.first
+         group.find { |mt| !mt.tbd_location? } || group.first
        end
   end
 
   private
-
-  def tbd_location?(meeting_time)
-    room = meeting_time.room
-    building = room&.building
-    return true if building.nil? || room.nil?
-
-    building.name.blank? ||
-      building.abbreviation.blank? ||
-      building.name&.downcase&.include?("to be determined") ||
-      building.name&.downcase == "tbd" ||
-      building.abbreviation&.downcase == "tbd" ||
-      room.number.to_s == "0"
-  end
 
   # Within a Term.with_deferred_date_updates block, accumulates which terms need
   # updating rather than running once per course save.

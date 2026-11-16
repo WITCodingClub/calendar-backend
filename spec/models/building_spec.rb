@@ -35,6 +35,18 @@ RSpec.describe Building, type: :model do
     end
   end
 
+  describe "#tbd?" do
+    it "is true for the ingest placeholder, a name with TBD in it, and a blank name" do
+      expect(build(:building, abbreviation: "TBD", name: "To Be Determined")).to be_tbd
+      expect(build(:building, name: "TBD Hall")).to be_tbd
+      expect(build(:building, name: "")).to be_tbd
+    end
+
+    it "is false for a real building" do
+      expect(build(:building, name: "FCT Sample Hall")).not_to be_tbd
+    end
+  end
+
   describe "#twenty_five_live_status" do
     let(:building) { buildings(:WT) }
 

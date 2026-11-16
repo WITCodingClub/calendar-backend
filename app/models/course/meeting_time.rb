@@ -36,6 +36,13 @@ class Course::MeetingTime < ApplicationRecord
 
   set_public_id_prefix :mtt, min_hash_length: 12
 
+  # WIT stores an async or all-day section as 12:01pm to 11:59pm.
+  ALL_DAY_BEGIN = 1201
+  ALL_DAY_END   = 2359
+
+  # The location text of a calendar event that has no real room.
+  TBD_LOCATION = "TBD"
+
   belongs_to :course
   has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom",
                                 foreign_key: :meeting_time_id, dependent: :destroy, inverse_of: :meeting_time
@@ -79,9 +86,8 @@ class Course::MeetingTime < ApplicationRecord
     "#{fmt_begin_time} - #{fmt_end_time}"
   end
 
-  # Events spanning 12:01pm-11:59pm are considered "all day" by the university
   def all_day?
-    begin_time == 1201 && end_time == 2359
+    begin_time == ALL_DAY_BEGIN && end_time == ALL_DAY_END
   end
 
   def event_color
@@ -92,21 +98,38 @@ class Course::MeetingTime < ApplicationRecord
     end
   end
 
-  def building_room
-    b = building
-    return nil unless b
-    return nil if b.abbreviation.blank? || b.name.blank? ||
-                  b.abbreviation == "TBD" || b.name == "To Be Determined"
+  # No room, or only placeholder rooms or a placeholder building. Of meeting
+  # times with the same day and hours, Course#filtered_meeting_times keeps one
+  # that is not TBD.
+  def tbd_location?
+    rooms.empty? || building.tbd? || rooms.all?(&:tbd?)
+  end
 
-    valid_rooms = rooms.reject { |r| r.number.to_i.zero? || r.number.to_s.upcase == "TBD" }
-    if valid_rooms.empty?
-      b.abbreviation
-    else
-      "#{b.abbreviation} #{valid_rooms.map(&:formatted_number).join(' / ')}"
+  # The location of a calendar event: "Wentworth Hall - 212 / 214", only the
+  # rooms when the building is a placeholder, "TBD", or nil with no room.
+  def location_text
+    real_rooms = rooms.reject(&:tbd?)
+    if real_rooms.any? && building && !building.tbd?
+      "#{building.name} - #{room_list(real_rooms)}"
+    elsif real_rooms.any?
+      room_list(real_rooms)
+    elsif building&.tbd? || room&.tbd?
+      TBD_LOCATION
     end
   end
 
+  # The short location of a listing: "WENTW 212 / 214", the abbreviation with
+  # no real room, or nil for a placeholder building.
+  def building_room
+    return nil if building.nil? || building.tbd?
+
+    real_rooms = rooms.reject(&:tbd?)
+    real_rooms.empty? ? building.abbreviation : "#{building.abbreviation} #{room_list(real_rooms)}"
+  end
+
   private
+
+  def room_list(rooms) = rooms.map(&:formatted_number).join(Room::LIST_SEPARATOR)
 
   def format_12_hour(hours, minutes)
     meridian = hours >= 12 ? "PM" : "AM"
