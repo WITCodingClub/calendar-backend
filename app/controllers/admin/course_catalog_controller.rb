@@ -31,8 +31,7 @@ module Admin
     def provision
       authorize :course_catalog, :process?
 
-      term_uid        = params[:term_uid].to_i
-      term_description = params[:description]
+      term_uid = params[:term_uid].to_i
 
       if Term.exists?(uid: term_uid)
         flash[:alert] = "Term #{term_uid} already exists"

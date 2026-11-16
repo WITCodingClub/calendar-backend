@@ -4,7 +4,7 @@ The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it 
 
 | What | When | How |
 | --- | --- | --- |
-| Import one term | A new term appears | Admin, Course catalog, Import (`Catalog::ImportJob`) |
+| Import one term | A new term appears | Admin, Course catalog, Import (`Catalog::ImportJob.enqueue`). The job owns the `catalog_importing` and `catalog_import_failed` flags of the term that the admin pages show |
 | Nightly sync | Every night, current and future terms | `Catalog::CourseDataSyncJob` (`config/recurring.yml`) |
 | Refresh one schedule's sections | After `POST /api/process_courses` serves sections from the catalog that Banner confirmed more than 6 hours ago | `Catalog::SectionRefreshJob` |
 | Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
@@ -58,12 +58,18 @@ The Banner calls of a web request run inside a Puma thread, so these limits keep
 
 ## When Banner cools down
 
-After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every Banner request for 3 minutes and raises `CooldownError`. `Catalog::CourseDataSyncJob` and `Catalog::SectionRefreshJob` include `Catalog::BannerCooldownRetry`. On a cooldown, the job tries again after 3.5 minutes, plus up to 15% at random so that jobs do not all wake at the same time. It continues until a time window from its first attempt ends:
+After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every Banner request for 3 minutes and raises `CooldownError`. `Catalog::CourseDataSyncJob`, `Catalog::SectionRefreshJob`, `Catalog::CourseDetailsSyncJob`, and `Catalog::SectionLinksSyncJob` include `Catalog::BannerCooldownRetry`. Their services use `Catalog::BannerThrottle.report_unless_cooldown` for each item: a cooldown stops the run, and any other error is reported and the next item goes on. On a cooldown, the job tries again after 3.5 minutes, plus up to 15% at random so that jobs do not all wake at the same time. It continues until a time window from its first attempt ends:
 
 | Job | Window |
 | --- | --- |
 | `Catalog::CourseDataSyncJob` | 4 hours: the 4am run stops trying at about 8am |
 | `Catalog::SectionRefreshJob` | 15 minutes |
+| `Catalog::CourseDetailsSyncJob` | 4 hours, as the nightly sync that enqueues it. A course fetched before the stop is fresh, so the next attempt skips it |
+| `Catalog::SectionLinksSyncJob` | 2 hours. The next attempt starts the term again |
+
+`Catalog::SeatRefreshJob` runs every 30 minutes, so on a cooldown it stops and does not retry.
+
+The Banner client raises on a failed answer (`RequestError`, `CooldownError` is one). No call answers a `success:` hash, so a caller rescues the errors it can handle.
 
 At the end of the window, the job reports the `CooldownError` as handled and stops. It does not go to the failed list. The nightly sync syncs the sections confirmed longest ago first, so the next night continues the work.
 
