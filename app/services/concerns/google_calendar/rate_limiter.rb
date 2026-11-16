@@ -16,21 +16,9 @@ module GoogleCalendar
       end
     end
 
-    # A job sleeps for at most a few seconds in the calls above, because a
-    # sleep holds a worker thread. When the limit lasts longer, the error leaves
-    # the job, and the job retries later with these options:
-    #
-    #   retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
-    #
-    # The waits are about 3 s, 18 s, 83 s and 258 s. The google-apis gem raises
-    # RateLimitError for a 429 and for a 403 with the reason rateLimitExceeded,
-    # userRateLimitExceeded or sharingRateLimitExceeded. See
-    # docs/google-calendar-rate-limits.md.
-    JOB_RETRY = { wait: :polynomially_longer, attempts: 5 }.freeze
-
     # Inside a web request, a long backoff holds one of the few Puma threads.
     # A request retries once, after a short wait, and leaves longer waits to
-    # the jobs that retry on Google::Apis::RateLimitError.
+    # the jobs (CourseCalendars::ProviderRetries).
     REQUEST_MAX_RETRIES = 1
     REQUEST_MAX_DELAY   = 2.0
 

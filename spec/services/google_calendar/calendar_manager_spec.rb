@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe GoogleCalendar::CalendarManager do
-  subject(:manager) { described_class.new(user, rate_limiter: GoogleCalendar::Provider.new(user)) }
+  subject(:manager) { described_class.new(user) }
 
   let(:api)  { GoogleApiStubs::GOOGLE_CALENDAR_API }
   let(:user) { create(:user, email: "synthetic.person@wit.edu") }
@@ -130,7 +130,7 @@ RSpec.describe GoogleCalendar::CalendarManager do
                                 token_expires_at: 1.hour.from_now)
       add = stub_request(:post, "#{api}/users/me/calendarList").to_return(status: 200, body: "{}", headers: json_headers)
 
-      described_class.new(user, rate_limiter: throttle_free_rate_limiter).add_to_all_calendar_lists("synthetic-course-calendar")
+      throttle_free_manager.add_to_all_calendar_lists("synthetic-course-calendar")
 
       expect(add).to have_been_requested.twice
     end
@@ -168,6 +168,25 @@ RSpec.describe GoogleCalendar::CalendarManager do
     end
   end
 
+  describe "#delete_event" do
+    it "deletes the event with the service account" do
+      deletion = stub_request(:delete, "#{api}/calendars/synthetic-course-calendar/events/synthetic-event")
+                 .with(headers: { "Authorization" => "Bearer synthetic-service-account-token" }).to_return(status: 204)
+
+      described_class.new.delete_event("synthetic-course-calendar", "synthetic-event")
+
+      expect(deletion).to have_been_requested.once
+    end
+
+    [ 404, 410 ].each do |status|
+      it "treats an event that Google answers #{status} for as deleted" do
+        stub_request(:delete, "#{api}/calendars/synthetic-course-calendar/events/synthetic-event").to_return(google_error(status))
+
+        expect { described_class.new.delete_event("synthetic-course-calendar", "synthetic-event") }.not_to raise_error
+      end
+    end
+  end
+
   describe "#list_calendars" do
     it "lists the service account's calendars" do
       stub_request(:get, "#{api}/users/me/calendarList")
@@ -177,9 +196,9 @@ RSpec.describe GoogleCalendar::CalendarManager do
     end
   end
 
-  def throttle_free_rate_limiter
-    GoogleCalendar::Provider.new(user).tap do |provider|
-      provider.rate_limit_config = GoogleCalendar::RateLimiter::RateLimitConfig.new.tap { |c| c.batch_throttle_delay = 0 }
+  def throttle_free_manager
+    described_class.new(user).tap do |manager|
+      manager.rate_limit_config = GoogleCalendar::RateLimiter::RateLimitConfig.new.tap { |c| c.batch_throttle_delay = 0 }
     end
   end
 end

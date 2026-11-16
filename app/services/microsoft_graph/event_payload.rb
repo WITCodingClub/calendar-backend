@@ -2,7 +2,8 @@
 
 module MicrosoftGraph
   # Turns the event hash the sync builds (the same one Google gets) into a
-  # Graph event resource.
+  # Graph event resource, and a Graph event back into a
+  # CourseCalendars::RemoteEvent.
   #
   # Graph has no RRULE or EXDATE. A daily, weekly, or monthly RRULE becomes a
   # patternedRecurrence,
@@ -16,6 +17,9 @@ module MicrosoftGraph
   # example a holiday, shows as free, like Outlook's own default.
   class EventPayload
     TIME_FORMAT     = "%Y-%m-%dT%H:%M:%S"
+    # The fields a GET must ask for to read an event back.
+    SELECT          = "id,subject,location,start,end,isAllDay,recurrence,categories"
+    UTC_ZONES       = %w[UTC Etc/GMT GMT].freeze
 
     DAYS = {
       "SU" => "sunday", "MO" => "monday", "TU" => "tuesday", "WE" => "wednesday",
@@ -48,6 +52,47 @@ module MicrosoftGraph
 
       new(start_time: start_time, recurrence: recurrence).send(:recurrence_payload)
     end
+
+    # The Graph event as CourseCalendars::EventEdits reads it. row is the
+    # tracking row of the event, and event_id the id the event has now.
+    def self.remote_event(row, event_id, remote)
+      CourseCalendars::RemoteEvent.new(
+        id:                 event_id,
+        summary:            remote["subject"],
+        location:           remote.dig("location", "displayName"),
+        start_time:         parse_time(remote["start"]),
+        end_time:           parse_time(remote["end"]),
+        all_day:            remote["isAllDay"] == true,
+        recurrence_changed: normalize_recurrence(remote["recurrence"]) !=
+                              normalize_recurrence(recurrence_for(start_time: row.start_time, recurrence: row.recurrence)),
+        raw:                remote
+      )
+    end
+
+    def self.parse_time(value)
+      return nil if value.blank? || value["dateTime"].blank?
+
+      zone = UTC_ZONES.include?(value["timeZone"]) ? Time.find_zone!("UTC") : SchoolTimeZone.zone
+      zone.parse(value["dateTime"])&.in_time_zone(SchoolTimeZone::NAME)
+    end
+
+    # Only the parts the app sets. Graph adds defaults such as dayOfMonth, and
+    # an index for every type, so the index counts only for a relativeMonthly
+    # pattern.
+    def self.normalize_recurrence(recurrence)
+      return nil if recurrence.blank?
+
+      recurrence = recurrence.deep_stringify_keys
+      pattern    = recurrence["pattern"] || {}
+      range      = recurrence["range"] || {}
+
+      [
+        pattern["type"], pattern["interval"].to_i, Array(pattern["daysOfWeek"]).sort,
+        pattern["type"] == "relativeMonthly" ? pattern["index"] : nil,
+        range["type"], range["type"] == "endDate" ? range["endDate"] : nil
+      ]
+    end
+    private_class_method :parse_time, :normalize_recurrence
 
     def initialize(event_data)
       @data = event_data

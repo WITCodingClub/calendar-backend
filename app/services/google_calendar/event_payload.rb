@@ -2,7 +2,8 @@
 
 module GoogleCalendar
   # Turns the event hash the sync builds (the same one Microsoft gets) into a
-  # Google::Apis::CalendarV3::Event.
+  # Google::Apis::CalendarV3::Event, and a Google event back into a
+  # CourseCalendars::RemoteEvent.
   #
   # A custom color needs an event label. When the calendar cannot take labels,
   # the event gets the legacy colorId nearest to the color. Google reads
@@ -30,6 +31,34 @@ module GoogleCalendar
     def self.request_options(google_event)
       google_event.event_label_id.nil? ? {} : { event_label_version: 1 }
     end
+
+    # The Google event as CourseCalendars::EventEdits reads it. row is the
+    # tracking row of the event.
+    def self.remote_event(row, google_event)
+      CourseCalendars::RemoteEvent.new(
+        id:                 row.external_event_id,
+        summary:            google_event.summary,
+        location:           google_event.location,
+        start_time:         parse_time(google_event.start),
+        end_time:           parse_time(google_event.end),
+        all_day:            google_event.start&.date.present?,
+        recurrence_changed: normalize_recurrence(google_event.recurrence) != normalize_recurrence(row.recurrence),
+        raw:                google_event
+      )
+    end
+
+    # A Google EventDateTime as a time in SchoolTimeZone, or nil.
+    def self.parse_time(time_obj)
+      value = time_obj&.date_time || time_obj&.date
+      return nil unless value
+
+      value.is_a?(String) ? Time.zone.parse(value).in_time_zone(SchoolTimeZone::NAME) : value.in_time_zone(SchoolTimeZone::NAME)
+    end
+
+    def self.normalize_recurrence(recurrence)
+      Array(recurrence).compact.sort.presence
+    end
+    private_class_method :parse_time, :normalize_recurrence
 
     def initialize(event_data, labels = nil)
       @data   = event_data

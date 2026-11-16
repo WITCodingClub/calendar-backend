@@ -255,7 +255,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
     def stub_event_fetch(event_id = created_event_id, **overrides)
       body = JSON.parse(graph_fixture("event_fetched")).merge(overrides.deep_stringify_keys)
       stub_request(:get, "#{graph}/me/events/#{event_id}")
-        .with(query: hash_including("$select" => MicrosoftGraph::EventEdits::SELECT))
+        .with(query: hash_including("$select" => MicrosoftGraph::EventPayload::SELECT))
         .to_return(status: 200, body: body.to_json, headers: { "Content-Type" => "application/json" })
     end
 

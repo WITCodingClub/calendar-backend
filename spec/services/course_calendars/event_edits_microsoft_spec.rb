@@ -2,7 +2,9 @@
 
 require "rails_helper"
 
-RSpec.describe MicrosoftGraph::EventEdits do
+# CourseCalendars::EventEdits with an Outlook event, which
+# MicrosoftGraph::EventPayload.remote_event reads.
+RSpec.describe CourseCalendars::EventEdits do
   let(:zone) { Time.find_zone!("America/New_York") }
   let(:row) do
     build(:calendar_event, summary: "Synthetic Course", location: "Synthetic Hall - 101",
@@ -12,7 +14,7 @@ RSpec.describe MicrosoftGraph::EventEdits do
   let(:remote) { JSON.parse(file_fixture("microsoft_graph/event_fetched.json").read) }
 
   def edits(overrides = {})
-    described_class.new(row, remote.merge(overrides.deep_stringify_keys))
+    described_class.new(row, MicrosoftGraph::EventPayload.remote_event(row, "event-id", remote.merge(overrides.deep_stringify_keys)))
   end
 
   describe "#edited_fields" do

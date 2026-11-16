@@ -54,15 +54,14 @@ RSpec.describe CourseCalendars::Providers do
     end
   end
 
-  describe ".merge_stats" do
-    it "adds the stats of each provider" do
-      stats = described_class.merge_stats([ { created: 1, updated: 2, skipped: 3 }, { created: 4, updated: 0, skipped: 1 } ])
-
-      expect(stats).to eq(created: 5, updated: 2, skipped: 4)
+  describe ".for" do
+    it "gives the provider class of each stored name" do
+      expect(described_class.for("google")).to eq(GoogleCalendar::Provider)
+      expect(described_class.for(:microsoft)).to eq(MicrosoftGraph::CalendarProvider)
     end
 
-    it "is nil when no provider ran" do
-      expect(described_class.merge_stats([])).to be_nil
+    it "raises for a name it does not know" do
+      expect { described_class.for("yahoo") }.to raise_error(KeyError)
     end
   end
 end

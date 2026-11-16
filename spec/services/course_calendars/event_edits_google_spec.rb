@@ -2,7 +2,9 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleCalendar::EventEdits do
+# CourseCalendars::EventEdits with a Google event, which
+# GoogleCalendar::EventPayload.remote_event reads.
+RSpec.describe CourseCalendars::EventEdits do
   let(:zone)  { Time.find_zone!("America/New_York") }
   let(:start) { zone.local(2026, 9, 15, 10) }
   let(:row) do
@@ -21,33 +23,41 @@ RSpec.describe GoogleCalendar::EventEdits do
     )
   end
 
-  describe ".parse_time" do
+  def edits_for(google_event)
+    described_class.new(row, GoogleCalendar::EventPayload.remote_event(row, google_event))
+  end
+
+  def parse_time(time)
+    GoogleCalendar::EventPayload.remote_event(row, remote_event(start: time)).start_time
+  end
+
+  describe "reading a Google time" do
     it "reads a date time string in Eastern time" do
-      time = described_class.parse_time(Google::Apis::CalendarV3::EventDateTime.new(date_time: "2026-09-15T14:00:00Z"))
+      time = parse_time(Google::Apis::CalendarV3::EventDateTime.new(date_time: "2026-09-15T14:00:00Z"))
 
       expect(time).to eq(zone.local(2026, 9, 15, 10))
       expect(time.time_zone.name).to eq("America/New_York")
     end
 
     it "reads a date of an all-day event" do
-      expect(described_class.parse_time(Google::Apis::CalendarV3::EventDateTime.new(date: "2026-10-12"))).to eq(Time.zone.parse("2026-10-12"))
+      expect(parse_time(Google::Apis::CalendarV3::EventDateTime.new(date: "2026-10-12"))).to eq(Time.zone.parse("2026-10-12"))
     end
 
     it "reads a DateTime object" do
       value = DateTime.new(2026, 9, 15, 14, 0, 0)
 
-      expect(described_class.parse_time(Google::Apis::CalendarV3::EventDateTime.new(date_time: value))).to eq(zone.local(2026, 9, 15, 10))
+      expect(parse_time(Google::Apis::CalendarV3::EventDateTime.new(date_time: value))).to eq(zone.local(2026, 9, 15, 10))
     end
 
     it "gives nil for no time" do
-      expect(described_class.parse_time(nil)).to be_nil
-      expect(described_class.parse_time(Google::Apis::CalendarV3::EventDateTime.new)).to be_nil
+      expect(parse_time(nil)).to be_nil
+      expect(parse_time(Google::Apis::CalendarV3::EventDateTime.new)).to be_nil
     end
   end
 
   describe "#edited_fields" do
     it "finds no edit when Google has what the row has" do
-      expect(described_class.new(row, remote_event).edited_fields).to eq([])
+      expect(edits_for(remote_event).edited_fields).to eq([])
     end
 
     it "finds each changed field" do
@@ -55,17 +65,17 @@ RSpec.describe GoogleCalendar::EventEdits do
                             start: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 30.minutes).iso8601),
                             end: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 2.hours).iso8601))
 
-      expect(described_class.new(row, remote).edited_fields).to eq(%w[summary location start_time end_time])
+      expect(edits_for(remote).edited_fields).to eq(%w[summary location start_time end_time])
     end
 
     it "does not count an empty location that Google leaves out" do
       row.location = " "
 
-      expect(described_class.new(row, remote_event(location: nil)).edited_fields).to eq([])
+      expect(edits_for(remote_event(location: nil)).edited_fields).to eq([])
     end
 
-        it "does not count the description the app wrote" do
-      expect(described_class.new(row, remote_event(description: "CRN 10001")).edited_fields).to eq([])
+    it "does not count the description the app wrote" do
+      expect(edits_for(remote_event(description: "CRN 10001")).edited_fields).to eq([])
     end
 
     context "with an all-day event" do
@@ -78,11 +88,11 @@ RSpec.describe GoogleCalendar::EventEdits do
       end
 
       it "reads the end date Google gives as the day after the last day" do
-        expect(described_class.new(row, all_day_event("2026-11-26", "2026-11-27")).edited_fields).to eq([])
+        expect(edits_for(all_day_event("2026-11-26", "2026-11-27")).edited_fields).to eq([])
       end
 
       it "finds a moved last day" do
-        edits = described_class.new(row, all_day_event("2026-11-26", "2026-11-28"))
+        edits = edits_for(all_day_event("2026-11-26", "2026-11-28"))
 
         expect(edits.edited_fields).to eq(%w[end_time])
         expect(edits.merge({}, %w[end_time])).to eq(end_time: zone.local(2026, 11, 27))
@@ -92,7 +102,7 @@ RSpec.describe GoogleCalendar::EventEdits do
     it "counts a time that only one side has as an edit" do
       row.start_time = nil
 
-      expect(described_class.new(row, remote_event).edited_fields).to eq(%w[start_time])
+      expect(edits_for(remote_event).edited_fields).to eq(%w[start_time])
     end
   end
 
@@ -101,17 +111,17 @@ RSpec.describe GoogleCalendar::EventEdits do
       row.recurrence = [ "RRULE:FREQ=WEEKLY;BYDAY=TU", "EXDATE:20261013T100000" ]
       remote         = remote_event(recurrence: [ "EXDATE:20261013T100000", "RRULE:FREQ=WEEKLY;BYDAY=TU" ])
 
-      expect(described_class.new(row, remote).recurrence_changed?).to be(false)
+      expect(edits_for(remote).recurrence_changed?).to be(false)
     end
 
     it "finds a changed rule" do
-      expect(described_class.new(row, remote_event(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ])).recurrence_changed?).to be(true)
+      expect(edits_for(remote_event(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ])).recurrence_changed?).to be(true)
     end
 
     it "treats an empty list and no list as the same" do
       row.recurrence = nil
 
-      expect(described_class.new(row, remote_event(recurrence: [])).recurrence_changed?).to be(false)
+      expect(edits_for(remote_event(recurrence: [])).recurrence_changed?).to be(false)
     end
   end
 
@@ -121,24 +131,20 @@ RSpec.describe GoogleCalendar::EventEdits do
                             end: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 2.hours).iso8601))
       data   = { summary: "Synthetic Lecture", description: "CRN 10001", location: "New Hall", end_time: start + 1.hour }
 
-      merged = described_class.new(row, remote).merge(data, %w[summary description end_time])
+      merged = edits_for(remote).merge(data, %w[summary description end_time])
 
       expect(merged).to eq(summary: "Edited", description: "CRN 10001", location: "New Hall", end_time: start + 2.hours)
       expect(data[:summary]).to eq("Synthetic Lecture")
     end
   end
 
-  describe "#remote_row_attributes" do
-    it "gives the row the event as the person left it, with the recurrence the app wrote" do
+  describe "#remote_attributes" do
+    it "gives the event as the person left it, without the recurrence" do
       remote = remote_event(summary: "Edited", recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ])
 
-      attributes = described_class.new(row, remote).remote_row_attributes
+      attributes = edits_for(remote).remote_attributes
 
-      expected_data = { summary: "Edited", location: "Synthetic Hall", start_time: start, end_time: start + 1.hour }
-      expect(attributes).to include(expected_data)
-      expect(attributes).not_to have_key(:recurrence)
-      expect(attributes[:event_data_hash]).to eq(CalendarEvent.generate_data_hash(expected_data.merge(recurrence: row.recurrence)))
-      expect(attributes[:last_synced_at]).to be_within(1.minute).of(Time.current)
+      expect(attributes).to eq(summary: "Edited", location: "Synthetic Hall", start_time: start, end_time: start + 1.hour)
     end
   end
 end
