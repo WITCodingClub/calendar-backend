@@ -63,7 +63,7 @@ module McpTools
 
     # scopes: the scope names of the token, expanded (McpTools::Scopes.expand).
     def self.build(user:, application:, scopes:, request: nil)
-      MCP::Server.new(
+      SdkServer.new(
         name:           NAME,
         title:          "WIT Calendar",
         description:    DESCRIPTION,
@@ -88,7 +88,6 @@ module McpTools
         # carry, so it stays off.
         input_required_legacy_shim: false
       ).tap do |server|
-        server.singleton_class.prepend(IconsOnEveryVersion)
         server.completion_handler { |params| Completions.call(params) }
       end
     end
@@ -98,7 +97,10 @@ module McpTools
     # define them. Clients that ask for an older version, such as some
     # connector clients, then show no icon. A JSON-RPC client ignores fields it
     # does not know, so the server sends both on every version.
-    module IconsOnEveryVersion
+    #
+    # This relies on MCP::Server#handle_request calling init by name. The
+    # specs for each older version fail if a gem upgrade changes that.
+    class SdkServer < MCP::Server
       private
 
       def init(...)
