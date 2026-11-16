@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Catalog
+module FinalsSchedules
   # Finds the final exams of one term, in date and time order. The dashboard
   # finals page uses this object.
   #

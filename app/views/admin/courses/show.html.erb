@@ -4,7 +4,7 @@
     back: [ "Courses", admin_courses_path ] %>
 
 <div class="space-y-6">
-  <% relations = Catalog::CourseRelations.new(@course) %>
+  <% relations = Admin::CourseRelations.new(@course) %>
   <%= render "admin/shared/card", title: "Details" do %>
     <%= admin_details(columns: 3) do |d| %>
       <% d.item("CRN") { @course.crn } %>

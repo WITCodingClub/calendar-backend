@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Catalog
+module Admin
   # The courses around one section, for the admin course page: the
   # prerequisite tree, the corequisites, the mutual exclusions, the courses it
   # is a prerequisite for, the sections a student registers with it, and the
@@ -18,7 +18,7 @@ module Catalog
     def catalog_course
       return @catalog_course if defined?(@catalog_course)
 
-      @catalog_course = CatalogCourse.find_by(subject_code: course.prefix, course_number: course.course_number)
+      @catalog_course = course.catalog_course
     end
 
     # The tree from CatalogCourse#prerequisites, or nil.
@@ -43,7 +43,7 @@ module Catalog
 
     # Each group is one set of partner sections (Catalog::SectionLinks).
     def linked_options
-      @linked_options ||= SectionLinks.new(course).options
+      @linked_options ||= Catalog::SectionLinks.new(course).options
     end
 
     # The other sections in this section's cross-list group, by CRN.

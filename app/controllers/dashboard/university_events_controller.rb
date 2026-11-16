@@ -13,7 +13,7 @@ module Dashboard
       @query    = params[:q].to_s.strip
       @past     = params[:past].to_s == "1"
       @category = params[:category].to_s.presence_in(UniversityCalendarEvent::CATEGORIES)
-      @events   = Catalog::UniversityEventQuery.new.call(past: @past, category: @category, q: @query)
+      @events   = UniversityCalendar::EventQuery.new.call(past: @past, category: @category, q: @query)
                                                .page(page_param).per(CatalogPages::PER_PAGE)
     end
   end

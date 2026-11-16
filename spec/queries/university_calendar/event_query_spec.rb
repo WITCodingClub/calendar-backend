@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe Catalog::UniversityEventQuery do
+RSpec.describe UniversityCalendar::EventQuery do
   include ActiveSupport::Testing::TimeHelpers
 
   let(:zone) { Time.zone }
