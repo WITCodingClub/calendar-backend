@@ -22,7 +22,6 @@ module Catalog
       BREAKS  = %w[tight lunch any].freeze
 
       MAX_RANGES = 10
-      DAY_NAMES  = ScheduleRules::DAYS
       WEEKDAYS   = %w[monday tuesday wednesday thursday friday].freeze
 
       # A time range on some days, in HHMM. to is 2400 for the end of the day.
@@ -48,10 +47,10 @@ module Catalog
         new(
           blocked:   parse_ranges(raw["blocked"], "blocked"),
           avoid:     parse_ranges(raw["avoid"], "avoid"),
-          earliest:  parse_time(raw["earliest"], "earliest"),
-          latest:    parse_time(raw["latest"], "latest"),
+          earliest:  Params.time(raw["earliest"], "earliest time"),
+          latest:    Params.time(raw["latest"], "latest time"),
           day_off:   parse_day_off(raw["day_off"]),
-          open_only: parse_boolean(raw["open_only"], "open_only"),
+          open_only: Params.strict_boolean(raw["open_only"], "open_only") || false,
           days:      parse_choice(raw["days"], DAYS, "days"),
           breaks:    parse_choice(raw["breaks"], BREAKS, "breaks")
         )
@@ -138,11 +137,11 @@ module Catalog
           raise FilterError, "Unknown #{name} key(s): #{unknown.join(', ')}" if unknown.any?
           raise FilterError, "Each #{name} range needs days, after, or before" if value.compact.empty?
 
-          from = parse_time(value["after"], "#{name} after") || 0
-          to   = parse_time(value["before"], "#{name} before") || 2400
+          from = Params.time(value["after"], "#{name} after time") || 0
+          to   = Params.time(value["before"], "#{name} before time") || 2400
           raise FilterError, "In a #{name} range, after must be before before" if from >= to
 
-          TimeRange.new(days: value.key?("days") ? parse_days(value["days"], "#{name} days") : DAY_NAMES, from: from, to: to)
+          TimeRange.new(days: value.key?("days") ? parse_days(value["days"], "#{name} days") : ScheduleRules::DAYS, from: from, to: to)
         end
 
         def parse_day_off(value)
@@ -157,28 +156,7 @@ module Catalog
           days = value.is_a?(String) ? [ value ] : value
           raise FilterError, "#{name} must be a list of days" unless days.is_a?(Array) && days.any?
 
-          days.map do |day|
-            key = day.to_s.strip.downcase
-            raise FilterError, "Unknown day #{day.inspect}" unless DAY_NAMES.include?(key)
-
-            key
-          end.uniq
-        end
-
-        def parse_time(value, name)
-          return nil if value.nil?
-
-          SectionQuery.parse_time(value)
-        rescue FilterError
-          raise FilterError, "Invalid #{name} time #{value.inspect}; use HH:MM"
-        end
-
-        def parse_boolean(value, name)
-          case value
-          when nil, false, "false", "0", 0 then false
-          when true, "true", "1", 1 then true
-          else raise FilterError, "Invalid #{name} #{value.inspect}; use true or false"
-          end
+          days.map { |day| Params.day(day) }.uniq
         end
 
         def parse_choice(value, choices, name)

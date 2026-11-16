@@ -38,7 +38,7 @@ RSpec.describe McpTools::ListTermElectives do
   end
 
   it "returns tool errors for an unknown term or a bad filter" do
-    expect(text(call(term_uid: 1))).to include("No term with uid 1")
+    expect(text(call(term_uid: 1))).to include("No term 1")
     expect(text(call(term_uid: term.uid, course: "widgets"))).to include("course must be a course code")
   end
 end

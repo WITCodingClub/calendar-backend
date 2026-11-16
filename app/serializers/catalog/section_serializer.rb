@@ -3,9 +3,16 @@
 module Catalog
   # A single course section (one CRN) as the public catalog API returns it.
   class SectionSerializer
+    # A list of sections, with their catalog courses loaded in one query.
+    def self.collection(sections)
+      sections = sections.to_a
+      catalog_courses = CourseQuery.for_sections(sections)
+      sections.map { |section| new(section, catalog_courses: catalog_courses).as_json }
+    end
+
     # catalog_courses: the CatalogCourse rows of a list of sections, from
-    # CourseQuery.for_sections, so a list sends one query. Without it, the
-    # serializer looks the one course up.
+    # CourseQuery.for_sections. Without it, the serializer looks the one
+    # course up.
     def initialize(course, catalog_courses: nil)
       @course = course
       @catalog_courses = catalog_courses

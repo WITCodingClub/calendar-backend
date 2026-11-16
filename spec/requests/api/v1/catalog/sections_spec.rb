@@ -310,7 +310,7 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
     it "caps per_page so one request cannot pull the whole catalog" do
       get "/api/v1/catalog/sections", params: { per_page: 5000 }
 
-      expect(json["meta"]["per_page"]).to eq(Catalog::SectionQuery::MAX_PER_PAGE)
+      expect(json["meta"]["per_page"]).to eq(Catalog::Page.max_size(:sections))
     end
 
     it "treats a zero or negative page as the first page" do

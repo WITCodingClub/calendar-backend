@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/instructors/:pub_id.
   class GetInstructor < BaseTool
     tool_name "get_instructor"
     title "Get an instructor"
@@ -21,8 +20,8 @@ module McpTools
     output_schema(Schemas::INSTRUCTOR_DETAIL)
 
     def perform(instructor_id:, term_uid: nil)
-      term = term_uid && (Term.find_by(uid: term_uid) || raise(ToolError, "No term with uid #{term_uid}. Call list_terms for the uids."))
-      Catalog::InstructorDetailSerializer.new(find_instructor(instructor_id), term: term).as_json
+      term = term_uid && Term.find_by_uid!(term_uid)
+      Catalog::InstructorDetailSerializer.new(Catalog::InstructorQuery.find!(instructor_id), term: term).as_json
     end
   end
 end

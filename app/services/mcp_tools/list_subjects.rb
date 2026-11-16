@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/subjects. GraphQL: subjects.
   class ListSubjects < BaseTool
     tool_name "list_subjects"
     title "List subjects"

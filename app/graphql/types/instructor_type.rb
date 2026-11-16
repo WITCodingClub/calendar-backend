@@ -26,7 +26,7 @@ module Types
     end
 
     def similar(limit:)
-      object.similar_instructors(limit: limit.clamp(1, Embeddable::MAX_SIMILAR_LIMIT))
+      object.similar_instructors(limit: Embeddable.similar_limit(limit))
     end
 
     # Email and phone are intentionally absent: this schema is unauthenticated.

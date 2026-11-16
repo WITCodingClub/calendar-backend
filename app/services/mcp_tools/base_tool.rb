@@ -79,10 +79,19 @@ module McpTools
     FLAG_OFF_MESSAGE = "This feature is not enabled for this student yet. Do not call the tool again."
 
     PAGE_SCHEMA = { type: "integer", minimum: 1, description: "The page, from 1." }.freeze
+    SIMILAR_LIMIT_SCHEMA = { type: "integer", minimum: 1, maximum: Embeddable::MAX_SIMILAR_LIMIT }.freeze
     TERM_SCHEMA = {
       type:        "integer",
       description: "The term uid from list_terms, for example 202610. Leave it out for the current term."
     }.freeze
+
+    # The per_page argument of a catalog list (Catalog::Page::SIZES).
+    def self.per_page_schema(list)
+      {
+        type: "integer", minimum: 1, maximum: Catalog::Page.max_size(list),
+        description: "Default #{Catalog::Page.default_size(list)}."
+      }
+    end
 
     class << self
       def inherited(subclass)
@@ -248,78 +257,34 @@ module McpTools
 
     private
 
-    # Call before a search that ranks q by meaning. A search with no words
-    # embeds nothing, so it is free.
+    # Counts a semantic search against the catalog/semantic budget, the same
+    # budget as REST and GraphQL. The request carries the user's token, so
+    # Rack::Attack counts it against that user, not the shared address of the
+    # client. Without a request (a tool called outside one) nothing counts.
     def spend_semantic_search!(q, semantic)
-      SemanticBudget.new(request).spend! if semantic && q.present?
-    end
+      return if request.nil? || !Catalog::SemanticSearch.requested?(semantic, q)
+      return unless Rack::Attack.semantic_search_throttled?(request.env)
 
-    # page and per_page, the same as the REST API.
-    def page_params(page, per_page, default:, max:)
-      [ [ page.to_i, 1 ].max, (per_page || default).to_i.clamp(1, max) ]
-    end
-
-    def page_meta(page, per_page, total)
-      { page: page, per_page: per_page, total_count: total, total_pages: (total.to_f / per_page).ceil }
+      raise ToolError, "Too many semantic searches. Wait a minute, or search without semantic."
     end
 
     def authorize(record, query)
       Pundit.authorize(user, record, query)
     end
 
+    # The term with this uid. Without one, the current term.
     def find_term(uid)
-      return Term.current || raise(ToolError, "There is no current term. Pass a term_uid from list_terms.") if uid.nil?
+      return Term.find_by_uid!(uid) unless uid.nil?
 
-      Term.find_by(uid: uid) || raise(ToolError, "No term with uid #{uid}. Call list_terms for the uids.")
+      Term.current || raise(ToolError, "There is no current term. Pass a term_uid from list_terms.")
     end
 
-    # A section by CRN, cancelled or not, the same lookup as
-    # GET /api/v1/catalog/sections/:crn.
-    def find_section(crn, term_uid)
-      term     = find_term(term_uid)
-      relation = Catalog::SectionQuery.new.call(crns: [ crn ], term_uid: term.uid, include_cancelled: true)
-
-      Catalog::SectionQuery.with_associations(relation).first ||
-        raise(ToolError, "No section with CRN #{crn} in term #{term.uid}")
-    end
-
-    # The most sections that one call sends to Banner again.
-    REFRESH_LIMIT = 30
-    # A section that one call queued is not queued again for this long, also
-    # when Banner gave nothing and banner_synced_at did not move.
-    REFRESH_QUEUED_FOR = Courses::Processor::REFRESH_AFTER
-
-    # Sections whose Banner data is older than
-    # Courses::Processor::CATALOG_FRESH_FOR, so the nightly sync missed them,
-    # get a Banner refresh in the background (Catalog::SectionRefreshJob). Seats
-    # need no refresh here: Catalog::SeatRefreshJob writes them every 30
-    # minutes during registration, and it does not move banner_synced_at. The
-    # answer does not wait. A refresh is extra, so a fault is reported, not raised.
-    #
-    # Only the terms that the nightly sync reads (Catalog::CourseDataSyncJob):
-    # a past term is not synced on purpose, and cancelled sections are left out.
+    # A refresh is extra, so a fault is reported, not raised.
     def refresh_stale_sections(term_uid, crns)
-      return unless synced_term_uids.include?(term_uid.to_i)
-
-      ids = Course.joins(:term).where(terms: { uid: term_uid }, crn: crns).where.not(status: :cancelled)
-                  .where("courses.banner_synced_at IS NULL OR courses.banner_synced_at < ?", Courses::Processor::CATALOG_FRESH_FOR.ago)
-                  .limit(REFRESH_LIMIT).pluck(:id)
-      ids = ids.select { |id| Rails.cache.write(refresh_key(id), true, expires_in: REFRESH_QUEUED_FOR, unless_exist: true) }
-      return if ids.empty?
-
-      begin
-        Catalog::SectionRefreshJob.perform_later(ids)
-      rescue StandardError
-        ids.each { |id| Rails.cache.delete(refresh_key(id)) }
-        raise
-      end
+      Catalog::StaleSections.refresh(term_uid, crns)
     rescue StandardError => e
       Rails.error.report(e, handled: true, context: { user_id: user&.id })
     end
-
-    def synced_term_uids = (Term.active.pluck(:uid) + Term.current_and_future.pluck(:uid)).uniq
-
-    def refresh_key(id) = "mcp/section_refresh/#{id}"
 
     # A meeting time of a course the user takes, by the id from my_courses.
     def find_my_meeting_time(id)
@@ -328,11 +293,6 @@ module McpTools
                          .includes(course: [ :faculties, :term ], rooms: :building)
                          .find_by_public_id(id.to_s) ||
         raise(ToolError, "No class meeting #{id} in your courses. Call my_courses for the ids.")
-    end
-
-    def find_instructor(pub_id)
-      Faculty.includes(:rating_distribution).find_by_public_id(pub_id.to_s.strip) ||
-        raise(ToolError, "No instructor #{pub_id}. Call search_instructors for the ids.")
     end
 
     def parse_date(value, name)

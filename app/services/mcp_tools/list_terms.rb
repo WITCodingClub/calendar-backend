@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/terms, /terms/current, /terms/next. GraphQL: terms.
   class ListTerms < BaseTool
     tool_name "list_terms"
     title "List terms"
@@ -20,13 +19,12 @@ module McpTools
     )
 
     def perform(active: false)
-      counts = Course.active.group(:term_id).count
-      terms  = (active ? Term.active : Term.reverse_chronological).to_a
+      terms = active ? Term.active : Term.reverse_chronological
 
       {
         current_term_uid: Term.current&.uid,
         next_term_uid:    Term.next_uid,
-        terms:            terms.map { |term| Catalog::TermSerializer.new(term, section_count: counts.fetch(term.id, 0)).as_json }
+        terms:            Catalog::TermSerializer.collection(terms)
       }
     end
   end

@@ -48,11 +48,7 @@ module Catalog
     end
 
     def sections
-      relation = SectionQuery.with_associations(
-        SectionQuery.new(@faculty.courses).call(term_uid: @term.uid)
-      ).to_a
-      catalog_courses = CourseQuery.for_sections(relation)
-      relation.map { |section| SectionSerializer.new(section, catalog_courses: catalog_courses).as_json }
+      SectionSerializer.collection(SectionQuery.with_associations(SectionQuery.new(@faculty.courses).call(term_uid: @term.uid)))
     end
   end
 end

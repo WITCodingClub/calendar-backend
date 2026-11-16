@@ -14,7 +14,7 @@ module Types
 
     # One grouped count for every term in the query, not one count per term.
     def section_count
-      counts = context[:term_section_counts] ||= Course.active.group(:term_id).count
+      counts = context[:term_section_counts] ||= ::Catalog::TermSerializer.section_counts
       counts.fetch(object.id, 0)
     end
   end

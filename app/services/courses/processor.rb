@@ -10,15 +10,6 @@ module Courses
       super()
     end
 
-    # The nightly sync (Catalog::CourseDataSyncJob) asks Banner about every
-    # section of the active terms. A section it confirmed within this time is
-    # served from the catalog, with no Banner request. When the sync has not
-    # run for longer, every section goes to Banner as before.
-    CATALOG_FRESH_FOR = 36.hours
-    # A section served from the catalog that is older than this gets a Banner
-    # refresh in the background (Catalog::SectionRefreshJob).
-    REFRESH_AFTER = 6.hours
-
     # The most sections (CRN and term pairs) in one payload. A full-time
     # schedule with labs has about 14. Each section that is not in the catalog
     # costs three Banner requests, and a web request runs inside a Puma
@@ -50,7 +41,7 @@ module Courses
       catalog_courses = grouped_courses.keys.each_with_object({}) do |(crn, term_uid), acc|
         term = term_cache[term_uid.to_s]
         course = term && course_cache[[ crn.to_s, term.id ]]
-        acc[[ crn, term_uid ]] = course if course&.banner_synced_at&.after?(CATALOG_FRESH_FOR.ago)
+        acc[[ crn, term_uid ]] = course if course && Catalog::StaleSections.fresh?(course)
       end
 
       banner_started_at = monotonic_now
@@ -281,8 +272,7 @@ module Courses
         CourseCalendars::SyncJob.perform_later(user, force: false)
       end
 
-      stale_ids = catalog_courses.values.select { |course| course.banner_synced_at.before?(REFRESH_AFTER.ago) }.map(&:id)
-      Catalog::SectionRefreshJob.perform_later(stale_ids) if stale_ids.any?
+      stale_ids = Catalog::StaleSections.queue(catalog_courses.values.select { |course| Catalog::StaleSections.refresh_due?(course) }.map(&:id))
 
       Rails.logger.info(
         "[Courses::Processor] user=#{user.id} sections=#{grouped_courses.size} " \

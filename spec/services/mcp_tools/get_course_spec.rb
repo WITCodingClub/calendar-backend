@@ -41,6 +41,6 @@ RSpec.describe McpTools::GetCourse do
 
     expect(call(code: "algorithms").content.first[:text]).to include("is not a course code")
     expect(call(code: "COMP 9999").content.first[:text]).to include("No course COMP 9999")
-    expect(call(code: "COMP 2350", term_uid: 1).content.first[:text]).to include("No term with uid 1")
+    expect(call(code: "COMP 2350", term_uid: 1).content.first[:text]).to include("No term 1")
   end
 end

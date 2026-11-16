@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/sections. GraphQL: sections. It takes every filter of
-  # Catalog::SectionQuery.
+  # It takes every filter of Catalog::SectionQuery.
   class SearchSections < BaseTool
-    DEFAULT_PER_PAGE = 20
-    MAX_PER_PAGE     = 100
-    DAYS             = Catalog::SectionQuery::DAYS.keys.freeze
+    DAY_SCHEMA = { type: "string", enum: Catalog::ScheduleRules::DAYS }.freeze
 
     tool_name "search_sections"
     title "Search course sections"
@@ -32,8 +29,8 @@ module McpTools
         crns:              { type: "array", items: { type: "integer" }, description: "Section CRNs." },
         pub_ids:           { type: "array", items: { type: "string" }, description: "Section public ids." },
         schedule_types:    { type: "array", items: { type: "string" }, description: "For example lecture or LEC." },
-        meets_on:          { type: "array", items: { type: "string", enum: DAYS }, description: "Keep sections that meet on any of these days." },
-        free_days:         { type: "array", items: { type: "string", enum: DAYS }, description: "Drop sections that meet on any of these days." },
+        meets_on:          { type: "array", items: DAY_SCHEMA, description: "Keep sections that meet on any of these days." },
+        free_days:         { type: "array", items: DAY_SCHEMA, description: "Drop sections that meet on any of these days." },
         begins_after:      { type: "string", description: "Drop sections with any meeting before this time. HH:MM, 24-hour." },
         ends_before:       { type: "string", description: "Drop sections with any meeting after this time. HH:MM, 24-hour." },
         credit_hours:      { type: "array", items: { type: "integer" }, description: "Credit hours, for example 4." },
@@ -42,7 +39,7 @@ module McpTools
         open_only:         { type: "boolean", description: "Keep only sections with a free seat. Drops sections with no seat data." },
         include_waitlist:  { type: "boolean", description: "With open_only, also keep full sections whose waitlist has room." },
         page:              PAGE_SCHEMA,
-        per_page:          { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
+        per_page:          per_page_schema(:sections)
       }
     )
     output_schema(
@@ -56,26 +53,17 @@ module McpTools
     def perform(term_uid: nil, page: nil, per_page: nil, **filters)
       term = find_term(term_uid)
       spend_semantic_search!(filters[:q], filters[:semantic])
-      page, per_page = page_params(page, per_page, default: DEFAULT_PER_PAGE, max: MAX_PER_PAGE)
-
+      page     = Catalog::Page.new(:sections, page: page, per_page: per_page)
       relation = Catalog::SectionQuery.new.call(term_uid: term.uid, **filters.compact)
-      total    = relation.count("DISTINCT courses.id")
-      sections = Catalog::SectionQuery.with_associations(relation).page(page).per(per_page)
+      sections = page.of(Catalog::SectionQuery.with_associations(relation))
 
       {
         term_uid: term.uid,
-        sections: serialize(sections.to_a),
-        meta:     page_meta(page, per_page, total)
+        sections: Catalog::SectionSerializer.collection(sections),
+        meta:     page.meta(relation.count("DISTINCT courses.id"))
       }
     rescue Catalog::FilterError => e
       raise ToolError, e.message
-    end
-
-    private
-
-    def serialize(sections)
-      catalog_courses = Catalog::CourseQuery.for_sections(sections)
-      sections.map { |course| Catalog::SectionSerializer.new(course, catalog_courses: catalog_courses).as_json }
     end
   end
 end

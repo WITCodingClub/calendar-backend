@@ -47,7 +47,7 @@ module Types
     end
 
     def similar(limit:)
-      object.similar_sections(limit: limit.clamp(1, Embeddable::MAX_SIMILAR_LIMIT))
+      object.similar_sections(limit: Embeddable.similar_limit(limit))
     end
 
     def course_code

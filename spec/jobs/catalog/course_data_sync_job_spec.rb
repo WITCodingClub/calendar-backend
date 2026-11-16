@@ -313,22 +313,21 @@ RSpec.describe Catalog::CourseDataSyncJob do
     it "syncs the running and upcoming terms, not every term Banner lists" do
       allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise("Banner should not be asked")
       allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
-      job = described_class.new
 
-      expect(job.send(:default_term_uids)).to include(term.uid)
+      expect(Term.synced_uids).to include(term.uid)
     end
 
     it "leaves out a term that has already ended" do
       old_term = create(:term, uid: 201710, season: :fall, year: 2016,
                         start_date: Date.new(2016, 9, 1), end_date: Date.new(2016, 12, 20))
 
-      expect(described_class.new.send(:default_term_uids)).not_to include(old_term.uid)
+      expect(Term.synced_uids).not_to include(old_term.uid)
     end
 
     # Term.current picks by calendar month, not by whether classes are still
     # running, so it advances to the next term before the current one ends.
     # Term.current_and_future alone drops a still-running term twice a year.
-    # These two cases are why default_term_uids unions in Term.active.
+    # These two cases are why Term.synced_uids unions in Term.active.
     context "when a running term overlaps the next one" do
       let!(:summer_2026) do
         create(:term, uid: 202630, season: :summer, year: 2026,
@@ -346,14 +345,14 @@ RSpec.describe Catalog::CourseDataSyncJob do
       it "keeps the fall term in December, after the heuristic jumps to spring" do
         travel_to(Date.new(2026, 12, 18)) do
           expect(Term.current_and_future.pluck(:uid)).not_to include(fall_2026.uid)
-          expect(described_class.new.send(:default_term_uids)).to include(fall_2026.uid)
+          expect(Term.synced_uids).to include(fall_2026.uid)
         end
       end
 
       it "keeps the summer term in August, while it is still in session" do
         travel_to(Date.new(2026, 8, 1)) do
           expect(Term.current_and_future.pluck(:uid)).not_to include(summer_2026.uid)
-          expect(described_class.new.send(:default_term_uids)).to include(summer_2026.uid)
+          expect(Term.synced_uids).to include(summer_2026.uid)
         end
       end
     end

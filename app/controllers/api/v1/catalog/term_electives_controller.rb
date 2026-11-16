@@ -3,14 +3,11 @@
 module Api
   module V1
     module Catalog
-      # GET /api/v1/catalog/terms/:uid/electives
-      #
       # The elective lists that each school publishes for the term
       # (docs/term-electives.md).
       class TermElectivesController < Api::V1::PublicController
         def index
-          term = Term.find_by(uid: params[:uid])
-          raise ActiveRecord::RecordNotFound, "No term #{params[:uid]}" if term.nil?
+          term = Term.find_by_uid!(params[:uid])
 
           matches = ::Catalog::TermElectiveQuery.new.call(
             term: term, school: array_param(:school), course: string_param(:course), q: string_param(:q)

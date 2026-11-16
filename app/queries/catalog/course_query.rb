@@ -4,10 +4,6 @@ module Catalog
   # Finds catalog courses (one row per course, across terms). The REST
   # controller, the GraphQL schema, and the MCP tools use this object.
   class CourseQuery
-    MAX_PER_PAGE     = 100
-    DEFAULT_PER_PAGE = 25
-
-    # @return [ActiveRecord::Relation<CatalogCourse>]
     def call(q: nil, subject: nil, term_uid: nil)
       relation = CatalogCourse.all
       codes    = Array(subject).map { |code| code.to_s.strip.upcase }.reject(&:empty?)

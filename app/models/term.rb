@@ -68,39 +68,7 @@ class Term < ApplicationRecord
 
   scope :enrolled_for, ->(user) { where(id: Enrollment.where(user: user).select(:term_id)) }
 
-  # Returns active term UIDs from LeopardWeb
-  # @return [Array<Integer>] UIDs of terms LeopardWeb considers active, empty array on failure
-  def self.active_uids
-    result = Catalog::LeopardWebClient.get_active_terms
-    return [] unless result[:success]
-
-    result[:terms].map { |t| t[:code].to_i }
-  end
-
-  # Returns the registration start date for this term.
-  # Queries LeopardWeb to determine if registration is open for this term.
-  # Once the term first appears as active, that date is considered the open date.
-  # Falls back to start_date when LeopardWeb is unavailable or does not list the term.
-  # @return [Date, nil] the registration start date
-  def registration_start
-    result = Catalog::LeopardWebClient.get_active_terms
-    if result[:success]
-      active_codes = result[:terms].map { |t| (t[:code] || t["code"]).to_i }
-      if active_codes.include?(uid)
-        return start_date if start_date.present? && start_date <= Time.zone.today
-
-        return Time.zone.today
-      end
-    end
-
-    start_date
-  rescue => e
-    Rails.error.report(e, handled: true, context: { term_id: id })
-    start_date
-  end
-
-  # Scope for active terms (classes have started and term hasn't ended)
-  # Returns up to 3 terms if 3 are active, otherwise returns 2
+  # The terms in session today: classes have started and the term has not ended.
   scope :active, -> {
     today = Time.zone.today
 
@@ -119,7 +87,6 @@ class Term < ApplicationRecord
       .reverse_chronological
   }
 
-  # Wrap bulk course-save operations to batch term date updates.
   def self.with_deferred_date_updates
     Thread.current[PENDING_DATE_UPDATES_KEY] = {}
     yield
@@ -133,7 +100,7 @@ class Term < ApplicationRecord
     "#{season.to_s.capitalize} #{year}"
   end
 
-  # Update start_date and end_date from course data. Only considers dates in the expected year range.
+  # Only dates in the term's year range count.
   def update_dates_from_courses!
     new_start, new_end = courses
                          .where.not(start_date: nil)
@@ -264,9 +231,20 @@ class Term < ApplicationRecord
 
   def self.current_uid  = current&.uid
   def self.next_uid     = self.next&.uid
-  def self.find_by_uid(uid)  = find_by(uid: uid)
-  def self.find_by_uid!(uid) = find_by!(uid: uid)
-  def self.exists_by_uid?(uid) = exists?(uid: uid)
+
+  # The term with this uid. find_by! would put its SQL in the message, and
+  # the API and the MCP tools show the message to the client.
+  def self.find_by_uid!(uid)
+    find_by(uid: uid) || raise(ActiveRecord::RecordNotFound.new("No term #{uid}", name, "uid", uid))
+  end
+
+  # The terms that Catalog::CourseDataSyncJob reads from Banner each night:
+  # the terms in session and every term from the current one on. Rooms and
+  # times only move for those. Banner lists every term back to 2014, about
+  # 118,000 Banner requests a night, nearly all for terms that ended years ago.
+  def self.synced_uids
+    (active.pluck(:uid) + current_and_future.pluck(:uid)).uniq
+  end
 
   def self.find_by_date(date)
     return nil unless date

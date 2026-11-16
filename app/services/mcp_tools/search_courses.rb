@@ -1,11 +1,7 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/courses. GraphQL: courses.
   class SearchCourses < BaseTool
-    DEFAULT_PER_PAGE = 25
-    MAX_PER_PAGE     = Catalog::CourseQuery::MAX_PER_PAGE
-
     tool_name "search_courses"
     title "Search courses"
     description "Searches Wentworth courses (not sections) by code or title words, for example \"COMP 2350\" or " \
@@ -19,19 +15,18 @@ module McpTools
         subject:  { type: "array", items: { type: "string" }, description: "Subject codes, for example COMP or MATH." },
         term_uid: { type: "integer", description: "Only courses with a section in this term." },
         page:     PAGE_SCHEMA,
-        per_page: { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
+        per_page: per_page_schema(:courses)
       }
     )
     output_schema(Schemas.object(courses: Schemas.array(Schemas::COURSE_SUMMARY), meta: Schemas::PAGE_META))
 
     def perform(q: nil, subject: nil, term_uid: nil, page: nil, per_page: nil)
-      page, per_page = page_params(page, per_page, default: DEFAULT_PER_PAGE, max: MAX_PER_PAGE)
+      page     = Catalog::Page.new(:courses, page: page, per_page: per_page)
       relation = Catalog::CourseQuery.new.call(q: q, subject: subject, term_uid: term_uid)
-      total    = relation.count
 
       {
-        courses: relation.page(page).per(per_page).map { |course| Catalog::CourseSerializer.summary(course) },
-        meta:    page_meta(page, per_page, total)
+        courses: page.of(relation).map { |course| Catalog::CourseSerializer.summary(course) },
+        meta:    page.meta(relation.count)
       }
     end
   end

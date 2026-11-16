@@ -16,10 +16,19 @@ module Catalog
     CACHE_TTL    = 1.day
 
     # How many rows the vector search returns before the other filters run.
-    # One full page is 200 rows, so a page is never short because of this cap.
-    CANDIDATE_LIMIT = ::Catalog::SectionQuery::MAX_PER_PAGE
+    # It is at least the largest page (Catalog::Page::SIZES), so a page is
+    # never short because of this cap.
+    CANDIDATE_LIMIT = 200
 
     module_function
+
+    # A request asks for a semantic search when semantic is true and q has
+    # words. Without words nothing is embedded, so semantic=true alone is
+    # free. Rack::Attack, the GraphQL analyzer, and the MCP tools count a
+    # search against the catalog/semantic budget by this rule.
+    def requested?(semantic, q)
+      Params.boolean(semantic) && q.present?
+    end
 
     # Semantic search needs a key to embed the query and a flag to say it is
     # wanted. Without either, callers fall back to keyword search.
@@ -27,8 +36,7 @@ module Catalog
       Embeddings::Generator.configured? && Flipper.enabled?(FeatureFlags::SEMANTIC_SEARCH)
     end
 
-    # @param query [String]
-    # @return [Array<Float>, nil] nil when search is off or the API failed
+    # nil when search is off or the API failed.
     def vector_for(query)
       return nil unless available?
 
@@ -41,7 +49,6 @@ module Catalog
     rescue Embeddings::Generator::Error => e
       # A search that returns the keyword results is better than a search that
       # returns an error, so the caller gets nil and falls back.
-      Rails.logger.warn("[SemanticSearch] #{e.class}: #{e.message}")
       Rails.error.report(e, handled: true)
       nil
     end

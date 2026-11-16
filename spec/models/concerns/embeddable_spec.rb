@@ -60,18 +60,18 @@ RSpec.describe Embeddable do
       near = give_embedding(create(:catalog_course, title: "near"), 0.10)
       far  = give_embedding(create(:catalog_course, title: "far"), 0.90)
 
-      expect(CatalogCourse.nearest_to(embedding_vector(0.0))).to eq([ near, far ])
+      expect(CatalogCourse.nearest_to(embedding_vector(0.0), limit: 10)).to eq([ near, far ])
     end
 
     it "leaves out rows with no vector" do
       give_embedding(course, 0.10)
       create(:catalog_course, title: "no vector")
 
-      expect(CatalogCourse.nearest_to(embedding_vector(0.0))).to contain_exactly(course)
+      expect(CatalogCourse.nearest_to(embedding_vector(0.0), limit: 10)).to contain_exactly(course)
     end
 
     it "returns nothing for a blank vector" do
-      expect(CatalogCourse.nearest_to(nil)).to be_empty
+      expect(CatalogCourse.nearest_to(nil, limit: 10)).to be_empty
     end
 
     it "stops at the limit" do

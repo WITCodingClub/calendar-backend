@@ -37,17 +37,21 @@ module Api
         render_error exception.message, status: :bad_request, code: "INVALID_FILTER"
       end
 
-      # Page size is capped so one request cannot pull the whole catalog.
-      def pagination
-        page     = [ params[:page].to_i, 1 ].max
-        per_page = params[:per_page].presence&.to_i || ::Catalog::SectionQuery::DEFAULT_PER_PAGE
-        per_page = per_page.clamp(1, ::Catalog::SectionQuery::MAX_PER_PAGE)
-
-        [ page, per_page ]
+      def page_for(list)
+        ::Catalog::Page.new(list, page: params[:page], per_page: params[:per_page])
       end
 
       def boolean_param(key)
-        ActiveModel::Type::Boolean.new.cast(params[key]).present?
+        ::Catalog::Params.boolean(params[key])
+      end
+
+      # The term that ?term_uid= names, or nil without one.
+      def optional_term
+        Term.find_by_uid!(params[:term_uid]) if params[:term_uid].present?
+      end
+
+      def similar_limit
+        Embeddable.similar_limit(params[:limit])
       end
 
       def array_param(key)

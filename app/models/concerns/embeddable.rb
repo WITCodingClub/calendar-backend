@@ -14,9 +14,14 @@ module Embeddable
   extend ActiveSupport::Concern
 
   # How many neighbours a "what is like this?" request returns, and the most
-  # it may ask for. Both the API and the GraphQL schema read these.
+  # it may ask for. The API, the GraphQL schema, and the MCP tools read these.
   DEFAULT_SIMILAR_LIMIT = 10
   MAX_SIMILAR_LIMIT     = 50
+
+  # The limit that a request asks for (a string, an integer, or nil), clamped.
+  def self.similar_limit(value)
+    (value.presence&.to_i || DEFAULT_SIMILAR_LIMIT).clamp(1, MAX_SIMILAR_LIMIT)
+  end
 
   included do
     has_neighbors :embedding
@@ -27,11 +32,7 @@ module Embeddable
 
   class_methods do
     # The rows closest to a query vector, nearest first.
-    #
-    # @param vector [Array<Float>]
-    # @param limit [Integer]
-    # @return [ActiveRecord::Relation]
-    def nearest_to(vector, limit: 20)
+    def nearest_to(vector, limit:)
       return none if vector.blank?
 
       embedded.nearest_neighbors(:embedding, vector, distance: "cosine").limit(limit)
@@ -101,15 +102,12 @@ module Embeddable
     embedding.nil? || embedding_digest != self.class.digest_for(text)
   end
 
-  # @param vector [Array<Float>, nil]
   def store_embedding(vector, text: embedding_text)
     return false if vector.blank?
 
     update_columns(embedding: vector, embedding_digest: self.class.digest_for(text)) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # The records closest to this one, itself excluded, nearest first.
-  #
   # @param among [ActiveRecord::Relation, nil] a select of the ids allowed
   def similar(limit: DEFAULT_SIMILAR_LIMIT, among: nil)
     return self.class.none if embedding.nil?

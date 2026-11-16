@@ -46,11 +46,10 @@ module Analyzers
 
     private
 
-    # Without words there is nothing to embed, so semantic: true alone is free.
     def semantic_search?(arguments)
       return false unless arguments.respond_to?(:key?)
 
-      arguments.key?(:semantic) && arguments[:semantic] && arguments[:q].present?
+      ::Catalog::SemanticSearch.requested?(arguments[:semantic], arguments[:q])
     end
 
     def throttled?

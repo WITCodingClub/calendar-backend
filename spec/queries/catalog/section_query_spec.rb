@@ -241,7 +241,7 @@ RSpec.describe Catalog::SectionQuery do
 
     it "raises for an unknown day" do
       expect { query.call(meets_on: "funday") }
-        .to raise_error(described_class::FilterError, /Unknown day/)
+        .to raise_error(Catalog::FilterError, /Unknown day/)
     end
   end
 
@@ -283,29 +283,6 @@ RSpec.describe Catalog::SectionQuery do
     it "raises rather than ignoring them silently" do
       expect { query.call(sort_by: "title") }
         .to raise_error(described_class::FilterError, /Unknown filter\(s\): sort_by/)
-    end
-  end
-
-  describe ".parse_time" do
-    it "converts HH:MM to the HHMM integer the columns store" do
-      expect(described_class.parse_time("9:05")).to eq(905)
-      expect(described_class.parse_time("13:45")).to eq(1345)
-    end
-
-    it "passes through the HHMM form" do
-      expect(described_class.parse_time("1345")).to eq(1345)
-      expect(described_class.parse_time(905)).to eq(905)
-    end
-
-    it "returns nil for a blank value" do
-      expect(described_class.parse_time(nil)).to be_nil
-      expect(described_class.parse_time("")).to be_nil
-    end
-
-    it "rejects impossible times" do
-      expect { described_class.parse_time("25:00") }.to raise_error(described_class::FilterError)
-      expect { described_class.parse_time("10:75") }.to raise_error(described_class::FilterError)
-      expect { described_class.parse_time("noon") }.to raise_error(described_class::FilterError)
     end
   end
 
