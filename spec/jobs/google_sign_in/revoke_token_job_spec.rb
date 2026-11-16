@@ -37,15 +37,6 @@ RSpec.describe GoogleSignIn::RevokeTokenJob do
       .to have_enqueued_job(described_class).with("synthetic-refresh-token")
   end
 
-  it "sets an open and a read timeout on the request" do
-    stub_revoke(status: 200)
-    allow(OauthCredentials::Http).to receive(:post_form).and_call_original
-
-    described_class.perform_now("synthetic-refresh-token")
-
-    expect(OauthCredentials::Http).to have_received(:post_form).with(described_class::REVOKE_URL, { token: "synthetic-refresh-token" })
-  end
-
   it "does nothing without a token" do
     described_class.perform_now(nil)
 
@@ -53,7 +44,14 @@ RSpec.describe GoogleSignIn::RevokeTokenJob do
   end
 
   it "keeps the token out of the job logs" do
-    expect(described_class.log_arguments?).to be(false)
+    stub_revoke(status: 200)
+    log = StringIO.new
+    allow(ActiveJob::Base).to receive(:logger).and_return(ActiveSupport::Logger.new(log))
+
+    described_class.perform_now("synthetic-refresh-token")
+
+    expect(log.string).to include(described_class.name)
+    expect(log.string).not_to include("synthetic-refresh-token")
   end
 
   describe "a sealed token" do

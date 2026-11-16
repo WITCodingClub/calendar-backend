@@ -56,8 +56,7 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
 
     described_class.perform_now(token)
 
-    event = SecurityEvent.find_by(jti: "verify-jti")
-    expect(event).to be_present
+    event = SecurityEvent.find_by!(jti: "verify-jti")
     expect(event.processed).to be(true)
     expect(event.event_type).to eq(SecurityEvent::VERIFICATION)
   end

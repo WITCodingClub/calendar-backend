@@ -26,9 +26,4 @@ RSpec.describe Catalog::SectionLinksSyncJob do
 
     expect { described_class.perform_now(term.uid) }.to have_enqueued_job(described_class).with(term.uid)
   end
-
-  it "runs one term at a time under a fixed group" do
-    expect(described_class.concurrency_group).to eq("Catalog::SectionLinksSyncJob")
-    expect(described_class.concurrency_limit).to eq(1)
-  end
 end

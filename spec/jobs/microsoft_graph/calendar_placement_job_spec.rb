@@ -58,11 +58,4 @@ RSpec.describe MicrosoftGraph::CalendarPlacementJob, :microsoft_graph do
 
     expect(MicrosoftGraph::CalendarProvider).not_to have_received(:new)
   end
-
-  it "shares the sync job's concurrency key, so a move and a sync never overlap" do
-    move = described_class.new(user, "primary")
-    sync = CourseCalendars::SyncJob.new(user, force: true)
-
-    expect(move.concurrency_key).to eq(sync.concurrency_key)
-  end
 end

@@ -15,5 +15,6 @@ RSpec.describe MicrosoftGraph::CalendarDeleteJob, :microsoft_graph do
 
   it "does nothing once the credential is gone" do
     expect { described_class.perform_now(0, "AAMkSyntheticCalendar1") }.not_to raise_error
+    expect(a_request(:any, /./)).not_to have_been_made
   end
 end

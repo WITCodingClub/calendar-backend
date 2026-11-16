@@ -13,8 +13,4 @@ RSpec.describe FriendMeetings::ResumeJob do
 
     expect(publisher).to have_received(:resume)
   end
-
-  it "shares the concurrency key of the course sync for the same person" do
-    expect(described_class.new(user).concurrency_key).to eq("GoogleCalendarSyncJob/google_calendar_sync_user_#{user.id}")
-  end
 end

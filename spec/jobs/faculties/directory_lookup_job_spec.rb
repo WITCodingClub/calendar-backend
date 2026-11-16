@@ -9,6 +9,7 @@ RSpec.describe Faculties::DirectoryLookupJob, type: :job do
 
   it "does nothing when the faculty record no longer exists" do
     expect { described_class.perform_now(0) }.not_to raise_error
+    expect(a_request(:any, /./)).not_to have_been_made
   end
 
   it "skips the lookup when the faculty was synced within the last 24 hours" do

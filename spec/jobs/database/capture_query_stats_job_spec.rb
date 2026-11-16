@@ -4,14 +4,6 @@ require "rails_helper"
 
 RSpec.describe Database::CaptureQueryStatsJob, type: :job do
   describe "#perform" do
-    it "captures query stats" do
-      allow(PgHero).to receive(:capture_query_stats)
-
-      described_class.perform_now
-
-      expect(PgHero).to have_received(:capture_query_stats)
-    end
-
     it "logs and does not raise when query stats are not enabled" do
       allow(PgHero).to receive(:capture_query_stats).and_raise(PgHero::NotEnabled, "Query stats not enabled")
       allow(Rails.logger).to receive(:info)

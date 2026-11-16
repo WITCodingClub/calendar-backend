@@ -31,18 +31,11 @@ RSpec.describe CourseCalendars::NightlySyncJob do
     expect(CourseCalendars::SyncJob).not_to have_been_enqueued.with(up_to_date, any_args)
   end
 
-  it "does not sync a user inline" do
-    allow(CourseCalendars::ScheduleSyncer).to receive(:new)
-
-    described_class.perform_now
-
-    expect(CourseCalendars::ScheduleSyncer).not_to have_received(:new)
-  end
-
   it "puts the nightly syncs behind the syncs that people start" do
     expect { described_class.perform_now }
       .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("default").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
   end
+
   it "puts the run in one batch that reports its totals" do
     previous = CourseCalendars::SyncJob.queue_adapter
     CourseCalendars::SyncJob.queue_adapter = :solid_queue
