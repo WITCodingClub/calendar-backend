@@ -559,8 +559,8 @@ module AcademicProfiles
     end
 
     # A course taken at WIT wins over a transfer credit for the same course
-    # (#1020). The transfer credit counts when no WIT attempt passed or is in
-    # progress. nil when nothing counts.
+    # (#1020). The transfer credit counts when no WIT attempt passed, is in
+    # progress, or is registered. nil when nothing counts.
     def best_attempt(tries)
       transfer, wit = tries.partition(&:transfer)
       best = wit.min_by { |course| [ RANK.fetch(course.status), -course.term.uid ] }
