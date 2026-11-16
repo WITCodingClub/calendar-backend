@@ -64,7 +64,11 @@
   <%= render "admin/shared/card", title: "Related courses" do %>
     <%= admin_details(columns: 2) do |d| %>
       <% d.item("Prerequisites", wide: true) do %>
-        <%= render "admin/courses/requisite", node: relations.prerequisites, relations: relations if relations.prerequisites %>
+        <% if relations.prerequisites %>
+          <%= prerequisite_tree_html(relations.prerequisites) do |node| %>
+            <%= render "admin/courses/course_code", relations: relations, subject_code: node["subject_code"], course_number: node["course_number"] %>
+          <% end %>
+        <% end %>
       <% end %>
       <% d.item("Corequisites") do %>
         <%= safe_join(relations.corequisites.map { |ref| render("admin/courses/course_code", relations: relations, subject_code: ref["subject_code"], course_number: ref["course_number"]) }, ", ") %>

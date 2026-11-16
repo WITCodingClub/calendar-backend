@@ -22,10 +22,15 @@ module AcademicProfiles
     # { status:, missing:, missing_keys: } of one prerequisite tree node.
     # missing is the text for a reader, such as "WDGT 1100 or WDGT 1200".
     # missing_keys is every course key under it.
-    def call(node)
+    def call(tree)
+      PrerequisiteTree.new(tree).fold { |node, results, _depth| status_of(node, results) }
+    end
+
+    private
+
+    def status_of(node, results)
       case node["type"]
       when "and", "or"
-        results = node["operands"].map { |operand| call(operand) }
         status = node["type"] == "and" ? all_status(results.pluck(:status)) : any_status(results.pluck(:status))
         return { status: status, missing: [], missing_keys: [] } if status == MET
 
@@ -38,8 +43,6 @@ module AcademicProfiles
         { status: UNKNOWN, missing: [], missing_keys: [] }
       end
     end
-
-    private
 
     def all_status(statuses)
       if statuses.all?(MET) then MET

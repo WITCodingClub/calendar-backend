@@ -10,20 +10,9 @@ module Dashboard
       dashboard_course_path(code.to_s.delete(" "), **params)
     end
 
-    # One node of a prerequisite tree from Catalog::CourseSerializer, as HTML.
-    # A course that WIT Calendar knows links to its page. A nested group gets
-    # parentheses.
-    def catalog_requisite(node, nested: false)
-      case node["type"]
-      when "and", "or"
-        separator = tag.span(" #{node['type']} ", class: "text-on-surface-variant uppercase text-xs font-medium")
-        joined = safe_join(node["operands"].map { |operand| catalog_requisite(operand, nested: true) }, separator)
-        nested ? safe_join([ "(", joined, ")" ]) : joined
-      when "course"
-        safe_join([ catalog_requisite_course(node), (tag.span(" (min #{node['min_grade']})", class: "text-xs text-on-surface-variant") if node["min_grade"].present?) ].compact)
-      when "test"
-        tag.span([ node["name"], node["score"].presence ].compact.join(" "))
-      end
+    # A prerequisite tree, or one corequisite, from Catalog::CourseSerializer.
+    def catalog_requisite(node)
+      prerequisite_tree_html(node) { |course| catalog_requisite_course(course) }
     end
 
     # The current URL with a different page number. The filters stay.

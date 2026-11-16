@@ -100,7 +100,7 @@ module Catalog
       visited  = Set[course.code]
 
       MAX_DEPTH.times do
-        refs = frontier.to_h { |item| [ item, requirement_refs(item.prerequisites) ] }
+        refs = frontier.to_h { |item| [ item, PrerequisiteTree.new(item.prerequisites).requirements ] }
         frontier = []
 
         refs.each do |item, list|
@@ -123,7 +123,7 @@ module Catalog
         return if frontier.empty?
       end
 
-      @truncated ||= frontier.any? { |item| requirement_refs(item.prerequisites).any? }
+      @truncated ||= frontier.any? { |item| PrerequisiteTree.new(item.prerequisites).requirements.any? }
     end
 
     # Each prerequisite goes as far left as its longest chain to the course.
@@ -188,7 +188,7 @@ module Catalog
 
       unlocks.first(MAX_UNLOCKS).each do |unlocked|
         add_node(unlocked, unlocked.code, layer: 1)
-        refs = requirement_refs(unlocked.prerequisites).select { |subject, number, _| subject == course.subject_code && number == course.course_number }
+        refs = PrerequisiteTree.new(unlocked.prerequisites).requirements.select { |subject, number, _| subject == course.subject_code && number == course.course_number }
         add_edge(course.code, unlocked.code, refs.empty? || refs.any?(&:last))
       end
     end
@@ -208,28 +208,10 @@ module Catalog
       @edges[key] = Edge.new(from: from, to: to, required: required || @edges[key]&.required || false)
     end
 
-    # [[subject_code, course_number, required], ...] for every course the tree
-    # names. A test is not a course, but it counts as a choice in an "or".
-    def requirement_refs(node, required: true)
-      return [] if node.nil?
-
-      case node["type"]
-      when "course"
-        [ [ node["subject_code"].to_s.upcase, node["course_number"].to_i, required ] ]
-      when "and"
-        Array(node["operands"]).flat_map { |operand| requirement_refs(operand, required: required) }
-      when "or"
-        operands = Array(node["operands"])
-        operands.flat_map { |operand| requirement_refs(operand, required: required && operands.size == 1) }
-      else
-        []
-      end
-    end
-
     # Every CatalogCourse that the prerequisite trees name, up to MAX_DEPTH
     # levels from the course, keyed by [subject_code, course_number]. One
-    # recursive query reads the same trees that requirement_refs reads, so a
-    # course with no course_prerequisites row is still found.
+    # recursive query reads the same trees as PrerequisiteTree#requirements,
+    # so a course with no course_prerequisites row is still found.
     def ancestors
       ids = CatalogCourse.connection.select_values(CatalogCourse.sanitize_sql_array([ <<~SQL.squish, { root: course.id, max_depth: MAX_DEPTH } ]))
         WITH RECURSIVE walk(id, depth) AS (
