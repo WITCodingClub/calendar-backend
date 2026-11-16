@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 namespace :university_calendar do
-  desc "Sync university calendar events from the 25Live ICS feed"
+  desc "Sync university calendar events from the 25Live ICS feed, as the recurring job does"
   task sync: :environment do
-    result = UniversityCalendar::IcsImport.call
+    result = UniversityCalendar::SyncJob.perform_now
     puts "Sync complete: #{result}"
   end
 
@@ -13,10 +13,7 @@ namespace :university_calendar do
     end_date   = Date.parse(args[:end_date])
 
     puts "Backfilling university calendar events from #{start_date} to #{end_date}..."
-
-    url    = UniversityCalendar::IcsImport.backfill_url(start_date, end_date)
-    result = UniversityCalendar::IcsImport.call(ics_url: url)
-
+    result = UniversityCalendar::BackfillJob.perform_now(start_date, end_date)
     puts "Backfill complete: #{result}"
   end
 end

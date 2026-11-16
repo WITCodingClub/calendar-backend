@@ -44,7 +44,8 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `activejob_runtime_seconds`, `activejob_latency_seconds` | histogram | `queue`, `activejob`, `executions` | yabeda-activejob |
 | `calendar_users` | gauge | | `AppMetrics` |
 | `calendar_active_sessions` | gauge | | `AppMetrics` |
-| `calendar_google_calendars` | gauge | | `AppMetrics` |
+| `calendar_course_calendars` | gauge | `provider`: `google`, `microsoft` | `AppMetrics` |
+| `calendar_google_calendars` | gauge | | `AppMetrics`. The `google` row of `calendar_course_calendars`, kept for old dashboards |
 | `calendar_jobs` | gauge | `state`: `ready`, `scheduled`, `claimed`, `blocked`, `failed` | `AppMetrics` |
 | `calendar_extension_events_total` | counter | `event`, `version`, `browser` | `ExtensionUsage` |
 | `calendar_csp_reports_total` | counter | `directive`: the violated directive, for example `script-src-elem`, or `other` | `CspReports` |
@@ -54,7 +55,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_banner_requests_total` | counter | `outcome`: `ok`, `retried` (one for each retry), `failed`, or `cooldown` (refused while Banner cools down) | `Catalog::BannerThrottle` |
 | `calendar_mcp_tool_calls_total` | counter | `tool`: a tool name, or `unknown`; `status`: `ok`, `error`, `input_required` (a write tool asks the student to confirm), `declined`, or `cancelled` (the student did not confirm, so nothing changed). A retry with a bad request state counts as `error` under the tool name in the request. | `McpTools::Server` |
 | `calendar_mcp_scope_denials_total` | counter | `scope`: the missing scope; `mode`: `step_up` (HTTP 403) or `tool_error` | `Api::McpController`, `McpTools::BaseTool` |
-| `calendar_bulk_calendar_syncs_total` | counter | `reason`: `nightly`, `holidays`, `university_events` or `finals`; `result`: `completed` (did not fail: a discarded job counts here too) or `failed`. Added when the bulk sync batch ends. | `CourseCalendars::BulkSyncFinishedJob` |
+| `calendar_bulk_calendar_syncs_total` | counter | `reason`: `nightly`, `holidays`, `university_events`, `finals`, or `manual` (a rake task); `result`: `completed` (did not fail: a discarded job counts here too) or `failed`. Added when the bulk sync batch ends. | `CourseCalendars::BulkSyncFinishedJob` |
 | `calendar_oauth_clients_registered_total` | counter | | `Oauth::RegistrationsController` |
 | `calendar_schedule_builder_busy_total` | counter | `surface`: `api` (HTTP 503) or `mcp` (a tool error) | `Catalog::ScheduleOptions::Slots` |
 

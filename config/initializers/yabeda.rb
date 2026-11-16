@@ -71,7 +71,9 @@ Yabeda.configure do
 
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
   gauge :active_sessions, comment: "Sessions that are not revoked or expired.", aggregation: :most_recent
-  gauge :google_calendars, comment: "Google calendars that the app syncs.", aggregation: :most_recent
+  gauge :course_calendars, comment: "Course calendars that the app syncs, by provider.", tags: %i[provider], aggregation: :most_recent
+  gauge :google_calendars, comment: "Google calendars that the app syncs. The google row of course_calendars, kept for old dashboards.",
+                           aggregation: :most_recent
   gauge :jobs, comment: "Solid Queue jobs, by state.", tags: %i[state], aggregation: :most_recent
 
   collect { AppMetrics.collect }

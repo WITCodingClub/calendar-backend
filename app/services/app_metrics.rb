@@ -18,7 +18,7 @@ module AppMetrics
       Rails.application.executor.wrap do
         measure("users")            { Yabeda.calendar.users.set({}, User.count) }
         measure("active_sessions")  { Yabeda.calendar.active_sessions.set({}, UserSession.active.count) }
-        measure("google_calendars") { Yabeda.calendar.google_calendars.set({}, CourseCalendar.google.count) }
+        measure("course_calendars") { set_course_calendars }
 
         JOB_COUNTS.each do |state, count|
           measure("jobs #{state}") { Yabeda.calendar.jobs.set({ state: state }, count.call) }
@@ -27,6 +27,14 @@ module AppMetrics
     end
 
     private
+
+    def set_course_calendars
+      counts = CourseCalendar.group(:provider).count
+      CourseCalendars::Providers::NAMES.each do |provider|
+        Yabeda.calendar.course_calendars.set({ provider: provider }, counts.fetch(provider, 0))
+      end
+      Yabeda.calendar.google_calendars.set({}, counts.fetch("google", 0))
+    end
 
     # One failed count must not fail the whole scrape. Prometheus would then
     # mark the app as down and drop the request and job metrics with it.
