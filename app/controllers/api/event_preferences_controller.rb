@@ -36,7 +36,7 @@ module Api
       # reads then gives an old version with new data, which the next version
       # check corrects. The other order would label old data as current.
       version       = Preferences::Version.for(current_user)
-      record_ids    = ids.index_with { |id| meeting_time_record_id(id) }
+      record_ids    = ids.index_with { |id| PublicIds.record_id(Course::MeetingTime, id) }
       meeting_times = Course::MeetingTime.includes(course: [ :faculties, :term ], rooms: :building)
                                          .where(id: record_ids.values.compact)
                                          .index_by(&:id)
@@ -106,14 +106,6 @@ module Api
         templates:             context,
         notifications_disabled: resolver.notifications_disabled?
       }
-    end
-
-    # Reads an id the way Course::MeetingTime.find does: a public id with its
-    # prefix, a bare hashid, or a database id. Returns nil for no match.
-    def meeting_time_record_id(id)
-      return PublicIds.decode(Course::MeetingTime, id) if PublicIds.public_id?(id)
-
-      Course::MeetingTime.decode_id(id) || Integer(id, exception: false)
     end
 
     def set_preferenceable

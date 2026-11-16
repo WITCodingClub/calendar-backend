@@ -40,4 +40,13 @@ RSpec.describe PublicIds do
     expect(described_class.with_prefix(User, hash)).to eq(user.public_id)
     expect(described_class.with_prefix(User, user.public_id)).to eq(user.public_id)
   end
+
+  describe ".record_id" do
+    it "reads a bare hashid and a string of digits, and nothing else" do
+      expect(described_class.record_id(User, user.hashid)).to eq(user.id)
+      expect(described_class.record_id(User, user.id.to_s)).to eq(user.id)
+      expect(described_class.record_id(User, "#{user.id}abcdef")).to be_nil
+      expect(described_class.record_id(User, "0x1f")).to be_nil
+    end
+  end
 end
