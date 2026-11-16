@@ -52,7 +52,7 @@ Each retry is a new Solid Queue job, so the admin page shows it as a scheduled j
 
 ## Subject labels
 
-`Course.subject` holds Banner's subject label with the code at the end: `Computer Science (COMP)`. Code that needs the code reads it with `CourseCode.subject_of` (`Course#prefix`), SQL reads it with `CourseCode.subject_sql`, and the subject filters match the bare code or `%(COMP)` with `CourseCode.subject_condition`. A code is 2 to 6 capital letters or digits, so `(optional)` is not a code.
+`Course.subject` holds Banner's subject label with the code at the end: `Computer Science (COMP)`. Code that needs the code reads it with `CourseCode.subject_of` (`Course#prefix`), SQL reads it with `Course::SUBJECT_CODE_SQL`, and the subject filters match the bare code or `%(COMP)` with `CourseCode.subject_condition`. A code is 2 to 6 capital letters or digits, so `(optional)` is not a code.
 
 Banner's label for most subjects ends with the code. Some labels do not:
 

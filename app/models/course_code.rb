@@ -33,11 +33,6 @@ module CourseCode
     code.upcase.match?(BARE_SUBJECT) ? code.upcase : code
   end
 
-  # subject_of in SQL, for a column that holds a subject label.
-  def subject_sql(column)
-    "UPPER(BTRIM(COALESCE(SUBSTRING(#{column} FROM '\\(([A-Z0-9]{2,6})\\)\\s*$'), #{column})))"
-  end
-
   # A condition that keeps the rows whose subject column has one of the
   # subject codes, as the bare code or as a label that ends in "(CODE)". It
   # can use the index on the column, which subject_sql cannot.

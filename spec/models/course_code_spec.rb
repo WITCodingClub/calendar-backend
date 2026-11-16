@@ -29,11 +29,11 @@ RSpec.describe CourseCode do
     end
   end
 
-  describe ".subject_sql" do
+  describe "Course::SUBJECT_CODE_SQL" do
     it "reads the same code as subject_of" do
-      sql = described_class.subject_sql("subject")
+      course = create(:course, subject: "Computer Science (COMP)")
 
-      expect(ActiveRecord::Base.connection.select_value("SELECT #{sql} FROM (SELECT 'Computer Science (COMP)' AS subject) t")).to eq("COMP")
+      expect(Course.where(id: course.id).pick(Arel.sql(Course::SUBJECT_CODE_SQL))).to eq(described_class.subject_of(course.subject))
     end
   end
 

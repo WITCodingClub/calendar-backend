@@ -52,8 +52,10 @@ class Course < ApplicationRecord
 
   tracks_calendar_changes "title", "start_date", "end_date", "subject", "course_number", "section_number", course_id: :id, on: :update
 
-  # The subject code of each section (CourseCode.subject_of), in SQL.
-  SUBJECT_CODE_SQL = CourseCode.subject_sql("courses.subject")
+  # CourseCode.subject_of in SQL: the subject code of each section.
+  SUBJECT_CODE_SQL = <<~'SQL'.squish
+    UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([A-Z0-9]{2,6})\)\s*$'), courses.subject)))
+  SQL
 
   # Joins each section to its CatalogCourse by the subject code and number.
   CATALOG_COURSE_JOIN = <<~SQL.squish
