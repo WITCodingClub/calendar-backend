@@ -21,7 +21,7 @@ module McpTools
     output_schema(Schemas.object(courses: Schemas.array(Schemas::COURSE_SUMMARY), meta: Schemas::PAGE_META))
 
     def perform(q: nil, subject: nil, term_uid: nil, page: nil, per_page: nil)
-      page     = Catalog::Page.new(:courses, page: page, per_page: per_page)
+      page     = Catalog::Page.new(:courses, page: page, per_page: per_page, surface: :mcp)
       relation = Catalog::CourseQuery.new.call(q: q, subject: subject, term_uid: term_uid)
 
       {

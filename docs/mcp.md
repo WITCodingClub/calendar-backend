@@ -32,7 +32,7 @@ The server is in the [official MCP Registry](https://registry.modelcontextprotoc
 
 ## Tools
 
-Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`, `Catalog::TermElectiveQuery`). They also share the page sizes (`Catalog::Page`), the filter readers (`Catalog::Params`), the term lookup (`Term.find_by_uid!`), and the section and instructor lookups (`Catalog::SectionQuery.find!`, `Catalog::InstructorQuery.find!`), so a list tool pages like its endpoint.
+Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`, `Catalog::TermElectiveQuery`). They also share the filter readers (`Catalog::Params`), the term lookup (`Term.find_by_uid!`), and the section and instructor lookups (`Catalog::SectionQuery.find!`, `Catalog::InstructorQuery.find!`). The list tools page with `Catalog::Page`, but with smaller pages than the API (`Catalog::Page::MCP_SIZES`), because a tool result goes into the model's context: `search_sections` 20 by default and 100 at most, `search_instructors` 10 and 50, `search_reviews` 25 and 50, `search_courses` 25 and 100.
 
 | Tool | What it reads | REST endpoint | GraphQL field |
 | --- | --- | --- | --- |

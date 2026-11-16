@@ -53,7 +53,7 @@ module McpTools
     def perform(term_uid: nil, page: nil, per_page: nil, **filters)
       term = find_term(term_uid)
       spend_semantic_search!(filters[:q], filters[:semantic])
-      page     = Catalog::Page.new(:sections, page: page, per_page: per_page)
+      page     = Catalog::Page.new(:sections, page: page, per_page: per_page, surface: :mcp)
       relation = Catalog::SectionQuery.new.call(term_uid: term.uid, **filters.compact)
       sections = page.of(Catalog::SectionQuery.with_associations(relation))
 

@@ -21,7 +21,7 @@ module McpTools
 
     def perform(q: nil, semantic: false, term_uid: nil, page: nil, per_page: nil)
       spend_semantic_search!(q, semantic)
-      page  = Catalog::Page.new(:instructors, page: page, per_page: per_page)
+      page  = Catalog::Page.new(:instructors, page: page, per_page: per_page, surface: :mcp)
       scope = Catalog::InstructorQuery.new.call(term_uid: term_uid, q: q, semantic: semantic)
 
       {

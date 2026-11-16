@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 module Catalog
-  # One page of a catalog list. The REST API, the GraphQL schema, and the MCP
-  # tools read the page sizes of each list from SIZES, so the three surfaces
-  # page alike. docs/public-catalog-api.md gives the same numbers.
+  # One page of a catalog list. Every surface reads its page sizes here.
+  # SIZES are the sizes of the REST API and the GraphQL schema
+  # (docs/public-catalog-api.md gives the same numbers). MCP_SIZES are
+  # smaller on purpose: a tool result goes into a model's context, so each
+  # row costs tokens (docs/mcp.md).
   class Page
     SIZES = {
       sections:    { default: 50, max: 200 },
@@ -12,17 +14,27 @@ module Catalog
       reviews:     { default: 25, max: 100 }
     }.freeze
 
-    def self.default_size(list) = SIZES.fetch(list)[:default]
-    def self.max_size(list)     = SIZES.fetch(list)[:max]
+    MCP_SIZES = {
+      sections:    { default: 20, max: 100 },
+      instructors: { default: 10, max: 50 },
+      courses:     { default: 25, max: 100 },
+      reviews:     { default: 25, max: 50 }
+    }.freeze
+
+    SURFACES = { api: SIZES, mcp: MCP_SIZES }.freeze
+
+    def self.default_size(list, surface: :api) = SURFACES.fetch(surface).fetch(list)[:default]
+    def self.max_size(list, surface: :api)     = SURFACES.fetch(surface).fetch(list)[:max]
 
     attr_reader :number, :per_page
 
     # page and per_page come from the caller: a string, an integer, or nil. A
     # page below 1 is page 1, and per_page is clamped to the list's maximum,
     # so one request cannot pull the whole catalog.
-    def initialize(list, page: nil, per_page: nil)
+    def initialize(list, page: nil, per_page: nil, surface: :api)
       @number   = [ page.to_i, 1 ].max
-      @per_page = (per_page.presence&.to_i || self.class.default_size(list)).clamp(1, self.class.max_size(list))
+      @per_page = (per_page.presence&.to_i || self.class.default_size(list, surface: surface))
+                  .clamp(1, self.class.max_size(list, surface: surface))
     end
 
     def of(relation)

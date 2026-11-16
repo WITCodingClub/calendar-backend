@@ -26,7 +26,7 @@ module McpTools
 
     def perform(instructor_id: nil, q: nil, semantic: false, sentiment: nil, page: nil, per_page: nil)
       spend_semantic_search!(q, semantic)
-      page     = Catalog::Page.new(:reviews, page: page, per_page: per_page)
+      page     = Catalog::Page.new(:reviews, page: page, per_page: per_page, surface: :mcp)
       relation = Catalog::ReviewQuery.new.call(instructor: instructor_id, q: q, semantic: semantic, sentiment: sentiment)
       reviews  = page.of(Catalog::ReviewQuery.with_associations(relation))
 

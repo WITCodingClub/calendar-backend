@@ -85,11 +85,11 @@ module McpTools
       description: "The term uid from list_terms, for example 202610. Leave it out for the current term."
     }.freeze
 
-    # The per_page argument of a catalog list (Catalog::Page::SIZES).
+    # The per_page argument of a catalog list (Catalog::Page::MCP_SIZES).
     def self.per_page_schema(list)
       {
-        type: "integer", minimum: 1, maximum: Catalog::Page.max_size(list),
-        description: "Default #{Catalog::Page.default_size(list)}."
+        type: "integer", minimum: 1, maximum: Catalog::Page.max_size(list, surface: :mcp),
+        description: "Default #{Catalog::Page.default_size(list, surface: :mcp)}."
       }
     end
 
