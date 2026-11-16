@@ -25,15 +25,7 @@ module AcademicProfiles
     # A timeline for each program, keyed by program, with two queries for the
     # requirement sets and their plans.
     def self.for_programs(programs, admit_term_uid:)
-      linked = programs.select { |program| program.degree_program_id && program.catalog_year_id }
-      sets = if linked.empty?
-        {}
-      else
-        RequirementSet.where(degree_program_id: linked.map(&:degree_program_id).uniq,
-                             catalog_year_id: linked.map(&:catalog_year_id).uniq)
-                      .includes(:program_plans)
-                      .index_by { |set| [ set.degree_program_id, set.catalog_year_id ] }
-      end
+      sets = RequirementSet.includes(:program_plans).index_for(programs)
 
       programs.to_h do |program|
         set = sets[[ program.degree_program_id, program.catalog_year_id ]]

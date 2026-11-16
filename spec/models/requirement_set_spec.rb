@@ -104,25 +104,22 @@ RSpec.describe RequirementSet do
     it "is true in a year that has no finished import" do
       expect(create(:requirement_set, :unlisted, catalog_year: create(:catalog_year))).to be_listed
     end
+
+    it "gives the same sets as .listed_in" do
+      listed = create(:requirement_set, catalog_year: catalog_year)
+      create(:requirement_set, :unlisted, catalog_year: catalog_year)
+
+      expect(described_class.listed_in(catalog_year)).to contain_exactly(listed)
+    end
   end
 
-  describe "#catalog_url" do
-    it "links to the catalog site" do
-      set = build(:requirement_set, path: "/previous-catalogs/2024-2025/widgetry/widget-design-bs/")
+  describe ".index_for" do
+    it "keys the set of each linked program row by program and catalog year" do
+      set = create(:requirement_set)
+      linked = build(:student_program, degree_program: set.degree_program, catalog_year: set.catalog_year)
+      unlinked = build(:student_program, degree_program: nil)
 
-      expect(set.catalog_url).to eq("https://catalog.wit.edu/previous-catalogs/2024-2025/widgetry/widget-design-bs/")
-    end
-
-    it "links to the Wayback capture for a year read from the Wayback Machine" do
-      set = build(:requirement_set, source: "wayback", path: "/widgetry/widget-design-bs/",
-                                    catalog_year: build(:catalog_year, start_year: 2025))
-
-      expect(set.catalog_url)
-        .to eq("https://web.archive.org/web/20260301000000/https://catalog.wit.edu/widgetry/widget-design-bs/")
-    end
-
-    it "is nil with no path" do
-      expect(build(:requirement_set, path: nil).catalog_url).to be_nil
+      expect(described_class.index_for([ linked, unlinked ])).to eq([ set.degree_program_id, set.catalog_year_id ] => set)
     end
   end
 end

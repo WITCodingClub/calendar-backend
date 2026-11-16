@@ -72,7 +72,7 @@ module Catalog
     # parent is the slug of a major, for its concentrations.
     def call(catalog_year:, kind: nil, level: nil, q: nil, parent: nil)
       relation = catalog_year.requirement_sets.joins(:degree_program).includes(:catalog_year, degree_program: :parent_program)
-      relation = relation.where(last_seen_at: RequirementSet.listed_since(catalog_year)..) if catalog_year.imported_at
+      relation = relation.merge(RequirementSet.listed_in(catalog_year))
       relation = relation.where(degree_programs: { kind: validated(kind, DegreeProgram::KINDS, "kind") }) if kind.present?
       relation = relation.where(degree_programs: { level: validated(level, DegreeProgram::LEVELS, "level") }) if level.present?
       relation = relation.where(degree_programs: { parent_program_id: parent_id(parent) }) if parent.present?
@@ -88,10 +88,7 @@ module Catalog
     # also finds a program that left the catalog (ProgramSerializer gives
     # listed: false), so a student on that program still gets its plan.
     def find(program, catalog_year:)
-      relation = catalog_year.requirement_sets.joins(:degree_program).includes(
-        :catalog_year, degree_program: :parent_program,
-        program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan]
-      )
+      relation = catalog_year.requirement_sets.joins(:degree_program).with_requirements
       key = program.to_s.strip.downcase
       relation.find_by(degree_programs: { slug: DegreeProgram.current_slug(key) }) ||
         relation.where("lower(requirement_sets.name) = ?", key).order(:id).first

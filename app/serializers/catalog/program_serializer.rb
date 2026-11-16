@@ -28,7 +28,7 @@ module Catalog
         catalog_year:    @set.catalog_year.name,
         total_credits:   @set.total_credits,
         parent_program:  program.parent_program&.slug,
-        catalog_url:     @set.catalog_url,
+        catalog_url:     DegreeRequirements.page_url(@set),
         listed:          @set.listed?
       }
       return json if @summary

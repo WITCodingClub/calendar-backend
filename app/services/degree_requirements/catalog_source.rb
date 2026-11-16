@@ -57,9 +57,6 @@ module DegreeRequirements
 
     def base_url = url_for(home_path)
 
-    def url_for(path)
-      prefix = wayback? ? "https://web.archive.org/web/#{WAYBACK_TIMESTAMPS.fetch(start_year)}id_/#{SITE_URL}" : SITE_URL
-      "#{prefix}#{path}"
-    end
+    def url_for(path) = wayback? ? DegreeRequirements.wayback_url(start_year, path, raw: true) : "#{SITE_URL}#{path}"
   end
 end

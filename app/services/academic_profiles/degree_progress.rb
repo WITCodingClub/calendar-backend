@@ -138,7 +138,7 @@ module AcademicProfiles
       statuses = @include_planned ? %w[active planned] : %w[active]
       rows = @user.student_programs.where(status: statuses).where.not(degree_program_id: nil)
                   .includes(:catalog_year).order(:id).select { |row| row.catalog_year&.imported? }
-      sets = linked_sets(rows)
+      sets = RequirementSet.with_requirements.index_for(rows)
 
       rows.filter_map do |row|
         set = sets[[ row.degree_program_id, row.catalog_year_id ]]
@@ -146,18 +146,6 @@ module AcademicProfiles
         # A planned row can have the same program as a later active row, for
         # example a minor the student then declared. Each keeps its entry.
       end.uniq { |set, _, row| [ set.id, row.status ] }
-    end
-
-    # The requirement set of each row, with what Catalog::ProgramQuery#find
-    # loads, in one query for every row.
-    def linked_sets(rows)
-      return {} if rows.empty?
-
-      RequirementSet.where(degree_program_id: rows.map(&:degree_program_id).uniq,
-                           catalog_year_id: rows.map(&:catalog_year_id).uniq)
-                    .includes(:catalog_year, degree_program: :parent_program,
-                              program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan])
-                    .index_by { |set| [ set.degree_program_id, set.catalog_year_id ] }
     end
 
     def find_argument_set(query)
