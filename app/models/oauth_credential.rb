@@ -86,6 +86,18 @@ class OauthCredential < ApplicationRecord
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
   scope :needs_refresh, -> { where(updated_at: ...REFRESH_AFTER.ago).where.not(refresh_token: nil) }
 
+  # True when the provider refused the grant: the person revoked it or the
+  # refresh token expired, so the provider will not take it again. Other token
+  # errors, such as invalid_client after a secret rotation, say nothing about
+  # the person.
+  def self.invalid_grant?(error)
+    case error
+    when Signet::AuthorizationError then error.message.match?(/"error"\s*:\s*"invalid_grant"/)
+    when MicrosoftGraph::AuthError  then error.body.is_a?(Hash) && error.body["error"] == "invalid_grant"
+    else false
+    end
+  end
+
   def token_expired?
     token_expires_at.nil? || token_expires_at <= EXPIRY_MARGIN.from_now
   end
@@ -114,10 +126,8 @@ class OauthCredential < ApplicationRecord
   end
 
   # The Google authorization for this credential. An expired token (or any
-  # token, with refresh: true) is refreshed and saved first. When Google
-  # answers invalid_grant, the person revoked the grant or the refresh token
-  # expired, so the credential is marked revoked. Other token errors, such as
-  # invalid_client after a secret rotation, say nothing about the person.
+  # token, with refresh: true) is refreshed and saved first. A refused grant
+  # (.invalid_grant?) marks the credential revoked.
   def google_authorization(refresh: false)
     authorization = Google::Auth::UserRefreshCredentials.new(
       client_id:     Rails.application.credentials.dig(:google, :client_id),
@@ -132,7 +142,7 @@ class OauthCredential < ApplicationRecord
     begin
       authorization.refresh!
     rescue Signet::AuthorizationError => e
-      mark_revoked!(e.message) if e.message.match?(/"error"\s*:\s*"invalid_grant"/)
+      mark_revoked!(e.message) if self.class.invalid_grant?(e)
       raise
     end
     update!(access_token: authorization.access_token, token_expires_at: Time.zone.at(authorization.expires_at))

@@ -27,7 +27,7 @@ module OauthCredentials
       credential.refresh!
       :success
     rescue StandardError => e
-      if credential.token_revoked?
+      if OauthCredential.invalid_grant?(e)
         Rails.logger.warn "[OauthCredentials::RefreshTokensJob] Token revoked for credential #{credential.id}"
         return :revoked
       end

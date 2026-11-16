@@ -15,6 +15,18 @@ RSpec.describe GoogleCalendar::Provider do
 
       expect(course_calendar.reload.last_synced_at).to be_within(1.minute).of(Time.current)
     end
+
+    # With nothing to change, the sync sends no event call. It must still
+    # refresh the token, so a revoked grant fails the sync and gets flagged.
+    it "raises for a revoked grant when no event changed" do
+      credential.update!(token_expires_at: 1.minute.ago, refresh_token: "synthetic-refresh")
+      stub_request(:post, "https://oauth2.googleapis.com/token")
+        .to_return(status: 400, body: { error: "invalid_grant" }.to_json, headers: { "Content-Type" => "application/json" })
+
+      expect { described_class.new(user).update_calendar_events([]) }.to raise_error(Signet::AuthorizationError)
+      expect(credential.reload).to be_token_revoked
+      expect(course_calendar.reload.last_synced_at).to be_nil
+    end
   end
 
   describe "#create_or_get_course_calendar" do

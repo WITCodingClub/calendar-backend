@@ -71,7 +71,7 @@ module MicrosoftGraph
         token
       end
     rescue AuthError => e
-      credential.mark_revoked!("invalid_grant") if e.body.is_a?(Hash) && e.body["error"] == "invalid_grant"
+      credential.mark_revoked!("invalid_grant") if OauthCredential.invalid_grant?(e)
       raise
     end
 

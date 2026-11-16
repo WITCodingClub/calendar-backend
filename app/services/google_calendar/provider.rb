@@ -126,6 +126,10 @@ module GoogleCalendar
       @user_calendar_service ||= GoogleCalendar::CalendarServices.for_user(user)
     end
 
+    def connect!
+      user_calendar_service
+    end
+
     def rate_limited?(error)
       error.is_a?(Google::Apis::RateLimitError)
     end

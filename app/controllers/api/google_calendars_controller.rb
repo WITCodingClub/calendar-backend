@@ -70,7 +70,7 @@ module Api
 
       authorize credential, :destroy?
 
-      course_calendar = current_user.google_credential&.course_calendar
+      course_calendar = CourseCalendar.google.for_user(current_user).first
 
       if course_calendar.nil?
         render_error "No Google Calendar found", status: :not_found

@@ -176,6 +176,10 @@ sequenceDiagram
     MS->>Graph: DELETE /me/events/{id} for dropped future events
 ```
 
+## Rate limits
+
+`MicrosoftGraph::Client` retries a `429`, `503` or `504` on a GET, PATCH or DELETE twice in the request (Faraday). When Graph still answers `429` during a sync, the sync raises `CourseCalendars::RateLimitError`, the same error as a Google rate limit. `CourseCalendars::SyncJob` and `CourseCalendars::HistoricalSyncJob` then go back in the queue with a wait, and the user is not recorded as synced. See `docs/google-calendar-rate-limits.md`.
+
 ## Differences from Google
 
 - Graph has no RRULE or EXDATE. The provider sends a weekly `patternedRecurrence` and cancels each excluded occurrence after it creates or updates the series.

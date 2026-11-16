@@ -21,6 +21,7 @@ module CourseCalendars
   #   #delete_friend_meeting(row)                                -> deletes it; missing counts as deleted
   #   #declined_attendee_emails(row)                             -> [String]
   #   #rate_limited?(error)                                      -> true for its rate limit error
+  #   #connect!                                                  -> authorizes before a sync (optional)
   #
   # CourseCalendars::Providers lists the subclasses and the class methods each
   # one answers for the models and jobs.
@@ -64,6 +65,7 @@ module CourseCalendars
       return empty_stats unless calendar
 
       neutral_rate_limit do
+        connect!
         existing = calendar.calendar_events.schedule_events.to_a.index_by { |row| self.class.event_key(row) }
         wanted   = events.filter_map { |event| self.class.event_key(event) }
         delete_rows(existing.except(*wanted).values.reject { |row| fully_past?(row) })
@@ -81,6 +83,7 @@ module CourseCalendars
       return empty_stats unless calendar
 
       neutral_rate_limit do
+        connect!
         rows     = calendar.calendar_events.schedule_events
         existing = SYNCABLES.keys.map { |key| rows.where(key => events.filter_map { |event| event[key] }) }
                             .reduce(:or).index_by { |row| self.class.event_key(row) }
@@ -157,6 +160,10 @@ module CourseCalendars
 
       raise
     end
+
+    # Authorizes with the provider before the sync looks at any row, so a
+    # refused grant fails the sync also when no event changed.
+    def connect!; end
 
     # A subclass can wait between deletes, to stay under a rate limit.
     def each_paced(rows, &)

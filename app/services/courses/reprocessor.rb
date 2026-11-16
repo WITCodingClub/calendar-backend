@@ -76,7 +76,7 @@ module Courses
     end
 
     def cleanup_calendar_events_for_enrollment(enrollment)
-      course_calendar = user.google_credential&.course_calendar
+      course_calendar = CourseCalendar.google.for_user(user).first
       return 0 unless course_calendar
 
       course           = enrollment.course

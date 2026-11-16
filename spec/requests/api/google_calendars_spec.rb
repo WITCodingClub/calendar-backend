@@ -124,6 +124,18 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       expect(manager).to have_received(:unshare_with_email).with(CourseCalendar.last.external_calendar_id, "second@example.com")
     end
 
+    it "finds a course calendar that a later linked account owns" do
+      create(:oauth_credential, user: user, email: "first@example.com", created_at: 2.days.ago)
+      owner = create(:oauth_credential, user: user, email: "second@example.com", created_at: 1.day.ago)
+      create(:course_calendar, oauth_credential: owner)
+      extra = create(:oauth_credential, user: user, email: "third@example.com")
+
+      delete "/api/user/google_calendar/emails", params: { email: extra.email }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(OauthCredential.exists?(extra.id)).to be(false)
+    end
+
     it "refuses to remove the last Google account" do
       primary = create(:oauth_credential, user: user, email: "first@example.com")
       create(:course_calendar, oauth_credential: primary)

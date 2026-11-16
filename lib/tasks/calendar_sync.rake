@@ -10,7 +10,7 @@ namespace :calendar do
     skipped_count = 0
 
     User.find_each.with_index do |user, index|
-      if user.google_credential&.course_calendar
+      if CourseCalendar.google.for_user(user).first
         puts "#{index + 1}/#{total_users}: Queuing sync for user #{user.id} (#{user.email})"
         CourseCalendars::SyncJob.perform_bulk_later(user, force: true)
         queued_count += 1
@@ -41,7 +41,7 @@ namespace :calendar do
       exit 1
     end
 
-    if user.google_credential&.course_calendar
+    if CourseCalendar.google.for_user(user).first
       puts "Queuing forced calendar sync for #{user.email}..."
       CourseCalendars::SyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"
@@ -64,7 +64,7 @@ namespace :calendar do
       exit 1
     end
 
-    if user.google_credential&.course_calendar
+    if CourseCalendar.google.for_user(user).first
       puts "Queuing forced calendar sync for user #{user.id} (#{user.email})..."
       CourseCalendars::SyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"

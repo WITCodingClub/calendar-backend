@@ -398,4 +398,22 @@ RSpec.describe OauthCredential, type: :model do
       expect(credential.metadata).to include("note" => "kept", "revocation_reason" => "synthetic reason")
     end
   end
+
+  describe ".invalid_grant?" do
+    it "is true for a Google refusal of the grant" do
+      expect(described_class.invalid_grant?(Signet::AuthorizationError.new('{"error": "invalid_grant"}'))).to be(true)
+    end
+
+    it "is true for a Microsoft refusal of the grant" do
+      error = MicrosoftGraph::AuthError.new("token request failed", status: 400, body: { "error" => "invalid_grant" })
+
+      expect(described_class.invalid_grant?(error)).to be(true)
+    end
+
+    it "is false for another token error or any other error" do
+      expect(described_class.invalid_grant?(Signet::AuthorizationError.new('{"error": "invalid_client"}'))).to be(false)
+      expect(described_class.invalid_grant?(MicrosoftGraph::AuthError.new("no refresh token"))).to be(false)
+      expect(described_class.invalid_grant?(StandardError.new("invalid_grant"))).to be(false)
+    end
+  end
 end
