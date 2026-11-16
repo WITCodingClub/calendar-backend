@@ -12,36 +12,40 @@ RSpec.describe "Job concurrency groups" do
   let(:limited_jobs) { ApplicationJob.descendants.select(&:concurrency_key) }
 
   # Outside contract: jobs already in the queue hold their locks under these
-  # strings, so a changed string lets an old and a new job run at once. Add a
-  # new limited job here; never change a value.
-  let(:groups) do
+  # groups, so a changed group lets an old and a new job run at once. Solid
+  # Queue frees a lock when its duration ends, even while the job still runs,
+  # so a shorter duration lets a second job with the same key start. Add a new
+  # limited job here; change a value only on purpose.
+  let(:locks) do
     {
-      Catalog::CourseDataSyncJob => "CourseDataSyncJob",
-      Catalog::CourseDetailsSyncJob => "CatalogCourseDetailsSyncJob",
-      Catalog::ReimportAllTermsJob => "ReimportAllTermsJob",
-      Catalog::SeatRefreshJob => "Catalog::SeatRefreshJob",
-      Catalog::SectionLinksSyncJob => "Catalog::SectionLinksSyncJob",
-      CourseCalendars::HistoricalSyncJob => "GoogleCalendarHistoricalSyncJob",
-      CourseCalendars::SyncJob => "GoogleCalendarSyncJob",
-      Courses::ProcessTermJob => "ProcessTermCoursesJob",
-      DegreeRequirements::CourseImportJob => "DegreeRequirementsCourseImportJob",
-      DegreeRequirements::ImportJob => "DegreeRequirementsImportJob",
-      Embeddings::GenerateJob => "EmbeddingsGenerateJob",
-      Faculties::UpdateRatingsJob => "UpdateFacultyRatingsJob",
-      FinalsSchedules::ProcessJob => "FinalsScheduleProcessJob",
-      FriendMeetings::PublishJob => "GoogleCalendarSyncJob",
-      FriendMeetings::RemoveJob => "GoogleCalendarSyncJob",
-      FriendMeetings::ResumeJob => "GoogleCalendarSyncJob",
-      FriendMeetings::UpdateJob => "GoogleCalendarSyncJob",
-      MicrosoftGraph::CalendarPlacementJob => "GoogleCalendarSyncJob",
-      TermElectives::ImportJob => "TermElectivesImportJob",
-      UniversityCalendar::BackfillJob => "UniversityCalendarBackfillJob",
-      UniversityCalendar::SyncJob => "UniversityCalendarSyncJob"
+      Catalog::CourseDataSyncJob => [ "CourseDataSyncJob", 1, 6.hours ],
+      Catalog::CourseDetailsSyncJob => [ "CatalogCourseDetailsSyncJob", 1, 6.hours ],
+      Catalog::ReimportAllTermsJob => [ "ReimportAllTermsJob", 1, 3.minutes ],
+      Catalog::SeatRefreshJob => [ "Catalog::SeatRefreshJob", 1, 15.minutes ],
+      Catalog::SectionLinksSyncJob => [ "Catalog::SectionLinksSyncJob", 1, 2.hours ],
+      CourseCalendars::HistoricalSyncJob => [ "GoogleCalendarHistoricalSyncJob", 1, 1.hour ],
+      CourseCalendars::SyncJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      Courses::ProcessTermJob => [ "ProcessTermCoursesJob", 1, 1.hour ],
+      DegreeRequirements::CourseImportJob => [ "DegreeRequirementsCourseImportJob", 1, 1.hour ],
+      DegreeRequirements::ImportJob => [ "DegreeRequirementsImportJob", 1, 1.hour ],
+      Embeddings::GenerateJob => [ "EmbeddingsGenerateJob", 1, 10.minutes ],
+      Faculties::UpdateRatingsJob => [ "UpdateFacultyRatingsJob", 1, 30.minutes ],
+      FinalsSchedules::ProcessJob => [ "FinalsScheduleProcessJob", 1, 3.minutes ],
+      FriendMeetings::PublishJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::RemoveJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::ResumeJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      FriendMeetings::UpdateJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      MicrosoftGraph::CalendarPlacementJob => [ "GoogleCalendarSyncJob", 1, 1.hour ],
+      TermElectives::ImportJob => [ "TermElectivesImportJob", 1, 30.minutes ],
+      UniversityCalendar::BackfillJob => [ "UniversityCalendarBackfillJob", 1, 3.minutes ],
+      UniversityCalendar::SyncJob => [ "UniversityCalendarSyncJob", 1, 3.minutes ]
     }
   end
 
-  it "keeps the group name of every limited job" do
-    expect(limited_jobs.to_h { |job| [ job, job.concurrency_group ] }).to eq(groups)
+  it "keeps the group, limit, and lock duration of every limited job" do
+    actual = limited_jobs.to_h { |job| [ job, [ job.concurrency_group, job.concurrency_limit, job.concurrency_duration ] ] }
+
+    expect(actual).to eq(locks)
   end
 
   # CourseCalendars::UserLock: the jobs that write a user's calendar take one

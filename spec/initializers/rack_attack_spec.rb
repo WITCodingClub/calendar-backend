@@ -9,6 +9,36 @@ RSpec.describe Rack::Attack do
     Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/user", "HTTP_AUTHORIZATION" => header))
   end
 
+  # Security contract: the budget of every rule, as [limit, period in
+  # seconds]. A change here changes what a client may send. Add a new rule
+  # here; change a value only on purpose.
+  it "keeps the limit and period of every throttle" do
+    budgets = {
+      "admin/destructive" => [ 100, 60 ],
+      "admin/session" => [ 1000, 300 ],
+      "api/csp-reports" => [ 60, 60 ],
+      "api/extension-events" => [ 120, 60 ],
+      "api/ip" => [ 120, 60 ],
+      "api/preview-template" => [ 10, 60 ],
+      "api/process-courses" => [ 5, 60 ],
+      "api/token-mint" => [ 60, 60 ],
+      "api/user" => [ 100, 60 ],
+      "calendar/token" => [ 60, 3600 ],
+      "catalog/ip" => [ 300, 60 ],
+      "catalog/schedule-options" => [ 30, 60 ],
+      "catalog/schedule-options-count" => [ 90, 60 ],
+      "catalog/semantic" => [ 30, 60 ],
+      "mcp/platform" => [ 3000, 60 ],
+      "meet/ip" => [ 30, 60 ],
+      "meet/pick/ip" => [ 5, 600 ],
+      "meet/token" => [ 60, 3600 ],
+      "oauth/callbacks" => [ 120, 60 ],
+      "req/ip" => [ 3000, 300 ]
+    }
+
+    expect(described_class.throttles.transform_values { |throttle| [ throttle.limit, throttle.period ] }).to eq(budgets)
+  end
+
   describe ".suspicious_agent?" do
     def request_to(path, user_agent)
       Rack::Attack::Request.new(Rack::MockRequest.env_for(path, "HTTP_USER_AGENT" => user_agent))

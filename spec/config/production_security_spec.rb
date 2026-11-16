@@ -56,4 +56,13 @@ RSpec.describe "Production config" do # rubocop:disable RSpec/DescribeClass
     expect(production).to include("cache_store" => "solid_cache_store")
     expect(production["cache_database"]).to eq("shards" => { "cache" => { "writing" => "cache" } })
   end
+
+  # The OAuth callback must use the same public host, or Google sends the
+  # user to a host that config.hosts refuses. The initializer builds the
+  # callback URL at boot, where this spec cannot read it back, so it reads the file.
+  it "builds the Google OAuth callback from the public host" do
+    omniauth = Rails.root.join("config/initializers/omniauth.rb").read
+
+    expect(omniauth).to include('"https://#{Rails.configuration.x.application_host}/auth/google_oauth2/callback"')
+  end
 end

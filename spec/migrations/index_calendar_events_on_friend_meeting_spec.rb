@@ -45,6 +45,11 @@ RSpec.describe IndexCalendarEventsOnFriendMeeting do
     SQL
   end
 
+  # CREATE INDEX CONCURRENTLY fails inside a transaction.
+  it "runs outside a transaction, so the indexes can be built concurrently" do
+    expect(described_class.disable_ddl_transaction).to be(true)
+  end
+
   it "builds both indexes, and runs again after an index was left behind" do
     connection.add_index :calendar_events, :friend_meeting_id, name: names.first
 
