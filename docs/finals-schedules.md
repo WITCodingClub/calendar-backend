@@ -42,18 +42,3 @@ bin/rails finals:check_corpus DIR=~/Desktop/WIT/Finals\ Schedules
 
 It prints the count of CRNs and the warnings for each PDF. When a PDF gives warnings or a low count, add a fixture with made-up data in the same layout and change `TableParser`.
 
-## Fix stored finals: `finals:reparse`
-
-Until October 2026, four format parsers read the PDFs. Some saved wrong dates, times, or rooms, and some missed CRNs. `finals:reparse` parses the latest completed upload of each term again:
-
-```sh
-bin/rails finals:reparse                  # dry run: prints each change
-bin/rails finals:reparse TERM_UID=202520  # one term
-bin/rails finals:reparse APPLY=1          # save
-```
-
-- `+ 10001` is a new exam. `~ 10001: start_time 800 -> 1015` is a change.
-- The task keeps a stored exam that the PDF does not have, and lists it under "Not in the PDF (kept)".
-- With `APPLY=1`, it starts a calendar re-sync only for the current term and later terms that changed.
-
-Remove the task when it has run on production.

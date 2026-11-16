@@ -14,7 +14,6 @@ RSpec.describe ApplicationMailer, type: :mailer do
 
   it "uses that sender for every mailer" do
     expect(described_class.default[:from]).to eq(sender)
-    expect(AdminMailer.default[:from]).to eq(sender)
     expect(TwentyFiveLiveMailer.default[:from]).to eq(sender)
   end
 

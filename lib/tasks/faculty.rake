@@ -20,64 +20,6 @@ namespace :faculty do
     end
   end
 
-  desc "Fill in missing RMP IDs by searching Rate My Professor"
-  task fill_missing_rmp_ids: :environment do
-    missing = Faculty.where(rmp_id: nil).order(:last_name, :first_name)
-
-    if missing.empty?
-      puts "✓ All faculty members already have RMP IDs assigned!"
-      next
-    end
-
-    puts "\nProcessing #{missing.count} faculty members without RMP IDs..."
-    puts "-" * 80
-
-    success_count   = 0
-    not_found_count = 0
-    error_count     = 0
-    not_found_faculty = []
-    service = Faculties::RateMyProfessorClient.new
-
-    missing.each_with_index do |faculty, index|
-      print "[#{(index + 1).to_s.rjust(3)}/#{missing.count}] #{faculty.full_name.ljust(30)} ... "
-
-      begin
-        Faculties::UpdateRatingsJob.perform_now(faculty.id)
-        faculty.reload
-
-        if faculty.rmp_id.present?
-          puts "✓ Found! (ID: #{faculty.rmp_id})"
-          success_count += 1
-        else
-          puts "✗ Not found"
-          not_found_count += 1
-          not_found_faculty << faculty
-        end
-      rescue => e
-        puts "✗ Error: #{e.message}"
-        error_count += 1
-      end
-
-      sleep 0.5
-    end
-
-    puts "-" * 80
-    puts "\nResults:"
-    puts "  ✓ Successfully linked: #{success_count}"
-    puts "  ✗ Not found:          #{not_found_count}"
-    puts "  ✗ Errors:             #{error_count}"
-
-    if not_found_faculty.any?
-      puts "\n#{"=" * 80}"
-      puts "Faculty not found on RMP - You can manually add them:"
-      puts "=" * 80
-      not_found_faculty.each do |faculty|
-        rmp_url = service.add_professor_url(first_name: faculty.first_name, last_name: faculty.last_name)
-        puts "\n#{faculty.full_name}:\n  #{rmp_url}"
-      end
-    end
-  end
-
   desc "Search for a specific faculty member on Rate My Professor by name"
   task :search, [ :name ] => :environment do |_t, args|
     if args[:name].blank?
@@ -154,26 +96,5 @@ namespace :faculty do
     rescue => e
       puts "✗ Error: #{e.message}"
     end
-  end
-
-  desc "Update ratings for all faculty with RMP IDs"
-  task update_all_ratings: :environment do
-    faculty_with_ids = Faculty.where.not(rmp_id: nil)
-    puts "\nUpdating ratings for #{faculty_with_ids.count} faculty members..."
-    puts "-" * 80
-
-    faculty_with_ids.find_each.with_index do |faculty, index|
-      print "[#{(index + 1).to_s.rjust(3)}/#{faculty_with_ids.count}] #{faculty.full_name.ljust(30)} ... "
-      begin
-        Faculties::UpdateRatingsJob.perform_now(faculty.id)
-        puts "✓ Updated"
-      rescue => e
-        puts "✗ Error: #{e.message}"
-      end
-      sleep 0.5
-    end
-
-    puts "-" * 80
-    puts "\n✓ Complete!"
   end
 end

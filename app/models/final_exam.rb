@@ -53,12 +53,10 @@ class FinalExam < ApplicationRecord
 
   serialize :combined_crns, coder: JSON
 
-  delegate :title, :subject, :course_number, :section_number, :schedule_type,
-           to: :course, prefix: true, allow_nil: true
+  delegate :title, to: :course, prefix: true, allow_nil: true
 
   scope :orphan,   -> { where(course_id: nil) }
   scope :linked,   -> { where.not(course_id: nil) }
-  scope :for_crn,  ->(crn) { where(crn: crn) }
   scope :upcoming, -> { where(exam_date: Time.zone.today..) }
 
   # A date counts as part of finals week when it holds at least this share of
@@ -86,28 +84,6 @@ class FinalExam < ApplicationRecord
       busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
       (busy_dates.presence || counts.keys).min
     end
-  end
-
-  def self.link_orphan_exams_to_courses(term:)
-    linked_count = 0
-    orphan_exams = orphan.where(term: term).to_a
-    courses_by_crn = Course.where(crn: orphan_exams.map(&:crn).uniq, term: term).index_by(&:crn)
-
-    orphan_exams.each do |exam|
-      if (course = courses_by_crn[exam.crn])
-        exam.update!(course: course)
-        linked_count += 1
-      end
-    end
-    linked_count
-  end
-
-  def link_to_course!
-    return if course.present?
-
-    found_course = Course.find_by(crn: crn, term: term)
-    update!(course: found_course) if found_course
-    found_course
   end
 
   def linked?   = course.present?
@@ -148,8 +124,8 @@ class FinalExam < ApplicationRecord
     course&.faculties&.map(&:full_name)&.join(", ").presence || "TBA"
   end
 
-  # Rows imported from the old backend hold the JSON text as a JSON string
-  # (double-encoded), so the serializer gives back a String, not an Array.
+  # Some stored rows hold the JSON text as a JSON string (double-encoded), so
+  # the serializer gives back a String, not an Array.
   def combined_crns
     value = super
     return value unless value.is_a?(String)
@@ -236,8 +212,8 @@ class FinalExam < ApplicationRecord
   private
 
   # The finals parser looks up the course before it saves, so a course created
-  # between the two leaves the exam unlinked. The old-backend import can also
-  # save a nil course. Look it up again on every save with no course.
+  # between the two leaves the exam unlinked. Look it up again on every save
+  # with no course.
   def link_course
     self.course = Course.find_by(crn: crn, term_id: term_id)
   end

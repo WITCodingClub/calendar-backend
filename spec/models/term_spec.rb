@@ -212,7 +212,7 @@ RSpec.describe Term, type: :model do
       expect(term.finals_published?).to be(false)
     end
 
-    it "is true for exams with no upload, as the old backend imported them" do
+    it "is true for exams with no upload" do
       create(:final_exam, term: term)
 
       expect(term.finals_published?).to be(true)

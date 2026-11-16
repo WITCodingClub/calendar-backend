@@ -36,9 +36,8 @@ module Calendar
     end
 
     # support_unencrypted_data stays at its default (false): an encrypted
-    # column that holds plain text raises on read. Production ran
-    # `bin/rails oauth_credentials:encrypt` on 2026-10-09 (#713). A local
-    # database with older rows needs the same task.
+    # column that holds plain text raises on read. Production encrypted its
+    # old plain-text rows on 2026-10-09 (#713).
 
     config.active_job.queue_adapter = :solid_queue
 
