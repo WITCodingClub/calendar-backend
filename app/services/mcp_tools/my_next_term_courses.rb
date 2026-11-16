@@ -7,7 +7,8 @@ module McpTools
     title "My courses for next term"
     description "Lists the courses that the plan of study of each of my programs puts in the term I register " \
                 "for next, without the ones I did or take now, and the open rows of earlier plan semesters " \
-                "(behind). Each course says if the term has a section of it, and if I meet its prerequisites " \
+                "(behind). registered lists the courses of the term that I already registered for and that " \
+                "fill a row of the program, with their CRNs. Each course says if the term has a section of it, and if I meet its prerequisites " \
                 "with the courses I did or take now. Each course also has its title, description, credit " \
                 "hours, and the terms it is usually offered. An elective slot has its elective list. " \
                 "missing_in_plan lists the missing prerequisites that a planned or behind row of the term " \

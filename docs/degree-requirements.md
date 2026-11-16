@@ -273,7 +273,7 @@ Degree progress: these count first: the courses in the Humanities, Social Scienc
 | `credits` | The English and HSS credits: `english.credits` plus the `credits` of each entry of `courses`. A course counts in one of them only. A course with no credit hours counts 0. |
 | `categories[]` | `name`, `checkable`, `status`, and `course` (the best course that meets the category). `hint` is what counts: `{ subject_codes, courses }`, with codes as "PHIL 4401". It is null for a category with no matcher (`checkable: false`). The hint lists the catalog codes only: an old or new code of a listed course (a course code alias) also counts, but the hint does not name it. |
 | `english` | `{ credits, courses }`: the courses in the English Sequence slots. A third English course that counts as Humanities is in `courses`, not here. |
-| `courses[]` | Each course that counts toward HSS: the courses in the HSS slots, the required course rows in a category, and the third English course. Each has `code`, `title` (the section title, as in the top-level `courses`), `credits`, `status` (done or in_progress), and `category`. `category` is the first category, in the order of `categories`, that the course meets, or null when it meets none (for example a course in a Humanities slot with a subject of no category). |
+| `courses[]` | Each course that counts toward HSS: the courses in the HSS slots, the required course rows in a category, and the third English course. Each has `code`, `title` (the section title, as in the top-level `courses`), `credits`, `status` (done, in_progress, or registered), and `category`. `category` is the first category, in the order of `categories`, that the course meets, or null when it meets none (for example a course in a Humanities slot with a subject of no category). |
 | `open_slots[]` | Each open row of an HSS slot (HSS, Humanities, Social Science, or directed HSS elective) with its `label`, `planned_term`, `planned_term_uid`, and `hss_category`. The terms come from the planned terms of the rows (#990), so they are null without a start term. |
 
 The Ethics courses for a page that lists none come from the Computer Networking page (`HssNoteParser::ETHICS_COURSES`), so an Ethics course outside that list does not count.
@@ -307,7 +307,9 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 - It checks each active `StudentProgram` that links to a `DegreeProgram` in an imported catalog year, or the `program` argument. Without a linked program it answers with a message that says how to add one, and does not guess.
 - With `include_planned` (`GET /api/user/degree_progress?include_planned=true`), it also checks the planned programs. Each program in the result has `status`: `active` or `planned` (null for the `program` argument). The My programs dashboard page uses this to show the courses that a planned program adds (#867).
 - It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
-- A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term and in progress in the current or a future term. The result lists these assumptions.
+- A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term, `in_progress` in the current term, and `registered` in a term after the current term (#1019): the student registered for it. With no current term, a course in a later term stays `in_progress`. The result lists these assumptions.
+- The statuses of a row, `filled_course`, `hss.courses[]`, `lists[].courses[]`, and `courses[]` are `done`, `in_progress`, `registered`, and `open` (`not_passed` only in `courses[]`, and no `open` there). `counts` has `done`, `in_progress`, `registered`, and `open`. A met list of a minor is `done` when each of its courses is done, `registered` when one of its courses is registered, and otherwise `in_progress`.
+- For prerequisites, a registered course counts as a course in progress counts: as passed with a C or better, in the terms after its term.
 - A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction.
 - AP, test, and transfer credit (`TransferCredit`, #1020) counts as a done course with no term. See [Transfer credit](#transfer-credit).
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. Among the slots, a list of courses goes first, then a subject list (HSS), then a free elective, so a broad slot does not use a course that a narrow one needs. A slot with no elective list, such as a "CONM Elective" whose page prints no list, stays open with `checkable: false`.
@@ -344,9 +346,9 @@ The student routes give the course details, so a client does not call `GET /api/
 - An elective slot or a choice row has `filled_course`: the `code` and the same details of the course that fills it, or null when the row is open. A course with no `CatalogCourse` row keeps the title of its section.
 - Each program has `summary`:
   - `total_credits`, `school`, and `department` from the `RequirementSet`.
-  - `credits: { earned, in_progress, not_counted }` (#1012): `earned` and `in_progress` sum the credits of the courses that fill a row of this program. For a plan, these are the course of a done or in-progress course row and the `filled_course` of a slot or a choice. For a program with no plan, such as a minor, these are the courses its lists count. The sums use the same matches as the rows, so they cannot disagree. Each course counts once, with its best attempt, and a course not passed is in no sum. Done courses are `earned`, courses in progress are `in_progress`. The totals differ by program: a course that fills a minor row but no major row counts for the minor only.
+  - `credits: { earned, in_progress, registered, not_counted }` (#1012, #1019): `earned`, `in_progress`, and `registered` sum the credits of the courses that fill a row of this program. For a plan, these are the course of a done or in-progress course row and the `filled_course` of a slot or a choice. For a program with no plan, such as a minor, these are the courses its lists count. The sums use the same matches as the rows, so they cannot disagree. Each course counts once, with its best attempt, and a course not passed is in no sum. Done courses are `earned`, courses in progress are `in_progress`, and courses in a later term are `registered`. The totals differ by program: a course that fills a minor row but no major row counts for the minor only.
   - A course counts with its own credits, also when they are more than the credits of the slot. A course whose sections have no credit hours takes the credit hours of its `CatalogCourse` row, or else counts as 0. With `course_details: false` (`NextTermCourses`), no `CatalogCourse` row is loaded, so such a course counts as 0.
-  - `not_counted: { earned, in_progress, courses }`: the other courses the student passed or takes, which fill no row of this program. Examples: a course below 1000 such as ENGL 700, and an extra course past the slots or the minimum of a list. `courses` are codes in the form of `courses[].code` ("ENGL 700", with no leading zero), sorted by subject and then by course number.
+  - `not_counted: { earned, in_progress, registered, courses }`: the other courses the student passed or takes, which fill no row of this program. Examples: a course below 1000 such as ENGL 700, and an extra course past the slots or the minimum of a list. `courses` are codes in the form of `courses[].code` ("ENGL 700", with no leading zero), sorted by subject and then by course number.
   - A third English course that counts as Humanities (see the HSS requirement) fills no row, so it is in `not_counted`. `hss.credits` and `hss.courses` still count it.
   - A slot with no elective list (`checkable: false`) and a list of a minor that cannot be checked take no course, so a course that only they could take is in `not_counted`.
   - `co_ops: { required, done }`: the plan rows in the Co-op elective list, and the course rows that name a co-op semester (COOP3500, COOP4500, COOP5000), with the number of them that are done. COOP2500 is a normal course row and does not count. A program with no plan has 0 and 0.
@@ -355,14 +357,14 @@ The student routes give the course details, so a client does not call `GET /api/
 ```mermaid
 flowchart TD
   P[Active linked programs or program argument] --> S[Plan: standard or named]
-  E[Enrollments + CourseOutcome] --> T[Taken courses: done, in_progress, not_passed]
+  E[Enrollments + CourseOutcome] --> T[Taken courses: done, in_progress, registered, not_passed]
   S --> C[Course rows]
   C --> H[Choice rows]
   H --> L[Elective slots]
   T --> C
   T --> H
   T --> L
-  L --> R[Rows: done, in_progress, open]
+  L --> R[Rows: done, in_progress, registered, open]
 ```
 
 ### Plan against real terms
@@ -410,7 +412,7 @@ Fields:
 - Each row has `expected_term` and `expected_term_uid`: the term of the estimate, or null for a row that the estimate cannot place.
 - Each row has `moved`: null when `expected_term` is `planned_term`, else the one reason why it is not. See the order below.
 - `timeline` has one entry for each term that has a row, by `expected_term`, oldest first. A term with no plan semester but a course taken in it (a summer class) is in the list. A past term where the student took nothing is not. Each entry has `term`, `uid`, `year`, `season`, `when`, `estimated`, `co_op`, and `basis`.
-  - `basis` is `taken` when every row of the term is done or in progress, `plan` when the term has exactly the rows that the plan puts in it, and `estimate` for any other term.
+  - `basis` is `taken` when every row of the term is done, in progress, or registered, `plan` when the term has exactly the rows that the plan puts in it, and `estimate` for any other term.
   - `year` is the plan year of the term, with the same rule as `ProgramTimeline.term_uid`: a summer term after year 1 is in year 1. It is null for a term before plan year 1, such as a course taken before the student started the program.
   - `estimated` is false for a `taken` term, true for an `estimate` term, and true after plan year 2 for a `plan` term, as in #990.
   - `co_op` is true when every row of the term is a co-op row.
@@ -471,7 +473,7 @@ flowchart TD
 - `lists` has one entry for each elective list of a program with no plan of study, such as a minor: `name`, `min_courses`, `min_credits`, `notes`, `checkable`, and `courses`. It is empty for a program with a plan of study, because its rows already name each course. An active minor and a minor named as the `program` argument also get `lists`.
 - `min_courses` of a "Required ..." list with no minimum is the number of its courses. A list that cannot be checked (`checkable: false`) keeps its courses, and `min_courses` and `min_credits` are null.
 - `courses` of a list of courses has every course on the list. A list of subjects (`subject_codes`) or of any course has no fixed courses, so `courses` has the same courses as `courses` of its requirement row. Today that row counts only the courses named on a list, so for these lists it is empty.
-- Each course has `code`, `title` (from `CatalogCourse`, or the title of the section the student took, or null), `status` (`done`, `in_progress`, or `open`), `term` (the term of the best attempt, or null), and `major_term`. A course that the student did not pass is `open`. The status does not say which list the course counts for. `requirements` keeps that.
+- Each course has `code`, `title` (from `CatalogCourse`, or the title of the section the student took, or null), `status` (`done`, `in_progress`, `registered`, or `open`), `term` (the term of the best attempt, or null), and `major_term`. A course that the student did not pass is `open`. The status does not say which list the course counts for. `requirements` keeps that.
 - `major_term` is the earliest `planned_term` of a row of an active program that has the course: a course row, an option of a choice row, or the course that fills a row. It is null when no active program has the course, when the active program has no start term, and for the `program` argument, which checks no active program. A planned program that the student also declared as active does not count as its own active program.
 - A course code matches through a checked `CourseCodeAlias`, as in the rest of the service.
 - The existing `requirements` rows of a minor do not change.
@@ -559,9 +561,10 @@ flowchart TD
 
 - The term is the `term` argument (a Banner code or a label), or the next fall or spring term after `Term.current`. Students register for fall during the spring term, so the default skips summer.
 - It reads the rows of `DegreeProgress` for each active program with a plan of study, and maps each plan semester to a term with `ProgramTimeline.term_uid` and the program's start term.
-- `planned` holds the rows of the plan semester in the term that are not done or in progress. `behind` holds the open rows of earlier plan semesters that already started (the current term or earlier). A row between the current term and a later `term` argument is in neither list.
+- `planned` holds the rows of the plan semester in the term that are not done, in progress, or registered. `behind` holds the open rows of earlier plan semesters that already started (the current term or earlier). A row between the current term and a later `term` argument is in neither list.
 - Each course in a row has `offered` (the term has an active section; null when WIT Calendar has no sections of the term yet) and `prerequisites`: `met`, `not_met` with the `missing` courses, `unknown`, or null when `CatalogCourse` has no prerequisites. The options of an `or` are one `missing` entry, such as `WDGT 1100 or WDGT 1200`.
-- A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
+- `registered` (#1019) holds the courses of the term that the student registered for and that fill a row of the program, each once, in plan order, with `code`, `title` (the section title), and `crns` (every section of the course in the term, such as a lecture and its lab). A client can start the plan of the term from them. A course that fills no row of the program, such as an extra course in `not_counted`, is not in the list.
+- A course done, in progress, or registered in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
 - A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
 - The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
 - A section stores its subject as a Banner label, such as `Computer Science (COMP)`. The section check reads the code in it (`Course::SUBJECT_CODE_SQL`).
@@ -573,7 +576,8 @@ flowchart TD
 flowchart TD
   D[DegreeProgress rows] --> M{Plan semester term vs next term}
   P[Program start term] --> M
-  M -- same term, not done or in progress --> PL[planned]
+  M -- same term, not done, in progress, or registered --> PL[planned]
+  M -- course in the term, registered --> RG[registered]
   M -- earlier term, open --> B[behind]
   PL --> C[Each course: section in term? prerequisites met?]
   B --> C

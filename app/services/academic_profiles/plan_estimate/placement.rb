@@ -7,7 +7,7 @@ module AcademicProfiles
     # each term either one co-op or a load of classes. See
     # docs/degree-requirements.md for the rules and a flow chart.
     class Placement
-      DONE = %w[done in_progress].freeze
+      DONE = DegreeProgress::STATUSES
       # When an open row moved later for more than one reason, moved is the
       # first of these.
       REASONS = %w[co_op prerequisite offered load].freeze

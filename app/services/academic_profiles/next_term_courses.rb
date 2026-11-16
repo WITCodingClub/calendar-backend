@@ -11,6 +11,9 @@ module AcademicProfiles
   #   the rows already done or in progress.
   # - behind: open rows of earlier plan semesters. The student did not take
   #   them yet, so they can also go into the term.
+  # - registered: the courses of the term that the student already
+  #   registered for and that fill a row of the program (#1019), with their
+  #   CRNs, so a client can start the plan of the term from them.
   #
   # Each course in a row tells if the term has a section of it (nil when
   # WIT Calendar has no sections of the term yet) and if the student meets
@@ -28,7 +31,7 @@ module AcademicProfiles
   #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
-    COUNTED = %w[done in_progress].freeze
+    COUNTED = DegreeProgress::STATUSES
     # An assumed course counts as passed with a C or better.
     ASSUMED = { status: "assumed", outcome: nil }.freeze
     # A course code inside a missing entry, such as "WDGT 1100 or WDGT 1200".
@@ -73,6 +76,8 @@ module AcademicProfiles
         programs:    program_entries,
         assumptions: [
           "A course in progress this term counts toward prerequisites, as if you pass it with a C or better.",
+          "A course you registered for in a later term counts toward prerequisites in the terms after it, " \
+          "as if you pass it with a C or better.",
           ("A course in assumed counts toward prerequisites, as if you pass it with a C or better." if assumed_courses.pairs.any?),
           "A prerequisite that needs a test score shows as unknown. A course with no prerequisite data from " \
           "Banner shows no prerequisite check.",
@@ -172,8 +177,40 @@ module AcademicProfiles
         # start term, or when the term is after the end of the plan.
         semester:   start && term_uid && semester_of(plan_rows(entry), start),
         planned:    planned.map { |row| row_json(entry, row) },
-        behind:     behind.map { |row| row_json(entry, row) }
+        behind:     behind.map { |row| row_json(entry, row) },
+        registered: registered_json(entry)
       }
+    end
+
+    # The courses of the term that fill a row of the program (#1019). The
+    # student registered for them, so their rows are in neither planned nor
+    # behind. Each course once, in plan order.
+    def registered_json(entry)
+      return [] if term_uid.nil?
+
+      entry[:requirements].select { |row| row[:course] && COUNTED.include?(row[:status]) && TermCode.parse(row[:term]) == term_uid }
+                          .map { |row| row[:course] }.uniq
+                          .map { |code| { code: code, title: term_titles[code], crns: term_crns.fetch(code, []) } }
+    end
+
+    # The section title of each course the student takes in the term.
+    def term_titles
+      @term_titles ||= progress[:courses].select { |course| course[:term_uid] == term_uid }
+                                         .to_h { |course| [ course[:code], course[:title] ] }
+    end
+
+    # The CRNs of the student's sections in the term, by course code. A
+    # lecture and its lab share the code, so a course can have more than
+    # one CRN.
+    def term_crns
+      @term_crns ||= if term.nil?
+        {}
+      else
+        @user.courses.where(term: term).order(:crn)
+             .pluck(Arel.sql(Course::SUBJECT_CODE_SQL), :course_number, :crn)
+             .group_by { |subject, number, _| "#{subject} #{number}" }
+             .transform_values { |rows| rows.map(&:last).uniq }
+      end
     end
 
     # A row is behind only when its term started: the current term or

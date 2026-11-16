@@ -25,7 +25,9 @@ module AcademicProfiles
 
     ASSUMPTIONS = [
       "A course in a past term with no outcome from LeopardWeb counts as passed.",
-      "A course in the current or a future term counts as in progress.",
+      "A course in the current term with no outcome counts as in progress.",
+      "A course in a term after the current term counts as registered: the student registered for it. " \
+      "For prerequisites, it counts as passed with a C or better in the terms after its term.",
       "A failed, withdrawn, or incomplete course does not count.",
       "A D (passed_below_c) counts as done, but some requirements and prerequisites need a C or better.",
       "A course taken more than once counts once, with its best attempt.",
@@ -36,12 +38,15 @@ module AcademicProfiles
       "WIT wins over a transfer credit for the same course."
     ].freeze
 
-    RANK = { "done" => 0, "in_progress" => 1, "not_passed" => 2 }.freeze
+    RANK = { "done" => 0, "in_progress" => 1, "registered" => 2, "not_passed" => 3 }.freeze
+    # The statuses of a course that fills a requirement (#1019).
+    STATUSES = %w[done in_progress registered].freeze
     PASSED = %w[c_or_better passed_below_c].freeze
 
-    # A course the student took or takes. status is done, in_progress, or
-    # not_passed. A transfer credit (#1020) is done, with no term, no CRN, and
-    # its source (transcript or student). source is nil for a WIT course.
+    # A course the student took or takes. status is done, in_progress,
+    # registered (a term after the current term, #1019), or not_passed. A
+    # transfer credit (#1020) is done, with no term, no CRN, and its source
+    # (transcript or student). source is nil for a WIT course.
     Taken = Struct.new(:subject_code, :course_number, :title, :term, :crn, :credits, :status, :outcome, :transfer,
                        :source) do
       def code = "#{subject_code} #{course_number}"
@@ -214,7 +219,7 @@ module AcademicProfiles
         needs_review: set.needs_review,
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
-        counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
+        counts:       [ *STATUSES, "open" ].index_with { |status| requirements.count { |r| r[:status] == status } },
         summary:      summary_json(set, requirements, counted),
         requirements: requirements,
         open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) },
@@ -459,7 +464,8 @@ module AcademicProfiles
 
     # The program totals (#989, #1012). credits sums the credits of the
     # courses that fill a row of this program (counted), each course once:
-    # done courses are earned, courses in progress are in_progress.
+    # done courses are earned, courses in progress are in_progress, and
+    # courses in a later term are registered (#1019).
     # not_counted has the other best attempts the student passed or takes,
     # such as ENGL 700 or a course past a list's minimum. A third English
     # course that counts as Humanities fills no row, so it is not counted
@@ -476,8 +482,9 @@ module AcademicProfiles
         credits:       {
           earned:      credits_with(counted, "done"),
           in_progress: credits_with(counted, "in_progress"),
+          registered:  credits_with(counted, "registered"),
           not_counted: { earned: credits_with(other, "done"), in_progress: credits_with(other, "in_progress"),
-                         courses: other.sort_by(&:key).map(&:code) }
+                         registered: credits_with(other, "registered"), courses: other.sort_by(&:key).map(&:code) }
         },
         co_ops:        { required: co_ops.size, done: co_ops.count { |row| row[:status] == "done" } }
       }
@@ -514,8 +521,11 @@ module AcademicProfiles
 
     def list_json(group, courses, needed)
       met = needed ? courses.size >= needed : courses.sum { |c| c.credits.to_i } >= group.min_credits
+      # A met list has the status of its latest course: registered when one
+      # course is in a later term.
       status = if !met then "open"
       elsif courses.all? { |course| course.status == "done" } then "done"
+      elsif courses.any? { |course| course.status == "registered" } then "registered"
       else "in_progress"
       end
 
@@ -638,8 +648,16 @@ module AcademicProfiles
     def taken_status(term, outcome)
       return PASSED.include?(outcome) ? "done" : "not_passed" if outcome
       return "done" if past?(term)
+      return "registered" if later?(term)
 
       "in_progress"
+    end
+
+    # A term after the current term (#1019). With no current term, no term
+    # is later, so a course keeps in_progress.
+    def later?(term)
+      current = current_term
+      current.present? && term.uid > current.uid
     end
 
     # A term with no end date (an old term) is past when it is before the
