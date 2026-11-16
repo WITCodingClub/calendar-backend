@@ -16,6 +16,10 @@ module MicrosoftGraph
     RATE_LIMIT_ERRORS = [].freeze
     TRANSIENT_ERRORS  = [ MicrosoftGraph::Error ].freeze
 
+    # A reconnect follows a refused grant, and every sync failed while it was
+    # refused, so the reconnect writes every event again.
+    FORCE_SYNC_ON_RECONNECT = true
+
     def self.syncs_for?(user)
       MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
     end

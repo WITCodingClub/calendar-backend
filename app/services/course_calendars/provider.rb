@@ -67,15 +67,17 @@ module CourseCalendars
 
     # Makes the course calendar when the person has none, and then starts its
     # first sync, forced so the past events are filled in too. With
-    # always_sync: true, an existing calendar gets a sync too, without force,
-    # so the edits the person made in the calendar stay. Returns the calendar
-    # id.
+    # always_sync: true, an existing calendar gets a sync too, forced when the
+    # provider says a reconnect needs it (FORCE_SYNC_ON_RECONNECT). Returns
+    # the calendar id.
     def ensure_course_calendar(always_sync: false, **options)
       before      = course_calendar&.external_calendar_id
       calendar_id = create_or_get_course_calendar(**options)
       created     = calendar_id != before
 
-      CourseCalendars.resync(user, force: created) if created || always_sync
+      if created || always_sync
+        CourseCalendars.resync(user, force: created || self.class::FORCE_SYNC_ON_RECONNECT)
+      end
       calendar_id
     end
 

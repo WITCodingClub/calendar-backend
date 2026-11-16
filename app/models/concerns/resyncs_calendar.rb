@@ -5,7 +5,8 @@
 # dashboard, the MCP tools and the admin pages need no sync step of their own.
 #
 # The model says which saves count with #calendar_changed?. A destroyed
-# record always counts.
+# record counts, unless its parent's destroy took it along: the parent's own
+# path syncs or removes the events.
 module ResyncsCalendar
   extend ActiveSupport::Concern
 
@@ -21,6 +22,7 @@ module ResyncsCalendar
 
   def resync_calendar_after_change
     return unless user
+    return if destroyed? && destroyed_by_association
     return unless destroyed? || calendar_changed?
 
     CourseCalendars.resync(user, force: true)

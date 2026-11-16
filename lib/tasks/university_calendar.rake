@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 namespace :university_calendar do
-  desc "Sync university calendar events from the 25Live ICS feed, as the recurring job does"
+  desc "Import university calendar events from the 25Live ICS feed only: no user calendar syncs and no term dates " \
+       "(UniversityCalendar::SyncJob does those)"
   task sync: :environment do
-    result = UniversityCalendar::SyncJob.perform_now
+    result = UniversityCalendar::IcsImport.call
     puts "Sync complete: #{result}"
   end
 

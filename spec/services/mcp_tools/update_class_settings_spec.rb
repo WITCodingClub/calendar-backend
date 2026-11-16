@@ -98,7 +98,7 @@ RSpec.describe McpTools::UpdateClassSettings do
   end
 
   it "queues a calendar sync for a user with a Google calendar" do
-    create(:oauth_credential, user: user)
+    create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
 
     expect { call(color: "basil") }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true)
   end

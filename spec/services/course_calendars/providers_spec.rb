@@ -13,9 +13,15 @@ RSpec.describe CourseCalendars::Providers do
 
   describe ".services_for" do
     it "uses Google alone for a Google user, as before" do
-      create(:oauth_credential, user: user)
+      create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
 
       expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
+    end
+
+    it "syncs nothing for a linked Google account without a course calendar" do
+      create(:oauth_credential, user: user)
+
+      expect(described_class.services_for(user)).to be_empty
     end
 
     it "syncs nothing for a person with no Google credential and no Microsoft calendar" do
@@ -23,7 +29,7 @@ RSpec.describe CourseCalendars::Providers do
     end
 
     it "ignores a Microsoft calendar while the provider is not configured" do
-      create(:oauth_credential, user: user)
+      create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
       create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
       enable_microsoft_for(user)
 
@@ -32,7 +38,7 @@ RSpec.describe CourseCalendars::Providers do
 
     context "when the provider is configured", :microsoft_graph do
       it "adds Microsoft for a person with the flag and a Microsoft calendar" do
-        create(:oauth_credential, user: user)
+        create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
         create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
         enable_microsoft_for(user)
 
@@ -68,8 +74,8 @@ RSpec.describe CourseCalendars::Providers do
   describe ".syncs?" do
     let(:user) { create(:user) }
 
-    it "is true for a person with a Google credential" do
-      create(:oauth_credential, user: user)
+    it "is true for a person with a Google course calendar" do
+      create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
 
       expect(described_class.syncs?(user)).to be(true)
     end

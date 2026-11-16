@@ -26,6 +26,10 @@ module GoogleCalendar
     RATE_LIMIT_ERRORS = [ Google::Apis::RateLimitError ].freeze
     TRANSIENT_ERRORS  = [ *RATE_LIMIT_ERRORS, Google::Apis::ServerError ].freeze
 
+    # A second Google account only shares the calendar, so the person's edits
+    # stay.
+    FORCE_SYNC_ON_RECONNECT = false
+
     # OmniAuth serves this path, so it has no route.
     CONNECT_PATH = "/auth/google_oauth2"
 
@@ -33,9 +37,9 @@ module GoogleCalendar
       error.is_a?(Google::Apis::ClientError) && GONE_STATUSES.include?(error.status_code)
     end
 
-    # Every Google call raises without a credential.
+    # A linked Google account without a course calendar has nothing to sync.
     def self.syncs_for?(user)
-      user.google_credential.present?
+      CourseCalendar.google.for_user(user).exists?
     end
 
     # With an email, the callback accepts only that account.
