@@ -50,6 +50,9 @@ module Calendar
     # to account emails. contact@calendar.witcc.dev does not receive mail.
     config.x.contact_email = "calendarwit@gmail.com"
 
+    # The maintainer who reviews 25Live constant drift (TwentyFiveLiveMailer).
+    config.x.maintainer_email = ENV.fetch("MAINTAINER_EMAIL", "mayonej@wit.edu")
+
     # The Chrome Web Store page of the extension. The website (calendar-website,
     # src/lib/server/pages.ts) links to the same page.
     config.x.extension_install_url = ENV.fetch(

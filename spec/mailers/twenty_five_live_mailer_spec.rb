@@ -18,6 +18,10 @@ RSpec.describe TwentyFiveLiveMailer, type: :mailer do
       expect(body).to include("https://github.com/WITCodingClub/calendar-backend/tree/main/app/lib/twenty_five_live")
     end
 
+    it "goes to the maintainer address from the config" do
+      expect(mail.to).to eq([ Rails.application.config.x.maintainer_email ])
+    end
+
     it "ends with the shared footer" do
       expect(mail.body.to_s).to include("--\nWIT Calendar, from the WIT Coding Club.")
     end
