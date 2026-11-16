@@ -43,15 +43,14 @@ class TransferCredit < ApplicationRecord
 
   belongs_to :user
 
-  normalizes :code, with: ->(code) { (pair = CatalogCourse.parse_code(code)) ? pair.join(" ") : code.to_s.strip }
+  normalizes :code, with: ->(code) { CourseCode.normalize(code) || code.to_s.strip }
 
   validates :code, presence: true, uniqueness: { scope: :user_id }
   validates :title, length: { maximum: MAX_TITLE_LENGTH }
   validates :credits, numericality: { only_integer: true, in: 0..MAX_CREDITS }, allow_nil: true
   validate :code_is_a_course_code
 
-  # [subject, number], as DegreeProgress names a course.
-  def key = CatalogCourse.parse_code(code)
+  def key = CourseCode.parse(code)
 
   private
 

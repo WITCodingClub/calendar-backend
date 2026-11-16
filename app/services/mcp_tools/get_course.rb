@@ -27,7 +27,7 @@ module McpTools
     output_schema(Schemas::COURSE)
 
     def perform(code:, term_uid: nil)
-      raise ToolError, "#{code} is not a course code. Use a subject code and number, for example COMP 2350." unless CatalogCourse.parse_code(code)
+      raise ToolError, "#{code} is not a course code. Use a subject code and number, for example COMP 2350." unless CourseCode.parse(code)
 
       course = Catalog::CourseQuery.new.find(code) || raise(ToolError, "No course #{code}. Call search_courses to find one.")
       term   = term_uid && Term.find_by_uid!(term_uid)

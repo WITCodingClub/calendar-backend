@@ -8,7 +8,7 @@ module AcademicProfiles
   # (additional). COOP 2500 is a normal course row.
   module CoOpRows
     # The codes of a co-op semester, as "COOP 3500".
-    CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
+    CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |key| CourseCode.format(*key) }.freeze
 
     module_function
 

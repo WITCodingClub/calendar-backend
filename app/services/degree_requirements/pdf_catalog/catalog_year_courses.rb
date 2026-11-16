@@ -15,7 +15,7 @@ module DegreeRequirements
       def call(catalog_year, plans)
         now = Time.current
         rows = plans.flat_map(&:items).select { |item| item.kind == "course" && item.label.present? }
-                    .uniq { |item| [ item.subject_code, item.course_number ] }
+                    .uniq(&:key)
                     .map do |item|
           { catalog_year_id: catalog_year.id, subject_code: item.subject_code, course_number: item.course_number,
             title: item.label.truncate(255), min_credits: item.min_credits, max_credits: item.max_credits,

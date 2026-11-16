@@ -81,7 +81,7 @@ module AcademicProfiles
       return MinorFit::Need.new(courses: [], subjects: group.subject_codes, any_course: group.any_course, count: extra) if open_list?(group)
 
       rows = @active_rows.other_than(program)
-      courses = group.courses.map { |course| [ course.subject_code, course.course_number ] }.reject do |key|
+      courses = group.courses.map(&:key).reject do |key|
         attempt_for(key) || rows.any? { |active| active.keys.include?(key) }
       end
       MinorFit::Need.new(courses: courses, subjects: [], any_course: false, count: extra)
@@ -109,10 +109,10 @@ module AcademicProfiles
       group, row = list.values_at(:group, :row)
       return [ 0, 0 ] unless row[:checkable]
 
-      counted = row[:courses].filter_map { |code| CourseKeys.parse(code) }
+      counted = row[:courses].filter_map { |code| CourseCode.parse(code) }
       return open_list_counts(group, counted) if open_list?(group)
 
-      keys = group.courses.map { |course| [ course.subject_code, course.course_number ] }
+      keys = group.courses.map(&:key)
       taken = keys.select { |key| counted.any? { |code| same?(key, code) } }
       needed = group.min_courses || (group.min_credits ? nil : keys.size)
       return course_counts(needed, keys, taken, free) if needed
@@ -203,16 +203,16 @@ module AcademicProfiles
     # A list of courses gives each course. A list of subjects or of any
     # course gives the courses the student took that count for it.
     def list_courses(group, row, fixed)
-      return group.courses.map { |course| [ course.subject_code, course.course_number ] } if fixed
+      return group.courses.map(&:key) if fixed
 
-      row[:courses].filter_map { |code| CourseKeys.parse(code) }
+      row[:courses].filter_map { |code| CourseCode.parse(code) }
     end
 
     def course_json(key)
       attempt = attempt_for(key)
       details = @details.for(key)
       {
-        code:       CourseKeys.format(key),
+        code:       CourseCode.format(*key),
         title:      details[:title] || attempt&.title,
         status:     attempt ? attempt.status : "open",
         term:       attempt&.term&.name,

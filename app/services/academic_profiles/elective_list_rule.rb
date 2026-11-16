@@ -13,7 +13,7 @@ module AcademicProfiles
     # group: an ElectiveGroup with its courses loaded.
     def initialize(group, course_keys)
       @group = group
-      @keys = course_keys.expand(group.courses.map { |course| [ course.subject_code, course.course_number ] }).to_set
+      @keys = course_keys.expand(group.courses.map(&:key)).to_set
     end
 
     # Any course means a course for degree credit: not a co-op and not a

@@ -12,9 +12,7 @@ RSpec.describe AcademicProfiles::CourseKeys do
     expect(keys.expand([ [ "COMP", 128 ], [ "COMP", 1000 ] ])).to eq([ [ "COMP", 128 ], [ "COMP", 1000 ] ])
   end
 
-  it "parses and formats codes" do
-    expect(described_class.parse("comp1000")).to eq([ "COMP", 1000 ])
-    expect(described_class.format([ "COMP", 1000 ])).to eq("COMP 1000")
+  it "gives the old and new codes of a code" do
     expect(keys.equivalent_codes("COMP 128")).to eq([ "COMP 128", "COMP 1000" ])
     expect(keys.equivalent_codes("Free Elective")).to eq([ "Free Elective" ])
   end

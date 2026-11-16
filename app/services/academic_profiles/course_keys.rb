@@ -14,12 +14,6 @@ module AcademicProfiles
       Current.course_keys ||= new(CourseCodeAlias.reviewed_pairs)
     end
 
-    # "COMP 1000", "COMP1000", or "comp-1000" as ["COMP", 1000], or nil.
-    def self.parse(code) = CatalogCourse.parse_code(code)
-
-    # ["COMP", 1000] as "COMP 1000", the form of every code in a response.
-    def self.format(key) = "#{key.first} #{key.last}"
-
     # aliases: each key with the keys of its old and new codes.
     def initialize(aliases = {})
       @aliases = aliases
@@ -36,8 +30,8 @@ module AcademicProfiles
     # A code and its old or new codes, as "SUBJ 1234". A code that does not
     # parse stays as it is.
     def equivalent_codes(code)
-      key = self.class.parse(code)
-      key ? equivalents(key).map { |found| self.class.format(found) }.uniq : [ code ]
+      key = CourseCode.parse(code)
+      key ? equivalents(key).map { |found| CourseCode.format(*found) }.uniq : [ code ]
     end
   end
 end

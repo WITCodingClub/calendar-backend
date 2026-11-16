@@ -20,7 +20,7 @@ module Catalog
     private
 
     def enrich(node)
-      known = known_courses[[ node["subject_code"], node["course_number"].to_i ]]
+      known = known_courses[CourseCode.key_of(node)]
       node.merge(
         "code"   => CourseCode.format(node["subject_code"], node["course_number"]),
         "title"  => known&.title,
@@ -31,8 +31,8 @@ module Catalog
     def known_courses
       @known_courses ||= begin
         refs = PrerequisiteTree.new(@course.prerequisites).courses + @course.corequisites + @course.mutual_exclusions
-        CatalogCourse.by_codes(refs.map { |ref| [ ref["subject_code"], ref["course_number"].to_i ] })
-                     .index_by { |course| [ course.subject_code, course.course_number ] }
+        CatalogCourse.by_codes(refs.map { |ref| CourseCode.key_of(ref) })
+                     .index_by(&:key)
       end
     end
   end

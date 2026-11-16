@@ -248,10 +248,10 @@ module AcademicProfiles
       used = []
 
       items.select(&:course?).each do |item|
-        results[item.id] = take(pool, used, [ [ item.subject_code, item.course_number ] ])
+        results[item.id] = take(pool, used, [ item.key ])
       end
       items.select(&:choice?).each do |item|
-        results[item.id] = take(pool, used, item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] })
+        results[item.id] = take(pool, used, item.options.map { |option| CourseCode.key_of(option) })
       end
       # A slot with a list of courses goes first, then a slot with a list of
       # subjects (an HSS elective), then a free elective. A broad slot then
@@ -401,7 +401,7 @@ module AcademicProfiles
         kind:          item.kind,
         code:          item.code,
         label:         item.label,
-        options:       item.options.map { |option| CourseKeys.format([ option["subject_code"], option["course_number"] ]) },
+        options:       item.options.map { |option| CourseCode.format(option["subject_code"], option["course_number"]) },
         elective_list: item.elective_group&.name,
         hss_category:  hss_category,
         # A slot with no elective list, such as a "CONM Elective" whose page
@@ -423,7 +423,7 @@ module AcademicProfiles
       if item.course?
         # A course with no CatalogCourse row keeps the title of the section
         # that meets the row.
-        details = @course_details.for([ item.subject_code, item.course_number ])
+        details = @course_details.for(item.key)
         return json.merge(details, title: details[:title] || course&.title)
       end
 
@@ -449,7 +449,7 @@ module AcademicProfiles
     def detail_codes(entries)
       rows = entries.flat_map { |set, _, _| set.program_plans.flat_map(&:items) }.select(&:course?)
       lists = entries.flat_map { |set, _, _| set.program_plans.empty? ? set.elective_groups.flat_map(&:courses) : [] }
-      (rows + lists).map { |course| [ course.subject_code, course.course_number ] } + taken.map(&:key)
+      (rows + lists).map(&:key) + taken.map(&:key)
     end
 
     # The program totals (#989, #1012). credits sums the credits of the
@@ -490,7 +490,7 @@ module AcademicProfiles
     def list_requirements(set, pool)
       used = []
       rows = set.elective_groups.map do |group|
-        codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
+        codes = group.courses.map(&:key)
         next unchecked_list_json(group) unless countable?(group)
 
         needed = group.min_courses || (group.min_credits ? nil : codes.size)

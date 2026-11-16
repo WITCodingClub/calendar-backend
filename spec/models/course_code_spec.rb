@@ -10,6 +10,38 @@ RSpec.describe CourseCode do
 
     it "is nil for text that is not a code" do
       expect(described_class.parse("intro to programming")).to be_nil
+      expect(described_class.parse("2350")).to be_nil
+      expect(described_class.parse("COMP 23500")).to be_nil
+    end
+  end
+
+  describe ".normalize" do
+    it "gives the code in the response form" do
+      expect(described_class.normalize(" comp-128 ")).to eq("COMP 128")
+    end
+
+    it "is nil for text that is not a code" do
+      expect(described_class.normalize("ELECTIVE")).to be_nil
+    end
+  end
+
+  describe ".key_of" do
+    it "reads the key of a JSON course reference" do
+      expect(described_class.key_of({ "subject_code" => "COMP", "course_number" => "2350" })).to eq([ "COMP", 2350 ])
+    end
+  end
+
+  describe CourseCode::Named do
+    let(:value) { Data.define(:subject_code, :course_number) { include CourseCode::Named } }
+
+    it "gives the key and the code" do
+      course = value.new(subject_code: "COMP", course_number: 2350)
+
+      expect([ course.key, course.code ]).to eq([ [ "COMP", 2350 ], "COMP 2350" ])
+    end
+
+    it "has no code without a number" do
+      expect(value.new(subject_code: "COMP", course_number: nil).code).to be_nil
     end
   end
 

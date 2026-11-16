@@ -56,8 +56,8 @@ class CourseCodeAlias < ApplicationRecord
     end
   end
 
-  def from_code = "#{from_subject_code} #{from_course_number}"
-  def to_code = "#{to_subject_code} #{to_course_number}"
+  def from_code = CourseCode.format(from_subject_code, from_course_number)
+  def to_code = CourseCode.format(to_subject_code, to_course_number)
 
   private
 

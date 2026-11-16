@@ -108,9 +108,6 @@ class Course < ApplicationRecord
     CourseCode.subject_of(subject)
   end
 
-  # The degree code still calls this (AcademicProfiles::DegreeProgress).
-  def self.prefix_of(subject) = CourseCode.subject_of(subject)
-
   # Banner writes linked sections as <slot><key>. The slot says what the section
   # is for within the pairing, and the key says which pairing it belongs to. In
   # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"

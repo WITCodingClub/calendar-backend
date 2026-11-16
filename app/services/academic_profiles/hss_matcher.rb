@@ -10,8 +10,6 @@ module AcademicProfiles
   # A category is a hash of RequirementSet#hss_requirement: { "name",
   # "subject_codes", "courses" }, with courses such as "PHIL4401".
   class HssMatcher
-    CODE = /\A([A-Z]+)(\d+)\z/
-
     # The categories of the major, or the Humanities and Social Sciences
     # categories when there is no set or it has no HSS requirement.
     def self.categories(set)
@@ -29,12 +27,7 @@ module AcademicProfiles
     def self.hint(category)
       return nil unless checkable?(category)
 
-      { subject_codes: category["subject_codes"], courses: category["courses"].map { |code| spaced(code) } }
-    end
-
-    def self.spaced(code)
-      subject, number = code.match(CODE)&.captures
-      subject ? "#{subject} #{number}" : code
+      { subject_codes: category["subject_codes"], courses: category["courses"].map { |code| CourseCode.normalize(code) || code } }
     end
 
     def initialize(course_keys)
@@ -50,8 +43,8 @@ module AcademicProfiles
       return true if category["subject_codes"].include?(course.subject_code)
 
       category["courses"].any? do |code|
-        subject, number = code.match(CODE)&.captures
-        subject && @course_keys.same?([ subject, number.to_i ], course.key)
+        key = CourseCode.parse(code)
+        key && @course_keys.same?(key, course.key)
       end
     end
 

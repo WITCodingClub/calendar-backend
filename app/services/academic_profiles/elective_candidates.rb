@@ -57,8 +57,7 @@ module AcademicProfiles
     # section has seats, false when every section with seat data has none,
     # and nil when no section has seat data.
     Offered = Struct.new(:subject_code, :course_number, :title, :credit_hours, :open_seats) do
-      def key = [ subject_code, course_number ]
-      def code = CourseKeys.format(key)
+      include CourseCode::Named
     end
 
     # term: the Term, or nil. entries: [DegreeProgress program entry, rows]
@@ -81,7 +80,7 @@ module AcademicProfiles
     def for(entry, row)
       pools.fetch(row, []).map { |course| candidate_json(entry, row, course) }
            .sort_by { |json| [ PREREQUISITE_RANK.fetch(json[:prerequisites]), SEATS_RANK.fetch(json[:open_seats]),
-                               CourseKeys.parse(json[:code]) ] }
+                               CourseCode.parse(json[:code]) ] }
            .first(LIMIT)
     end
 
@@ -108,7 +107,7 @@ module AcademicProfiles
     # candidates.
     def accepts(entry, row)
       return nil if offered.empty?
-      return keys_test(row[:options].filter_map { |code| CourseKeys.parse(code) }) if row[:kind] == "choice"
+      return keys_test(row[:options].filter_map { |code| CourseCode.parse(code) }) if row[:kind] == "choice"
       return nil unless row[:kind] == "placeholder"
 
       category = row[:hss_category] && open_category(entry, row)
@@ -210,7 +209,7 @@ module AcademicProfiles
 
     # The courses with an active section in the term, in one grouped query.
     # A section stores its subject as a label, such as "Computer Science
-    # (COMP)", so the query groups by the code in it (Course.prefix_of).
+    # (COMP)", so the query groups by the code in it (Course::SUBJECT_CODE_SQL).
     def offered
       @offered ||= if @term.nil?
         []
@@ -244,7 +243,7 @@ module AcademicProfiles
 
     def taken_keys
       @taken_keys ||= (@taken.select { |course| COUNTED.include?(course[:status]) }
-                             .filter_map { |course| CourseKeys.parse(course[:code]) } + @skip).to_set
+                             .filter_map { |course| CourseCode.parse(course[:code]) } + @skip).to_set
     end
 
     def matcher

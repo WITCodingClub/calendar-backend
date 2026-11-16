@@ -256,7 +256,7 @@ module AcademicProfiles
       # A slot or a choice names no single course, so it never waits.
       def blocked?(index, uid)
         row = @rows[index]
-        return false unless row[:kind] == "course" && (pair = CourseKeys.parse(row[:code]))
+        return false unless row[:kind] == "course" && (pair = CourseCode.parse(row[:code]))
 
         tree = @prerequisites.prerequisites(pair)
         return false if tree.nil?
@@ -293,7 +293,7 @@ module AcademicProfiles
       def keys(index)
         row = @rows[index]
         codes = row[:kind] == "choice" ? Array(row[:options]) : [ row[:code] ]
-        @course_keys.expand(codes.filter_map { |code| CourseKeys.parse(code) if code })
+        @course_keys.expand(codes.filter_map { |code| CourseCode.parse(code) if code })
       end
 
       def co_op?(index) = CoOpRows.co_op?(@rows[index])

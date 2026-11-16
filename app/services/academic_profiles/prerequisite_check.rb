@@ -36,9 +36,9 @@ module AcademicProfiles
 
         { status: status, missing: missing_of(node["type"], results), missing_keys: results.flat_map { |result| result[:missing_keys] }.uniq }
       when "course"
-        key = [ node["subject_code"], node["course_number"].to_i ]
+        key = CourseCode.key_of(node)
         status = course_status(key, node["min_grade"])
-        status == MET ? { status: status, missing: [], missing_keys: [] } : { status: status, missing: [ CourseKeys.format(key) ], missing_keys: [ key ] }
+        status == MET ? { status: status, missing: [], missing_keys: [] } : { status: status, missing: [ CourseCode.format(*key) ], missing_keys: [ key ] }
       else
         { status: UNKNOWN, missing: [], missing_keys: [] }
       end

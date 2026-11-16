@@ -153,10 +153,7 @@ module McpTools
 
       # The course codes in the courses argument, as "COMP 2350".
       def course_codes
-        args["courses"].to_s.split(COURSE_SEPARATORS).filter_map do |part|
-          subject, number = CatalogCourse.parse_code(part)
-          "#{subject} #{number}" if subject
-        end.uniq
+        args["courses"].to_s.split(COURSE_SEPARATORS).filter_map { |part| CourseCode.normalize(part) }.uniq
       end
     end
   end

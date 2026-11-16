@@ -83,7 +83,7 @@ module Catalog
         end
 
         codes.map do |code|
-          CatalogCourse.parse_code(code.to_s) ||
+          CourseCode.parse(code.to_s) ||
             raise(FilterError, "Unknown course #{code.inspect}; use a code such as COMP 3350")
         end.uniq
       end

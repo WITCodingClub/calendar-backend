@@ -9,7 +9,7 @@ module Catalog
     # The search then runs in memory.
     #
     # - A code matches the sections of that subject and number, and of each
-    #   old or new code that a person checked (CourseCodeAlias.reviewed).
+    #   old or new code that a person checked (AcademicProfiles::CourseKeys).
     # - A code that no catalog course has, and no checked alias leads to, is
     #   unknown: FilterError.
     # - A code with no active section in the term goes in not_offered. A
@@ -67,34 +67,16 @@ module Catalog
 
       private
 
-      def code_text((subject, number)) = "#{subject} #{number}"
-
       def check_known_codes!
-        unknown = requested_codes.reject { |code| equivalents(code).any? { |other| known_codes.include?(other) } }
-        raise FilterError, "Unknown course #{unknown.map { |code| code_text(code) }.join(', ')}" if unknown.any?
+        unknown = requested_codes.reject { |code| course_keys.equivalents(code).any? { |other| known_codes.include?(other) } }
+        raise FilterError, "Unknown course #{unknown.map { |code| CourseCode.format(*code) }.join(', ')}" if unknown.any?
       end
 
       def requested_codes = @input.entries.flat_map(&:codes).uniq
 
-      # A code and the old or new codes a person checked, both ways.
-      def equivalents(code)
-        [ code, *aliases.fetch(code, []) ].uniq
-      end
+      def course_keys = AcademicProfiles::CourseKeys.current
 
-      def aliases
-        @aliases ||= begin
-          numbers = requested_codes.map(&:last)
-          CourseCodeAlias.reviewed
-                         .where(from_course_number: numbers).or(CourseCodeAlias.reviewed.where(to_course_number: numbers))
-                         .pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
-                         .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
-                           map[[ fs, fn ]] << [ ts, tn ]
-                           map[[ ts, tn ]] << [ fs, fn ]
-                         end
-        end
-      end
-
-      def all_codes = requested_codes.flat_map { |code| equivalents(code) }.uniq
+      def all_codes = course_keys.expand(requested_codes)
 
       def known_codes
         @known_codes ||= CatalogCourse.where(course_number: all_codes.map(&:last).uniq)
@@ -152,10 +134,10 @@ module Catalog
       end
 
       def build_entry(entry)
-        codes   = entry.codes.map { |code| equivalents(code).to_set }
+        codes   = entry.codes.map { |code| course_keys.equivalents(code).to_set }
         offered = sections.select { |course| course.active? && codes.any? { |set| set.include?(code_of(course)) } }
         @not_offered.concat(entry.codes.each_with_index.filter_map do |code, index|
-          code_text(code) if offered.none? { |course| codes[index].include?(code_of(course)) }
+          CourseCode.format(*code) if offered.none? { |course| codes[index].include?(code_of(course)) }
         end)
 
         pinned = pinned_sections(entry, offered)
@@ -177,10 +159,10 @@ module Catalog
           course = sections.find { |section| section.crn == crn && allowed.include?(section.id) } ||
                    pool.find { |section| section.crn == crn && allowed.include?(section.id) }
           if course.nil?
-            cancelled = sections.find { |section| section.crn == crn && entry.codes.any? { |code| equivalents(code).include?(code_of(section)) } }
+            cancelled = sections.find { |section| section.crn == crn && entry.codes.any? { |code| course_keys.equivalents(code).include?(code_of(section)) } }
             raise FilterError, "CRN #{crn} is cancelled" if cancelled && !cancelled.active?
 
-            names = entry.codes.map { |code| code_text(code) }.join(" or ")
+            names = entry.codes.map { |code| CourseCode.format(*code) }.join(" or ")
             raise FilterError, "CRN #{crn} is not a section of #{names} in term #{term.uid}"
           end
           raise FilterError, "CRN #{crn} is cancelled" unless course.active?
@@ -197,7 +179,7 @@ module Catalog
         units = units.uniq(&:crns)
 
         # Codes with an active section that is not a lab.
-        with_lecture = offered.reject { |course| lab?(course) }.to_set { |course| code_text(code_of(course)) }
+        with_lecture = offered.reject { |course| lab?(course) }.to_set { |course| CourseCode.format(*code_of(course)) }
         units.reject do |unit|
           with_lecture.include?(unit.code) && unit.sections.all? { |course| lab?(course) } && unit.members.none?(&:pinned)
         end.sort_by(&:crns)
@@ -245,7 +227,7 @@ module Catalog
         end
         return nil if conflict
 
-        Unit.new(entry_index: entry.index, code: code_text(code_of(course)), members: members)
+        Unit.new(entry_index: entry.index, code: CourseCode.format(*code_of(course)), members: members)
       end
     end
   end

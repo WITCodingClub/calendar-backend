@@ -32,7 +32,7 @@ module AcademicProfiles
 
     # A course key for HssMatcher#in_category?.
     Course = Data.define(:subject_code, :course_number) do
-      def key = [ subject_code, course_number ]
+      include CourseCode::Named
     end
 
     # slots: the open slots of the active programs. major_end: the
@@ -108,7 +108,7 @@ module AcademicProfiles
     def slot_json(slot, needs)
       courses = needs.flat_map(&:courses).uniq.select { |key| accepts?(slot, key) }
       { label: slot.label, planned_term: slot.term, planned_term_uid: slot.term_uid,
-        courses: courses.first(MAX_COURSES).map { |key| key.join(" ") } }
+        courses: courses.first(MAX_COURSES).map { |key| CourseCode.format(*key) } }
     end
 
     # The major's expected end, or one fall or spring term later for each

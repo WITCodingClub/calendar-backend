@@ -14,12 +14,15 @@ module DegreeRequirements
     # plan_index is the plan the list is printed under, or nil for a list that
     # belongs to the whole program.
     Group = Data.define(:name, :heading, :min_courses, :min_credits, :notes, :plan_index, :courses)
-    GroupCourse = Data.define(:subject_code, :course_number, :requires_approval)
+    GroupCourse = Data.define(:subject_code, :course_number, :requires_approval) do
+      include CourseCode::Named
+    end
     # group_index points into Page#groups, for a placeholder that names a list.
     Item = Data.define(:year_index, :season, :kind, :subject_code, :course_number, :label,
-                       :min_credits, :max_credits, :footnote, :options, :group_index)
+                       :min_credits, :max_credits, :footnote, :options, :group_index) do
+      include CourseCode::Named
+    end
 
-    CODE = /\A\s*([A-Z]{2,5})\s*(\d{3,4})\s*\z/
     NUMBER_WORDS = %w[zero one two three four five six seven eight nine ten eleven twelve].freeze
     SEASONS = [ [ "fall", /fall|semester one|first semester/i ],
                 [ "spring", /spring|semester two|second semester/i ],
@@ -293,10 +296,9 @@ module DegreeRequirements
       [ numbers.first, numbers.last ]
     end
 
-    def parse_code(text)
-      match = CODE.match(text.to_s.gsub(/[[:space:]]/, " "))
-      match && [ match[1], match[2].to_i ]
-    end
+    # A link text can hold a no-break space, which CourseCode does not read
+    # as a space.
+    def parse_code(text) = CourseCode.parse(text.to_s.gsub(/[[:space:]]/, " "))
 
     # The text of a cell without its footnote marks.
     def label_text(node)
