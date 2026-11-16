@@ -3,7 +3,7 @@
 module Embeddings
   # Turns text into an OpenAI embedding vector.
   #
-  # The catalog stores one vector per section, instructor and review, and search
+  # The catalog stores one vector per course, instructor and review, and search
   # embeds the person's query the same way. Both paths call this service, so the
   # model and the dimension count can never drift apart. See docs/embeddings.md.
   #
