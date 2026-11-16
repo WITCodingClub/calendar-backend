@@ -75,6 +75,26 @@ RSpec.describe "/api/user/registration_plans", type: :request do
       expect(user.registration_plans.sole.crns).to eq(%w[20410 20411 20520 20610])
     end
 
+    # The unique index is the last guard: the other PUT saved its plan after
+    # this one's validation ran, so the INSERT raises. On one database
+    # connection the competing row cannot appear inside that savepoint, so
+    # the first save inserts it and then raises as Postgres would.
+    it "updates the plan when a parallel PUT saved it after the validation" do
+      raised = false
+      allow_any_instance_of(RegistrationPlan).to receive(:save).and_wrap_original do |original, *args, **kwargs| # rubocop:disable RSpec/AnyInstance
+        next original.call(*args, **kwargs) if raised
+
+        raised = true
+        create(:registration_plan, user: user, term: term)
+        raise ActiveRecord::RecordNotUnique, "duplicate key value violates unique constraint"
+      end
+
+      put_plan
+
+      expect(response).to have_http_status(:ok)
+      expect(user.registration_plans.sole.crns).to eq(%w[20410 20411 20520 20610])
+    end
+
     it "answers 422 for a bad body" do
       put_plan({ preferences: {} })
       expect(response).to have_http_status(:unprocessable_content)

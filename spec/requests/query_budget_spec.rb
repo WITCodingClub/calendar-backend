@@ -157,6 +157,9 @@ RSpec.describe "Query budget for hot paths", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(large).to eq(small)
+      # A ceiling as well: a read for each flag sends the same count with one
+      # flag on or all of them, so only this catches a per-flag N+1.
+      expect(small).to be <= 6
     end
   end
 
