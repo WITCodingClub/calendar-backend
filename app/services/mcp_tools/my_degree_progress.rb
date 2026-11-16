@@ -62,8 +62,6 @@ module McpTools
       authorize user, :show?
 
       AcademicProfiles::DegreeProgressRequest.new(program: program, catalog_year: catalog_year, plan: plan).call(user)
-    rescue AcademicProfiles::PlanningError, Catalog::FilterError => e
-      raise ToolError, e.message
     end
   end
 end

@@ -20,8 +20,6 @@ module Api
                                                       assume_plans: params[:assume_plans].to_s == "true",
                                                       include_candidates: candidates_requested?)
       render json: request.call(current_user)
-    rescue AcademicProfiles::PlanningError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
 
     private

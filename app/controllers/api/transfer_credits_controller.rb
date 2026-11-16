@@ -8,14 +8,12 @@ module Api
     authenticate_with_token
     include DegreePlanningFlag
 
-    # GET /api/user/transfer_credits
     def index
       authorize TransferCredit, :index?
 
       render_list
     end
 
-    # PUT /api/user/transfer_credits
     # Body: credits, a list of { code, title, credits, kind }. Replaces the
     # transcript entries. The entries the student added stay.
     def update
@@ -23,11 +21,8 @@ module Api
       skipped = AcademicProfiles::TransferCredits.new(current_user).replace_transcript(request.request_parameters["credits"])
 
       render_list(skipped: skipped.map(&:as_json))
-    rescue AcademicProfiles::InvalidProfileError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
 
-    # POST /api/user/transfer_credits
     # Params: code (a course in the catalog), credits and kind (optional).
     def create
       authorize TransferCredit, :create?
@@ -35,11 +30,8 @@ module Api
                                                 .add(code: params[:code], credits: params[:credits], kind: params[:kind])
 
       render json: TransferCreditSerializer.new(credit).as_json, status: :created
-    rescue AcademicProfiles::InvalidProfileError => e
-      render_error e.message, status: :unprocessable_content, code: e.code
     end
 
-    # DELETE /api/user/transfer_credits/:code
     # Removes a student entry. A transcript entry stays: the next sync would
     # bring it back.
     def destroy

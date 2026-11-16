@@ -71,9 +71,7 @@ module McpTools
       ToolError,
       ActiveRecord::RecordNotFound,
       Catalog::FilterError,
-      AcademicProfiles::InvalidProfileError,
-      AcademicProfiles::AssumedCourses::InvalidCodesError,
-      AcademicProfiles::DegreeProgress::NoProgramError
+      AcademicProfiles::Error
     ].freeze
 
     FLAG_OFF_MESSAGE = "This feature is not enabled for this student yet. Do not call the tool again."

@@ -14,6 +14,10 @@ module Api
     include Api::PublicIdLookupable
     include FeatureGate
 
+    rescue_from AcademicProfiles::Error do |error|
+      render_error error.message, status: :unprocessable_content, code: error.code
+    end
+
     private
 
     def feature_off(message)

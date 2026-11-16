@@ -86,8 +86,6 @@ module McpTools
         planned.save!(row)
         current(row, "added")
       end
-    rescue AcademicProfiles::InvalidProfileError => e
-      raise ToolError, e.message
     end
 
     def remove(planned, program)
@@ -114,8 +112,6 @@ module McpTools
         planned.save_pathway!(pathway, rows)
         current(nil, "added", pathway)
       end
-    rescue AcademicProfiles::InvalidProfileError => e
-      raise ToolError, e.message
     end
 
     def remove_pathway(planned, slug)

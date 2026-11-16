@@ -32,8 +32,6 @@ module McpTools
       raise ToolError, "No program #{program} in the #{year.name} catalog. Call list_programs to find the slug." if set.nil?
 
       Catalog::ProgramSerializer.new(set).as_json
-    rescue Catalog::FilterError => e
-      raise ToolError, e.message
     end
   end
 end

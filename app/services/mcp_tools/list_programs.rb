@@ -45,8 +45,6 @@ module McpTools
 
       { catalog_year: year.name, catalog_years: query.catalog_years.map(&:name),
         programs: programs.map { |set| Catalog::ProgramSerializer.summary(set) } }
-    rescue Catalog::FilterError => e
-      raise ToolError, e.message
     end
 
     # The same lookup for degree_requirements.
