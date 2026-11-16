@@ -25,7 +25,7 @@ RSpec.describe TermElectives::Importer do
     stub_request(:get, hss_url).to_return(status: 200, body: "hss-pdf")
     # pdftotext is the boundary here, as HTTP is for the requests. CI has no
     # poppler.
-    allow(FinalsSchedules::PdfText).to receive(:extract) { |pdf| texts.fetch(pdf) }
+    allow(PdfText).to receive(:extract) { |pdf| texts.fetch(pdf) }
   end
 
   it "imports each PDF that the page links" do
@@ -61,7 +61,7 @@ RSpec.describe TermElectives::Importer do
     result = importer.call
 
     expect(result).to have_attributes(imported: 0, unchanged: 2)
-    expect(FinalsSchedules::PdfText).to have_received(:extract).twice
+    expect(PdfText).to have_received(:extract).twice
   end
 
   it "only fetches PDF links over HTTPS on wit.edu, once for each file" do
@@ -80,7 +80,7 @@ RSpec.describe TermElectives::Importer do
 
     course = TermElectiveCourse.find_by!(subject_code: "PHYS")
     expect(course).to have_attributes(heading: "Lab-based Science Electives (BSCN, BSCO)", catalog_course: CatalogCourse.find_by!(subject_code: "PHYS"))
-    expect(FinalsSchedules::PdfText).to have_received(:extract).twice
+    expect(PdfText).to have_received(:extract).twice
   end
 
   it "keeps the rows of an unchanged PDF when nothing else changed, and records the read" do

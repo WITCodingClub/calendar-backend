@@ -54,8 +54,7 @@ module TermElectives
         return list.term_id
       end
 
-      # Postgres refuses a NUL byte in a text column.
-      text = FinalsSchedules::PdfText.extract(pdf).scrub.delete("\0")
+      text = PdfText.extract(pdf)
       parsed = PdfParser.parse(text)
       term = Term.find_by(year: parsed.year, season: parsed.season) if parsed.year
       if term.nil?
@@ -67,7 +66,7 @@ module TermElectives
       write(list || TermElectiveList.new(url: url), term, sha256, text, parsed)
       counts[:imported] += 1
       term.id
-    rescue FetchError, RuntimeError, ArgumentError, SystemCallError, ActiveRecord::ActiveRecordError => e
+    rescue FetchError, PdfText::Error, ArgumentError, SystemCallError, ActiveRecord::ActiveRecordError => e
       # One bad file does not stop the others. The next run tries it again.
       Rails.error.report(e, handled: true, context: { url: url })
       counts[:failed] += 1

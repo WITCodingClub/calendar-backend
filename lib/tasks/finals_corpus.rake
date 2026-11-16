@@ -8,7 +8,7 @@ namespace :finals do
 
     Dir[File.join(dir, "*.pdf")].sort.each do |path|
       parser  = FinalsSchedules::TableParser.new
-      entries = parser.parse(FinalsSchedules::PdfText.extract(File.binread(path)))
+      entries = parser.parse(PdfText.extract(File.binread(path)))
 
       puts "#{File.basename(path)}: #{entries.size} CRNs, " \
            "#{entries.count { |e| e[:combined_crns].size > 1 }} combined, " \

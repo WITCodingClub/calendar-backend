@@ -12,7 +12,7 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
     stub_request(:get, DegreeRequirements::PdfCatalog.url_for(start_year)).to_return(status: 200, body: body)
     # pdftotext is a local program; the fixture is its output.
     output = file_fixture("degree_requirements/pdf/#{text}").read
-    allow(DegreeRequirements::PdfCatalog::Text).to receive(:extract).and_return(change ? change.call(output) : output)
+    allow(PdfText).to receive(:extract).and_return(change ? change.call(output) : output)
   end
 
   def import(catalog_year) = described_class.new(catalog_year, client: client).call
