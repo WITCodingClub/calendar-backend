@@ -39,8 +39,7 @@ module McpTools
     ADVISORY = "WIT Calendar is not an official Wentworth service. It copies this data from official Wentworth " \
                "sources on a schedule, so the data can be out of date. data_sources gives each source, how often " \
                "WIT Calendar refreshes it, and when it last did. Tell the student to confirm any course plan with " \
-               "their program director and their academic advisor before they register, drop a course, or " \
-               "change their plan."
+               "their #{Policy::PLAN_CONFIRMERS} before they register, drop a course, or change their plan."
 
     # The advisory key in the result of an academic planning tool. A term
     # source (Catalog::Freshness::TERM_SOURCES) has terms, the other sources

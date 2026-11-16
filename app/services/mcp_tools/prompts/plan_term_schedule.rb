@@ -6,13 +6,11 @@ module McpTools
     # the schedules with no conflicts and with their lecture and lab pairs,
     # then one to three options.
     class PlanTermSchedule < BasePrompt
-      # How registration works at Wentworth, from the Registrar's notice for
-      # Spring 2027. The server instructions say the same.
-      REGISTRATION = "Then tell me what to do before I register. My registration time is on my time ticket, in " \
-                     "myWentworth under Prepare for Registration. It comes from my completed earned credits, with " \
-                     "transfer and graduate credits, but not credits in progress. If I am a first-year student or a " \
-                     "sophomore, or I am on academic probation, continued probation, or academic dismissal, I need a " \
-                     "Registration Alternate PIN (RAC) from my primary advisor before I can register. Do not guess my " \
+      # How registration works at Wentworth (McpTools::Policy).
+      REGISTRATION = "Then tell me what to do before I register. My registration time is on my #{Policy::TIME_TICKET}. " \
+                     "It comes from my completed earned credits, with " \
+                     "transfer and graduate credits, but not credits in progress. #{Policy::RAC_STUDENTS.upcase_first} " \
+                     "need a #{Policy::RAC} from their #{Policy::RAC_GIVER} before they can register. Do not guess my " \
                      "class year or my standing: if you do not know them, tell me the RAC rule. Call list_term_electives to " \
                      "see the Technical, Major, and HSS elective lists that the schools sent for the term. If a " \
                      "Technical or HSS elective that I need is not in the schedule yet, tell me to ask the dean or " \

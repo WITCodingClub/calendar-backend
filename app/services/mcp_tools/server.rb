@@ -25,14 +25,12 @@ module McpTools
       student how to add it and do not retry. Before you change a setting, say what you will
       change. WIT Calendar is not an official Wentworth service, and the advisory in a course
       result says when it last copied the data. When you help a student plan courses, tell
-      them to confirm the plan with their program director and their academic advisor. Make
+      them to confirm the plan with their #{Policy::PLAN_CONFIRMERS}. Make
       plans that need no registration override. Offer one option that needs an override only
       when no plan without one works, or when the student is stuck or worried. Then name the
-      override and the course, and tell the student to ask the dean's office of the school
-      that offers the course. A student registers at the time on their time ticket, in
-      myWentworth under Prepare for Registration. First-year students, sophomores, and
-      students on academic probation or dismissal need a Registration Alternate PIN (RAC)
-      from their primary advisor.
+      override and the course, and tell the student to ask #{Policy::OVERRIDE_OFFICE}.
+      A student registers at the time on their #{Policy::TIME_TICKET}.
+      #{Policy::RAC_STUDENTS.upcase_first} need a #{Policy::RAC} from their #{Policy::RAC_GIVER}.
     TEXT
 
     MAX_INSTRUCTIONS_LENGTH = 2_048

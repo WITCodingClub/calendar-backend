@@ -139,7 +139,7 @@ The Registrar's notice for Spring 2027 gives these rules. `plan_term_schedule` g
 - **Minimum grades:** some prerequisites need a minimum grade. `Catalog::CourseDetailsSync` stores it as `min_grade` in the prerequisite tree, and `get_course` gives it. `my_course_history` has no grades, so the model asks the student for the grade. `get_course`, `plan_term_schedule`, and `plan_degree_progression` say this.
 - **Substitutions and transfer credit:** a course substitution or transfer credit for a degree requirement needs approval from the program director, the dean's office of the school, or both. `degree_requirements` and `plan_degree_progression` say this.
 
-No tool reads the time ticket, the RAC, or the standing of a student. The dates of each registration window change each term, so the docs and the server do not give them. When the Registrar changes these rules, change the text in each place.
+No tool reads the time ticket, the RAC, or the standing of a student. The dates of each registration window change each term, so the docs and the server do not give them. When the Registrar changes these rules, change `McpTools::Policy`. The server instructions, the prompts, `check_schedule` and the advisory build their text from it. The descriptions of `get_course` and `degree_requirements` still have their own copy.
 
 ### Old section data
 
