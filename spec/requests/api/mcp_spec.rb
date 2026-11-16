@@ -194,15 +194,25 @@ RSpec.describe "Api::Mcp", type: :request do
     end
   end
 
-  it "marks the read tools read-only and the write tools not destructive" do
+  it "gives each tool read-only, destructive, and open world hints that match what it does" do
     rpc "tools/list"
 
     tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
-    write_tools, read_tools = McpTools.all.partition { |tool| tool < McpTools::BaseWriteTool }
+    hints = tools.transform_values { |tool| tool["annotations"].slice("readOnlyHint", "destructiveHint", "openWorldHint") }
+    write_tools, read_tools = McpTools.all.map(&:name_value).partition { |name| McpTools.find(name) < McpTools::BaseWriteTool }
 
-    expect(read_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(true))
-    expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(false))
-    expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "destructiveHint") }).to all(be(false))
+    read_only = { "readOnlyHint" => true, "destructiveHint" => false, "openWorldHint" => false }
+    expect(hints.slice(*read_tools)).to eq(read_tools.index_with { read_only })
+
+    # The settings tools replace or delete settings and sync the student's
+    # Google or Outlook calendar. set_notifications syncs it too. Removing a
+    # planned program deletes it.
+    expect(hints.slice(*write_tools)).to eq(
+      "update_class_settings"      => { "readOnlyHint" => false, "destructiveHint" => true, "openWorldHint" => true },
+      "update_calendar_settings"   => { "readOnlyHint" => false, "destructiveHint" => true, "openWorldHint" => true },
+      "set_notifications"          => { "readOnlyHint" => false, "destructiveHint" => false, "openWorldHint" => true },
+      "update_my_planned_programs" => { "readOnlyHint" => false, "destructiveHint" => true, "openWorldHint" => false }
+    )
   end
 
   it "gives each tool a title in its annotations, the same as its top-level title" do

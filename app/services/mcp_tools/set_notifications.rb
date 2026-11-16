@@ -13,6 +13,9 @@ module McpTools
     description "Turns off the reminders of all my calendar events, for a number of hours or until I turn " \
                 "them on again, or turns them on again."
     requires_scope "notifications:write"
+    # The sync takes the reminders off the events in the student's Google or
+    # Outlook calendar, or puts them back. Nothing is lost.
+    write_hints open_world: true
     input_schema(
       properties: {
         disabled:       { type: "boolean", description: "true turns reminders off, false turns them on." },

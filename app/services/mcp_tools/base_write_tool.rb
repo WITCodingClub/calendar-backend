@@ -24,6 +24,14 @@ module McpTools
         super
         subclass.annotations(WRITE)
       end
+
+      # Marks a tool that can delete or replace the student's data
+      # (destructive), or that changes a system outside WIT Calendar, such
+      # as the student's Google or Outlook calendar (open_world). Clients and
+      # app directories read these hints, so they must match what the tool does.
+      def write_hints(destructive: false, open_world: false)
+        annotations(WRITE.merge(destructive_hint: destructive, open_world_hint: open_world))
+      end
     end
 
     private

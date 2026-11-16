@@ -14,6 +14,9 @@ module McpTools
                 "meeting_time_id from my_courses. To change every lecture or every class, use " \
                 "update_calendar_settings instead."
     requires_scope "settings:write"
+    # It replaces settings with no undo, reset deletes them, and the sync
+    # rewrites the events in the student's Google or Outlook calendar.
+    write_hints destructive: true, open_world: true
     input_schema(
       properties: {
         meeting_time_id: { type: "string", description: "The meeting time id from my_courses." },
