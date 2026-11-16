@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe McpTools::ListTermElectives do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
@@ -26,9 +28,9 @@ RSpec.describe McpTools::ListTermElectives do
   end
 
   it "uses the current term when no term is given" do
-    allow(Term).to receive(:current).and_return(term)
-
-    expect(call.structured_content[:lists].size).to eq(2)
+    travel_to(Time.zone.local(term.year, 10, 1)) do
+      expect(call.structured_content[:lists].size).to eq(2)
+    end
   end
 
   it "takes a list of schools, as the REST API does" do

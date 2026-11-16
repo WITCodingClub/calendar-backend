@@ -90,15 +90,13 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(slot[:list]).to eq(heading: "Widget elective", notes: nil, min_courses: 1, min_credits: nil, subject_codes: [])
   end
 
-  it "loads the catalog courses in one query" do
+  it "loads the catalog courses without an N+1 query" do
     create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2100)
+    create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2200)
     item(subject_code: "WDGT", course_number: 2100)
+    item(subject_code: "WDGT", course_number: 2200)
 
-    queries = []
-    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { result }
-
-    expect(queries.size).to eq(1)
+    expect(Prosopite.scan { result }[:programs].first[:planned].pluck(:code)).to eq([ "WDGT 2100", "WDGT 2200" ])
   end
 
   it "says if the term has a section, and nothing when the term has no sections yet" do
@@ -669,13 +667,13 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       offer("GIZM", 1000)
       offer("COMP", 4500)
 
+      # Each count runs once first, so both counts see caches warmed by the
+      # same data (Current, the Flipper process cache), not by an earlier call.
       count = lambda do
-        queries = 0
-        callback = ->(*, payload) { queries += 1 unless payload[:name] == "SCHEMA" || payload[:cached] }
-        ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { with_candidates }
-        queries
+        Current.reset
+        with_candidates
+        count_queries { with_candidates }
       end
-      count.call # warms the caches of the first request
       one = count.call
 
       item(:placeholder, label: "Cryptography Elective")

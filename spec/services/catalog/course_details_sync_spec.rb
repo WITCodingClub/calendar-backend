@@ -146,7 +146,7 @@ RSpec.describe Catalog::CourseDetailsSync do
 
     expect(sync).to have_attributes(fetched: 1, failed: 0)
     expect(course.reload).to have_attributes(learning_objectives: "Old objectives", fees: [ { "level" => "Undergraduate" } ],
-                                             college: be_present)
+                                             college: "The School of Comp & Data Sci")
     expect(course.description).not_to eq("Old text")
   end
 

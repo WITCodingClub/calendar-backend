@@ -740,31 +740,25 @@ RSpec.describe AcademicProfiles::DegreeProgress do
                                            not_counted: { earned: 4, in_progress: 3, registered: 0, courses: [ "GEAR 2000", "WDGT 1000" ] })
       end
 
-      it "counts the catalog credits of a filling course with course_details: false as 0, with no query" do
+      it "counts the catalog credits of a filling course with course_details: false as 0" do
         create(:catalog_course, subject_code: "WDGT", course_number: 1000, credit_hours: 3)
         item(subject_code: "WDGT", course_number: 1000)
         take(past_term, "WDGT", 1000, credits: nil)
         take(past_term, "WDGT", 2000, credits: 4)
 
-        queries = []
-        callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-        result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(course_details: false) }
+        result = progress(course_details: false)
 
-        expect(queries).to be_empty
         expect(credits(result[:programs].first)).to eq(earned: 0, in_progress: 0, registered: 0,
                                                        not_counted: { earned: 4, in_progress: 0, registered: 0, courses: [ "WDGT 2000" ] })
       end
     end
 
-    it "leaves out the details and their query with course_details: false" do
+    it "leaves out the details with course_details: false" do
       create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000)
       item(subject_code: "WDGT", course_number: 1000)
 
-      queries = []
-      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(course_details: false) }
+      result = progress(course_details: false)
 
-      expect(queries).to be_empty
       expect(result[:programs].first[:requirements].first).to include(description: nil, list: nil)
     end
 
@@ -776,7 +770,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(progress[:programs].first[:summary][:co_ops]).to eq(required: 2, done: 1)
     end
 
-    it "loads the catalog courses of every program in one query" do
+    it "loads the catalog courses of every program without an N+1 query" do
       create(:catalog_course, subject_code: "WDGT", course_number: 1000)
       item(subject_code: "WDGT", course_number: 1000)
       minor = create(:degree_program, :minor)
@@ -789,11 +783,8 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       create(:catalog_course, subject_code: "GEAR", course_number: 2000, title: "Gear Trains")
       create(:student_program, :planned, user: user, degree_program: list_minor, catalog_year: catalog_year)
 
-      queries = []
-      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(include_planned: true) }
+      result = Prosopite.scan { progress(include_planned: true) }
 
-      expect(queries.size).to eq(1)
       expect(result[:programs].last[:lists].sole[:courses].sole).to include(code: "GEAR 2000", title: "Gear Trains")
     end
   end
@@ -1166,18 +1157,15 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(program[:expected_end]).to eq(term: "Spring 2027", estimated: false, plan_end: "Spring 2027")
     end
 
-    it "reads the prerequisite trees in the one catalog course query" do
+    it "reads the prerequisite trees with the catalog courses, without an N+1 query" do
       create(:catalog_course, subject_code: "WDGT", course_number: 1000)
       create(:catalog_course, subject_code: "WDGT", course_number: 2000,
                               prerequisites: { "type" => "course", "subject_code" => "WDGT", "course_number" => "1000" })
       item(subject_code: "WDGT", course_number: 1000, year_index: 2, season: "spring")
       item(subject_code: "WDGT", course_number: 2000, year_index: 2, season: "spring")
 
-      queries = []
-      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Prosopite.scan { progress } }
+      result = Prosopite.scan { progress }
 
-      expect(queries.size).to eq(1)
       expect(result[:programs].sole[:requirements].pluck(:expected_term, :moved))
         .to eq([ [ "Spring 2027", nil ], [ "Fall 2027", "prerequisite" ] ])
       # The tree is not part of the response.

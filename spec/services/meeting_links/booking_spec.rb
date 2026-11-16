@@ -33,7 +33,7 @@ RSpec.describe MeetingLinks::Booking do
     expect(meeting).to have_attributes(user: owner, title: "Meeting with Sample Guest", guest_name: "Sample Guest",
                                        guest_email: "guest@example.com", start_time: zone.local(2026, 10, 8, 10),
                                        end_time: zone.local(2026, 10, 8, 10, 30))
-    expect(link.reload).to have_attributes(used_at: be_present, friend_meeting: meeting, guest_user: nil)
+    expect(link.reload).to have_attributes(used_at: Time.current, friend_meeting: meeting, guest_user: nil)
   end
 
   it "keeps the signed-in guest on the link" do

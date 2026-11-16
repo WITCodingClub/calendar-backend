@@ -32,48 +32,29 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
   # told which section to describe.
   EMPTY_HTML = "<html><body><section aria-labelledby='other'></section></body></html>"
 
+  let(:search_url) { Catalog::LeopardWebClient::BASE_URL }
+
+  # Banner answers this one only over POST, with the term and the CRN in a
+  # form body. The bug was in the request, not in the parsing.
+  def stub_enrollment(body: ENROLLMENT_HTML, status: 200, crn: "16160")
+    stub_request(:post, "#{search_url}getEnrollmentInfo")
+      .with(body: { "term" => "202710", "courseReferenceNumber" => crn })
+      .to_return(status: status, body: body, headers: { "Content-Type" => "text/html" })
+  end
+
   describe "#get_enrollment_info" do
-    # Records what the service actually sent, because the bug was in the
-    # request, not in the parsing.
-    def stub_connection(service, body:, status: 200)
-      requests = []
-
-      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-        stub.post("getEnrollmentInfo") do |env|
-          # Copy the request now. Faraday reuses the env and overwrites body
-          # with the response, so holding the env itself proves nothing.
-          requests << { method: env.method, body: env.request_body.to_s }
-          [ status, { "Content-Type" => "text/html" }, body ]
-        end
-      end
-
-      # Mirrors the real connection, which form-encodes the body.
-      connection = Faraday.new do |f|
-        f.request :url_encoded
-        f.adapter :test, stubs
-      end
-      allow(service).to receive(:connection).and_return(connection)
-
-      requests
-    end
+    let(:service) { described_class.new(term: 202710, course_reference_number: 16_160) }
 
     it "sends the term and the crn, which Banner needs to pick a section" do
-      service  = described_class.new(term: 202710,
-                                     course_reference_number: 16_160)
-      requests = stub_connection(service, body: ENROLLMENT_HTML)
+      request = stub_enrollment
 
       service.get_enrollment_info
 
-      expect(requests.size).to eq(1)
-      expect(requests.first[:method]).to eq(:post)
-      expect(requests.first[:body]).to include("term=202710")
-      expect(requests.first[:body]).to include("courseReferenceNumber=16160")
+      expect(request).to have_been_requested.once
     end
 
     it "returns the enrollment and waitlist numbers" do
-      service = described_class.new(term: 202710,
-                                    course_reference_number: 16_160)
-      stub_connection(service, body: ENROLLMENT_HTML)
+      stub_enrollment
 
       result = service.get_enrollment_info
 
@@ -82,20 +63,16 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
 
     it "keeps the negative count of an over-enrolled section, as the importer does" do
-      service = described_class.new(term: 202710,
-                                    course_reference_number: 16_962)
-      stub_connection(service, body: OVER_ENROLLED_HTML)
+      stub_enrollment(body: OVER_ENROLLED_HTML, crn: "16962")
 
-      result = service.get_enrollment_info
+      result = described_class.new(term: 202710, course_reference_number: 16_962).get_enrollment_info
 
       expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: -8)
       expect(result[:waitlist][:seats_available]).to eq(-2)
     end
 
     it "returns nil when the page carries no enrollment section" do
-      service = described_class.new(term: 202710,
-                                    course_reference_number: 16_160)
-      stub_connection(service, body: EMPTY_HTML)
+      stub_enrollment(body: EMPTY_HTML)
 
       expect(service.get_enrollment_info).to be_nil
     end
@@ -113,7 +90,13 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
   end
 
-  describe "#get_class_details faculty" do
+  describe "#get_class_details" do
+    let(:service) { described_class.new(term: 202710, course_reference_number: 16_004) }
+    let(:query)   { { "term" => "202710", "courseReferenceNumber" => "16004" } }
+    let(:details_html) do
+      '<section aria-labelledby="classDetails"><span id="courseTitle">Calculus 2A</span></section>'
+    end
+
     # A trimmed copy of what Banner returns for CRN 16004 in term 202710. The
     # faculty array sits beside meetingTime in the same fmt entry, and the
     # service used to read only the meeting time.
@@ -141,108 +124,116 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       }
     end
 
-    def service_with(fmt)
-      service = described_class.new(term: 202710,
-                                    course_reference_number: 16_004)
-      allow(service).to receive(:handle_response).and_return({ title: "Calculus 2A" })
-      allow(service).to receive(:get_faculty_meeting_times).and_return(fmt)
-      allow(service).to receive(:get_enrollment_info).and_return(nil)
-      allow(service).to receive(:connection).and_return(instance_double(Faraday::Connection, get: nil))
-      service
+    def stub_details(status: 200, body: details_html)
+      stub_request(:get, "#{search_url}getClassDetails").with(query: query)
+        .to_return(status: status, body: body, headers: { "Content-Type" => "text/html" })
     end
 
-    it "keeps the instructor Banner reports alongside the meeting times" do
-      details = service_with(fmt_payload).get_class_details
-
-      expect(details[:faculty]).to eq([
-        {
-          "displayName"      => "Elijah Sanderson",
-          "emailAddress"     => "sandersone1@wit.edu",
-          "primaryIndicator" => true
-        }
-      ])
+    def stub_meeting_times(status: 200, body: fmt_payload)
+      stub_request(:get, "#{search_url}getFacultyMeetingTimes").with(query: query)
+        .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
     end
 
-    it "drops an entry with no email, which no faculty record can match" do
-      fmt_payload["fmt"].first["faculty"] << { "displayName" => "Staff", "emailAddress" => "" }
-
-      expect(service_with(fmt_payload).get_class_details[:faculty].size).to eq(1)
+    def stub_seats(status: 200)
+      stub_enrollment(status: status, crn: "16004")
     end
 
-    it "lists an instructor once when several meetings share them" do
-      fmt_payload["fmt"] << fmt_payload["fmt"].first.deep_dup
+    describe "faculty" do
+      before do
+        stub_details
+        stub_seats
+      end
 
-      expect(service_with(fmt_payload).get_class_details[:faculty].size).to eq(1)
-    end
+      it "keeps the instructor Banner reports alongside the meeting times" do
+        stub_meeting_times
 
-    it "defaults primaryIndicator to false when Banner omits it" do
-      fmt_payload["fmt"].first["faculty"].first.delete("primaryIndicator")
+        expect(service.get_class_details[:faculty]).to eq([
+          {
+            "displayName"      => "Elijah Sanderson",
+            "emailAddress"     => "sandersone1@wit.edu",
+            "primaryIndicator" => true
+          }
+        ])
+      end
 
-      expect(service_with(fmt_payload).get_class_details[:faculty].first["primaryIndicator"]).to be(false)
-    end
-  end
+      it "drops an entry with no email, which no faculty record can match" do
+        fmt_payload["fmt"].first["faculty"] << { "displayName" => "Staff", "emailAddress" => "" }
+        stub_meeting_times
 
-  describe "#get_class_details requests" do
-    let(:service) do
-      described_class.new(term: 202710, course_reference_number: 16_004)
-    end
+        expect(service.get_class_details[:faculty].size).to eq(1)
+      end
 
-    let(:connection) { instance_double(Faraday::Connection, get: nil) }
+      it "lists an instructor once when several meetings share them" do
+        fmt_payload["fmt"] << fmt_payload["fmt"].first.deep_dup
+        stub_meeting_times
 
-    before do
-      allow(service).to receive(:connection).and_return(connection)
-      allow(service).to receive(:handle_response).and_return({ title: "Calculus 2A" })
+        expect(service.get_class_details[:faculty].size).to eq(1)
+      end
+
+      it "defaults primaryIndicator to false when Banner omits it" do
+        fmt_payload["fmt"].first["faculty"].first.delete("primaryIndicator")
+        stub_meeting_times
+
+        expect(service.get_class_details[:faculty].first["primaryIndicator"]).to be(false)
+      end
     end
 
     it "sends the details, meeting times, and enrollment requests at the same time" do
-      in_flight = Queue.new
-      wait_for_all = lambda do |name, result|
-        in_flight << name
-        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
-        sleep 0.01 while in_flight.size < 3 && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
-        raise "requests ran one at a time" if in_flight.size < 3
+      # Each answer waits until all three requests have arrived, so requests
+      # sent one at a time never get past the first.
+      arrived = Concurrent::CountDownLatch.new(3)
+      together = lambda do |response|
+        lambda do |_request|
+          arrived.count_down
+          raise "requests ran one at a time" unless arrived.wait(5)
 
-        result
+          response
+        end
       end
-      allow(connection).to receive(:get) { wait_for_all.call(:details, nil) }
-      allow(service).to receive(:get_faculty_meeting_times) { wait_for_all.call(:fmt, nil) }
-      allow(service).to receive(:get_enrollment_info) do
-        wait_for_all.call(:enrollment, { enrollment: { seats_available: 4, maximum: 30 }, waitlist: { capacity: 5, seats_available: 2 } })
-      end
+      stub_request(:get, "#{search_url}getClassDetails").with(query: query)
+        .to_return(&together.call(status: 200, body: details_html))
+      stub_request(:get, "#{search_url}getFacultyMeetingTimes").with(query: query)
+        .to_return(&together.call(status: 200, body: "{}", headers: { "Content-Type" => "application/json" }))
+      stub_request(:post, "#{search_url}getEnrollmentInfo")
+        .to_return(&together.call(status: 200, body: ENROLLMENT_HTML))
 
-      details = service.get_class_details
-
-      expect(details).to include(title: "Calculus 2A", seats_available: 4, seats_capacity: 30,
-                                 waitlist_capacity: 5, waitlist_available: 2)
+      expect(service.get_class_details).to include(title: "Calculus 2A", seats_available: 1, seats_capacity: 16,
+                                                   waitlist_capacity: 0, waitlist_available: 0)
     end
 
     it "still raises a meeting times failure for a section that exists" do
-      allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
-      allow(service).to receive(:get_enrollment_info).and_return(nil)
+      stub_details
+      stub_meeting_times(status: 400, body: {})
+      stub_seats
 
-      expect { service.get_class_details }.to raise_error(Catalog::LeopardWebClient::RequestError, "Banner is down")
+      expect { service.get_class_details }.to raise_error(Catalog::LeopardWebClient::RequestError, /status 400/)
     end
 
     it "returns nil for a missing section, even when the other requests fail" do
-      allow(service).to receive(:handle_response).and_return(nil)
-      allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
-      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
+      stub_details(body: "<html><body></body></html>")
+      stub_meeting_times(status: 400, body: {})
+      stub_seats(status: 400)
 
       expect(service.get_class_details).to be_nil
     end
 
     it "lets a Banner cooldown in the enrollment request stop the caller" do
-      allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
-      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+      stub_details
+      stub_meeting_times
+      stub_request(:post, "#{search_url}getEnrollmentInfo").to_raise(Catalog::BannerThrottle::CooldownError.new(60))
 
       expect { service.get_class_details }.to raise_error(Catalog::BannerThrottle::CooldownError)
     end
 
     it "keeps the details when only the enrollment request fails" do
-      allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
-      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
+      stub_details
+      stub_meeting_times
+      stub_seats(status: 400)
 
-      expect(service.get_class_details).to eq({ title: "Calculus 2A" })
+      details = service.get_class_details
+
+      expect(details).to include(title: "Calculus 2A", faculty: be_present)
+      expect(details).not_to have_key(:seats_available)
     end
   end
 

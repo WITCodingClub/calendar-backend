@@ -197,11 +197,15 @@ RSpec.describe FriendMeetings::Creator do
     end
 
     it "returns the meeting that won a race for the same key" do
-      first = create_meeting(idempotency_key: "synthetic-key-1")
-      creator = described_class.new(**attributes, idempotency_key: "synthetic-key-1")
-      allow(creator).to receive(:find_existing).and_return(nil, first)
+      winner = create_meeting(idempotency_key: "synthetic-key-winner")
+      # The other request saves its meeting after this one looked for the key.
+      allow(FriendMeeting).to receive(:new).and_wrap_original do |original, *args, **kwargs|
+        winner.update_column(:idempotency_key, "synthetic-key-1") # rubocop:disable Rails/SkipsModelValidations
+        original.call(*args, **kwargs)
+      end
 
-      expect(creator.call).to eq(first)
+      expect(create_meeting(idempotency_key: "synthetic-key-1")).to eq(winner)
+      expect(FriendMeeting.count).to eq(1)
     end
   end
 

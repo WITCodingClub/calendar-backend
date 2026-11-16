@@ -51,10 +51,11 @@ RSpec.describe VersionService do
     end
 
     it "uses the SHA as the version and reports no update" do
-      allow_any_instance_of(described_class).to receive(:latest_version).and_return("v6.3.0") # rubocop:disable RSpec/AnyInstance
+      stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
+        .to_return(status: 200, body: { tag_name: "v6.3.0" }.to_json)
       result = described_class.call
 
-      expect(result).to include(current: "0123456", update_available: false)
+      expect(result).to include(current: "0123456", latest: "v6.3.0", update_available: false)
     end
   end
 end

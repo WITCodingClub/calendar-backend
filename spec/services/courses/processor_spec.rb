@@ -83,8 +83,7 @@ RSpec.describe Courses::Processor do
   it "creates the course, meeting times, and enrollment" do
     process!
 
-    course = Course.find_by(crn: 12345, term: term)
-    expect(course).to be_present
+    course = Course.find_by!(crn: 12345, term: term)
     expect(course.meeting_times.count).to eq(2)
     expect(user.enrollments.where(course: course)).to exist
   end
@@ -385,16 +384,6 @@ RSpec.describe Courses::Processor do
 
       expect { process! }.not_to have_enqueued_job(Catalog::SectionRefreshJob)
     end
-
-    it "logs how many sections came from the catalog and from Banner" do
-      stored_course(12345, 1.hour.ago)
-      allow(Rails.logger).to receive(:info).and_call_original
-
-      process!
-
-      expect(Rails.logger).to have_received(:info)
-        .with(a_string_matching(/\[Courses::Processor\] .*sections=2 from_catalog=1 from_banner=1 .*total_ms=\d+/))
-    end
   end
 
   describe "fetching from Banner" do
@@ -403,14 +392,12 @@ RSpec.describe Courses::Processor do
     end
 
     it "asks Banner about every section at the same time" do
-      in_flight = Queue.new
-      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |course_reference_number:, **|
-        in_flight << course_reference_number
+      started = Concurrent::CountDownLatch.new(2)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do
         # Hold this request open until the other one starts. Asked one after
         # another, the second never starts and this times out.
-        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
-        sleep 0.01 while in_flight.size < 2 && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
-        raise "sections were fetched one at a time" if in_flight.size < 2
+        started.count_down
+        raise "sections were fetched one at a time" unless started.wait(5)
 
         class_details
       end

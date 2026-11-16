@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe DegreeRequirements::Importer do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:catalog_year) { create(:catalog_year, start_year: 2024) }
   let(:client) { DegreeRequirements::CatalogSiteClient.new(delay: 0, wayback_delay: 0) }
   let(:base) { "https://catalog.wit.edu/previous-catalogs/2024-2025" }
@@ -26,11 +28,12 @@ RSpec.describe DegreeRequirements::Importer do
   end
 
   it "imports every program of the index once" do
-    result = import
+    now = Time.zone.local(2026, 11, 1, 12)
+    result = travel_to(now) { import }
 
     expect(result).to have_attributes(status: :imported, programs: 8, updated: 8, unchanged: 0, skipped: 0)
     expect(catalog_year.reload).to have_attributes(status: "imported", source: "html", base_url: "#{base}/")
-    expect(catalog_year.imported_at).to be_present
+    expect(catalog_year.imported_at).to eq(now)
     expect(DegreeProgram.pluck(:slug)).to contain_exactly(
       "widget-design-bs", "widget-design-bs-gears-concentration", "widget-design-ms", "widget-design-minor",
       "exploratory-wd", "gadget-cert", "sprocket-tech-aas", "sprocket-studies-minor"

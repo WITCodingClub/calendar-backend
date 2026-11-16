@@ -3,6 +3,9 @@
 require "rails_helper"
 
 RSpec.describe Catalog::SectionLinksSync do
+  include ActiveSupport::Testing::TimeHelpers
+
+  let(:now)     { Time.zone.local(2026, 11, 1, 12) }
   let(:term)    { create(:term, uid: 202720, season: :spring, year: 2027) }
   let(:lecture) { create(:course, term: term, crn: 20452, course_number: 4960, schedule_type: "LEC", is_section_linked: true, link_identifier: "A2") }
   let(:lab)     { create(:course, term: term, crn: 20455, course_number: 4960, schedule_type: "LAB", is_section_linked: true, link_identifier: "B1") }
@@ -18,10 +21,10 @@ RSpec.describe Catalog::SectionLinksSync do
     lab
     stub_links(20452, "linked_sections_lecture.json")
 
-    expect(described_class.call(lecture)).to be(true)
+    expect(travel_to(now) { described_class.call(lecture) }).to be(true)
 
     expect(lecture.section_links.pluck(:linked_course_id, :option_group, :credit_hours)).to eq([ [ lab.id, 0, 0 ] ])
-    expect(lecture.reload.links_fetched_at).to be_present
+    expect(lecture.reload.links_fetched_at).to eq(now)
   end
 
   it "keeps each option group" do
@@ -41,10 +44,10 @@ RSpec.describe Catalog::SectionLinksSync do
     create(:section_link, course: lecture, linked_course: create(:course, term: term), option_group: 0)
     stub_links(20452, "linked_sections_lecture.json")
 
-    described_class.call(lecture)
+    travel_to(now) { described_class.call(lecture) }
 
     expect(lecture.section_links.count).to eq(0)
-    expect(lecture.reload.links_fetched_at).to be_present
+    expect(lecture.reload.links_fetched_at).to eq(now)
   end
 
   it "stores no partners when Banner gives none" do
