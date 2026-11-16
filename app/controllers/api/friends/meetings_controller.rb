@@ -60,8 +60,6 @@ module Api
         )
 
         render json: { meeting: serialize(meeting) }, status: meeting.previously_new_record? ? :created : :ok
-      rescue FriendMeetings::Creator::Error => e
-        render_error e.message, status: :unprocessable_content
       end
 
       # Changes the whole series, the repeat options too. Only the owner can do
@@ -71,8 +69,6 @@ module Api
 
         FriendMeetings::Updater.call(meeting: @meeting, changes: params.permit(*FriendMeetings::Updater::PERMITTED).to_h)
         render json: { meeting: serialize(@meeting.reload) }
-      rescue FriendMeetings::Creator::Error => e
-        render_error e.message, status: :unprocessable_content
       end
 
       # The meeting is gone for the person at once. A job deletes the provider
