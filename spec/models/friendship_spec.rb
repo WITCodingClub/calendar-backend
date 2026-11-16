@@ -154,22 +154,28 @@ RSpec.describe Friendship, type: :model do
   end
 
   describe "removing a friend" do
+    def meeting_with_attendee(friendship)
+      meeting = create(:friend_meeting, user: friendship.requester)
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: friendship.addressee)
+      meeting
+    end
+
     it "takes the ex-friends off each other's future meetings" do
       friendship = create(:friendship, :accepted)
-      allow(FriendMeetings::AttendeeRemover).to receive(:call)
+      meeting = meeting_with_attendee(friendship)
 
       friendship.destroy!
 
-      expect(FriendMeetings::AttendeeRemover).to have_received(:call).with(friendship.requester_id, friendship.addressee_id)
+      expect(meeting.friend_meeting_attendees.reload).to be_empty
     end
 
     it "does nothing when a pending request is cancelled" do
       friendship = create(:friendship)
-      allow(FriendMeetings::AttendeeRemover).to receive(:call)
+      meeting = meeting_with_attendee(friendship)
 
       friendship.destroy!
 
-      expect(FriendMeetings::AttendeeRemover).not_to have_received(:call)
+      expect(meeting.friend_meeting_attendees.reload.size).to eq(1)
     end
   end
 
@@ -223,18 +229,22 @@ RSpec.describe Friendship, type: :model do
       end
 
       it "only proposes a permanent friendship" do
+        current = friendship.expires_at
+
         expect(friendship.change_expiry!(to: nil, by: addressee)).to eq(:proposed)
 
         friendship.reload
-        expect(friendship.expires_at).to be_present
+        expect(friendship.expires_at).to eq(current)
         expect(friendship).to have_attributes(proposed_by: addressee, proposed_expires_at: nil, proposed_permanent: true)
       end
 
       it "treats any date on a permanent friendship as sooner" do
         permanent = create(:friendship, :accepted)
 
-        expect(permanent.change_expiry!(to: 5.days.from_now, by: permanent.addressee)).to eq(:shortened)
-        expect(permanent.reload.expires_at).to be_present
+        sooner = 5.days.from_now.change(usec: 0)
+
+        expect(permanent.change_expiry!(to: sooner, by: permanent.addressee)).to eq(:shortened)
+        expect(permanent.reload.expires_at).to eq(sooner)
       end
 
       it "changes nothing for the same date" do

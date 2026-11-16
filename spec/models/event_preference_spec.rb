@@ -68,12 +68,13 @@ RSpec.describe EventPreference, type: :model do
 
     it "enqueues nothing when the sync deletes its calendar event and takes it along" do
       calendar = user.course_calendars.sole
+      calendar.oauth_credential.update!(token_expires_at: 1.hour.from_now)
       row      = create(:calendar_event, course_calendar: calendar, external_event_id: "evt-1")
       create(:event_preference, :for_calendar_event, user: user, preferenceable: row, color_id: "#1a2b3c")
-      service = GoogleCalendar::Provider.new(user)
-      allow(service).to receive(:delete_event)
+      stub_request(:delete, %r{\Ahttps://www\.googleapis\.com/calendar/v3/calendars/[^/]+/events/evt-1})
+        .to_return(status: 204)
 
-      expect { service.send(:delete_rows, [ row ]) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+      expect { GoogleCalendar::Provider.new(user).delete_events([ row ]) }.not_to have_enqueued_job(CourseCalendars::SyncJob)
       expect(EventPreference.where(preferenceable: row)).to be_empty
     end
 

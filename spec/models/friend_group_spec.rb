@@ -289,17 +289,19 @@ RSpec.describe FriendGroup, type: :model do
     end
   end
 
-  # Every check of "is this an accepted friendship" goes through
-  # User#accepted_friendships. When it answers none, all of them must agree.
-  describe "the one accepted-friendship rule" do
+  # Every check of "is this an accepted friendship" must agree that an
+  # accepted friendship stops counting once it expires.
+  describe "a friendship that expired" do
     let(:group)  { create(:friend_group) }
     let(:owner)  { group.user }
-    let(:friend) { create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) } }
+    let(:friend) do
+      create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner, expires_at: 1.day.from_now) }
+    end
     let!(:membership) do
       create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(owner, friend))
     end
 
-    before { allow_any_instance_of(User).to receive(:accepted_friendships).and_return(Friendship.none) } # rubocop:disable RSpec/AnyInstance
+    before { travel 2.days }
 
     it "is followed by the membership validation" do
       expect(membership.reload).not_to be_valid

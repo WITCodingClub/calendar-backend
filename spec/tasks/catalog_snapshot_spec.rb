@@ -19,14 +19,13 @@ RSpec.describe "catalog:snapshot rake tasks" do
 
     Dir.mktmpdir do |dir|
       path = File.join(dir, "catalog.json.gz")
-      allow(ENV).to receive(:fetch).and_call_original
-      allow(ENV).to receive(:fetch).with("FILE", anything).and_return(path)
+      with_env("FILE" => path) do
+        expect { run_task("catalog:snapshot:export") }.to output(/Wrote #{Regexp.escape(path)}: 1 terms.*1 courses/).to_stdout
 
-      expect { run_task("catalog:snapshot:export") }.to output(/Wrote #{Regexp.escape(path)}: 1 terms.*1 courses/).to_stdout
+        Catalog::Snapshot::TABLES.values.reverse_each { |model, _columns| model.constantize.delete_all }
 
-      Catalog::Snapshot::TABLES.values.reverse_each { |model, _columns| model.constantize.delete_all }
-
-      expect { run_task("catalog:snapshot:import") }.to output(/Imported #{Regexp.escape(path)}/).to_stdout
+        expect { run_task("catalog:snapshot:import") }.to output(/Imported #{Regexp.escape(path)}/).to_stdout
+      end
       expect(Course.find(course.id).crn).to eq(course.crn)
     end
   end

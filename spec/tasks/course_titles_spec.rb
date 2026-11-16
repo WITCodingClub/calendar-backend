@@ -58,10 +58,7 @@ RSpec.describe "course title rake tasks" do
         .with(term: past_term.uid).and_return(banner_catalog([ past.crn, "INTRO TO CO-OP" ]))
       allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .with(term: current_term.uid).and_return(banner_catalog([ current.crn, "STUDIO 07 (AI-URBINO)" ], [ 99_999, "NOT STORED" ]))
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("ALL").and_return("1")
-
-      expect { run_task("courses:refresh_titles") }.to output(/TOTAL: Updated 2, Failed 0/).to_stdout
+      expect { with_env("ALL" => "1") { run_task("courses:refresh_titles") } }.to output(/TOTAL: Updated 2, Failed 0/).to_stdout
 
       expect(past.reload.title).to eq("Intro To Co-Op")
       expect(current.reload.title).to eq("Studio 07 (AI-Urbino)")
@@ -115,9 +112,7 @@ RSpec.describe "course title rake tasks" do
       expect { run_task("courses:normalize_titles") }.to output(/Updated 0 course titles/).to_stdout
       expect(past.reload.title).to eq("Intro To Ai")
 
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("ALL").and_return("1")
-      expect { run_task("courses:normalize_titles") }.to output(/Updated 1 course titles/).to_stdout
+      expect { with_env("ALL" => "1") { run_task("courses:normalize_titles") } }.to output(/Updated 1 course titles/).to_stdout
       expect(past.reload.title).to eq("Intro To AI")
     end
   end
