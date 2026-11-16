@@ -60,6 +60,11 @@ class SecurityEvent < ApplicationRecord
 
   RETENTION_DAYS = 90
 
+  # Some events name no Google account: a verification ping, or a
+  # token-revoked event without a subject that matches no credential. The row
+  # is still kept, so the column holds this value in place of a subject.
+  UNKNOWN_SUBJECT = "unknown"
+
   scope :unprocessed,   -> { where(processed: false) }
   scope :processed,     -> { where(processed: true) }
   scope :expired,       -> { where(expires_at: ...Time.current) }

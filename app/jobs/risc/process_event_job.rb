@@ -10,6 +10,10 @@ module Risc
     retry_on Risc::Validator::FetchError, wait: :polynomially_longer, attempts: 5
     discard_on Risc::Validator::ValidationError
 
+    # The handler could not record the event at all. Raising lets retry_on try
+    # again, and the job executor reports the last failure.
+    class EventNotRecorded < StandardError; end
+
     def perform(token)
       validation_service = Risc::Validator.new
       decoded_token = validation_service.validate_and_decode(token)
@@ -24,6 +28,13 @@ module Risc
 
       result = Risc::EventHandler.new(event_data).process
       Rails.logger.info("RISC event processed: #{result}")
+      return if result[:success]
+
+      # A failure that left a processed row was already reported by the
+      # handler. One that left no row would vanish without a trace.
+      return if SecurityEvent.processed.exists?(jti: event_data[:jti])
+
+      raise EventNotRecorded, "RISC event #{event_data[:jti]} was not recorded: #{result[:error]}"
     end
   end
 end
