@@ -274,7 +274,7 @@ Rules:
 - The `mcp` gem does not check content items. It sends each Hash as it is.
 - Only a client on protocol version 2025-06-18 or later gets links. An older client can check the content against a closed list of types and refuse the whole result. The server reads the version from the `_meta` envelope (2026-07-28) first, then from the `MCP-Protocol-Version` header. A request with no version is 2025-03-26, so it gets no links. This rule also applies to the missing permission error.
 - The dashboard sends a student with no processed courses to the onboarding page. Such a student gets no link to those pages. Use `onboarded_page_link` for them. The notification and settings pages skip onboarding, so they use `page_link`. `User#onboarding_complete?` is the rule for both.
-- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`ScheduleLoading.terms_for`). `my_courses` links only to a term in that list.
+- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`Courses::Schedule.terms_for`). `my_courses` links only to a term in that list.
 - A link is extra. When a `links` block raises an error, the server reports it with `Rails.error.report` and sends the result with no links.
 
 To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of link Hashes from `page_link` or `onboarded_page_link` (`McpTools::PageLinks`):

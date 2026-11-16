@@ -19,7 +19,7 @@ module McpTools
     # Only for a term that the schedule page lists. A past term or a term
     # with no courses gets no link, because the page would not show it.
     links do |result|
-      next [] unless ScheduleLoading.terms_for(user).pluck(:uid).include?(result[:term_uid])
+      next [] unless Courses::Schedule.terms_for(user).pluck(:uid).include?(result[:term_uid])
 
       [
         onboarded_page_link(

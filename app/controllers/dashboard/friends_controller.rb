@@ -2,7 +2,6 @@
 
 module Dashboard
   class FriendsController < Dashboard::ApplicationController
-    include ScheduleLoading
     include Dashboard::FriendFeatures
 
     def index
@@ -32,9 +31,9 @@ module Dashboard
       # The friend's own setting decides what this page shows. A friend who
       # shares only availability gets busy blocks, never the course list.
       if @friendship.full_schedule_visible_to?(current_user)
-        @schedule = build_schedule_for(@friend)
+        @schedule = Courses::Schedule.build(@friend, **schedule_params)
       else
-        @week_start  = availability_week_start
+        @week_start  = Courses::Schedule.week_start_for(params[:week_start])
         @busy_blocks = BusyBlocks.new(@friend, from: @week_start, to: @week_start + 6).call
         render :availability
       end
@@ -75,12 +74,6 @@ module Dashboard
     end
 
     private
-
-    def availability_week_start
-      Date.iso8601(params[:week_start].to_s).beginning_of_week(:monday)
-    rescue Date::Error
-      Time.zone.today.beginning_of_week(:monday)
-    end
 
     # Groups show only while the friend_groups flag is on. Each list loads in a
     # fixed number of queries, however many friends and groups there are.
