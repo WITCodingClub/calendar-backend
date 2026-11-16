@@ -37,10 +37,7 @@ module UniversityCalendar
     def fetch_ics_content
       url = ics_url.gsub(/^webcal:\/\//, "https://")
 
-      response = Faraday.get(url) do |req|
-        req.options.timeout = 30
-        req.options.open_timeout = 10
-      end
+      response = HttpFetcher.connection.get(url)
 
       unless response.success?
         raise "Failed to fetch ICS feed: #{response.status}"

@@ -86,13 +86,7 @@ module Faculties
     end
 
     def connection
-      @connection ||= Faraday.new(url: BASE_URL) do |faraday|
-        faraday.request :url_encoded
-        faraday.headers["User-Agent"] = "WITCalendarBot/1.0"
-        faraday.adapter Faraday.default_adapter
-        faraday.options.timeout = 30
-        faraday.options.open_timeout = 10
-      end
+      @connection ||= HttpFetcher.connection(url: BASE_URL) { |faraday| faraday.request :url_encoded }
     end
 
     def parse_directory_page(html)

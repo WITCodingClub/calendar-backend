@@ -10,7 +10,6 @@ module TermElectives
   class FetchError < Error; end
 
   PAGE_URL = "https://wit.edu/academics/registrar/how-to/technical-major-and-huss-electives"
-  USER_AGENT = "WITCalendarBot/1.0"
   # The page and its PDFs are on wit.edu. A link can also name www.wit.edu.
   SITE_HOST = "wit.edu"
 
