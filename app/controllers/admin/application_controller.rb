@@ -26,6 +26,15 @@ module Admin
       redirect_to unauthorized_path unless current_user.admin_access?
     end
 
+    # The rows where any of the columns contains the search text. A % or _ in
+    # the text matches itself, not any characters.
+    def search_scope(scope, *columns, term: params[:search])
+      return scope if term.blank?
+
+      pattern = "%#{ApplicationRecord.sanitize_sql_like(term.to_s.strip)}%"
+      scope.where(columns.map { |column| "#{column} ILIKE :pattern" }.join(" OR "), pattern: pattern)
+    end
+
     def user_not_authorized
       flash[:alert] = "You are not authorized to perform this action."
       redirect_to unauthorized_path

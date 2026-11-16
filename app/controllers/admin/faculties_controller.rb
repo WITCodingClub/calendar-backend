@@ -6,13 +6,7 @@ module Admin
       authorize Faculty
       @faculties = policy_scope(Faculty).order(:last_name, :first_name)
 
-      if params[:search].present?
-        q = "%#{params[:search]}%"
-        @faculties = @faculties.where(
-          "first_name ILIKE :q OR last_name ILIKE :q OR display_name ILIKE :q OR email ILIKE :q OR department ILIKE :q OR title ILIKE :q",
-          q: q
-        )
-      end
+      @faculties = search_scope(@faculties, *%w[first_name last_name display_name email department title].map { |c| "faculties.#{c}" })
 
       @faculties = @faculties.where(employee_type: params[:employee_type]) if params[:employee_type].present?
       @faculties = @faculties.page(params[:page]).per(25)
@@ -43,9 +37,7 @@ module Admin
       authorize Faculty, :missing_rmp_ids?
       @faculties = policy_scope(Faculty).teaching_current_or_future.where(rmp_id: nil).order(:last_name, :first_name)
 
-      if params[:search].present?
-        @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
-      end
+      @faculties = search_scope(@faculties, "faculties.first_name", "faculties.last_name")
 
       @faculties = @faculties.page(params[:page]).per(25)
       # One grouped count for the page, not one count for each row (#689).

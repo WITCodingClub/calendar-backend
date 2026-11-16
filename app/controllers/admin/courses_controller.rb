@@ -6,9 +6,7 @@ module Admin
       authorize Course
       @courses = policy_scope(Course).includes(:term, :faculties).order(created_at: :desc)
 
-      if params[:search].present?
-        @courses = @courses.where("title ILIKE ? OR subject ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
-      end
+      @courses = search_scope(@courses, "courses.title", "courses.subject")
 
       @courses = @courses.where(term_id: params[:term_id]) if params[:term_id].present?
       @courses = @courses.page(params[:page]).per(25)
