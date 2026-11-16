@@ -8,4 +8,6 @@ class Current < ActiveSupport::CurrentAttributes
   attribute :terms, default: -> { {} }
   # The cross-list groups of each term id, for Course#cross_listed_crns.
   attribute :cross_lists, default: -> { {} }
+  # The checked course code aliases (AcademicProfiles::CourseKeys.current).
+  attribute :course_keys
 end

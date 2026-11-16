@@ -15,7 +15,7 @@ module AcademicProfiles
   class AssumedCourses
     MAX_CODES = 50
 
-    class InvalidCodesError < StandardError; end
+    class InvalidCodesError < PlanningError; end
 
     # The [subject, number] pairs of an assume argument: a string of codes
     # separated by commas ("COMP3350,MATH 2300"), or a list of such strings.
@@ -31,7 +31,7 @@ module AcademicProfiles
       raise InvalidCodesError, "assume takes at most #{MAX_CODES} course codes" if codes.size > MAX_CODES
 
       codes.map do |code|
-        CatalogCourse.parse_code(code) ||
+        CourseKeys.parse(code) ||
           raise(InvalidCodesError, "assume must be course codes such as COMP3350, separated by commas")
       end.uniq
     end
@@ -61,7 +61,7 @@ module AcademicProfiles
     end
 
     def to_h
-      { courses: pairs.map { |subject, number| "#{subject} #{number}" }, from_plans: from_plans }
+      { courses: pairs.map { |pair| CourseKeys.format(pair) }, from_plans: from_plans }
     end
 
     private
@@ -71,8 +71,8 @@ module AcademicProfiles
     # skipped.
     def plan_pairs
       @plan_pairs ||= if @plans && @term_uid && @current_term_uid
-        RegistrationPlan.where(user: @user, term_uid: (@current_term_uid + 1)...@term_uid).order(:term_uid).pluck(:term_uid, :courses).to_h do |uid, courses|
-          [ uid, Array(courses).filter_map { |course| course.is_a?(Hash) && CatalogCourse.parse_code(course["code"]) } ]
+        RegistrationPlan.where(user: @user, term_uid: (@current_term_uid + 1)...@term_uid).order(:term_uid).to_h do |plan|
+          [ plan.term_uid, plan.course_codes.filter_map { |code| CourseKeys.parse(code) } ]
         end
       else
         {}

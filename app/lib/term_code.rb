@@ -54,10 +54,8 @@ module TermCode
   end
 
   def label(code)
-    return nil if code.nil?
-
     parts = year_and_season(code)
-    "#{parts[:season].capitalize} #{parts[:year]}"
+    parts && "#{parts[:season].capitalize} #{parts[:year]}"
   end
 
   def season(code) = SEASON_SUFFIXES.key(code % 100)
@@ -72,8 +70,7 @@ module TermCode
   # The next fall or spring term. A summer term is optional, and students
   # register for fall in the spring term, so it skips summer.
   def next_regular_term(code)
-    following = next_term(code)
-    summer?(following) ? next_term(following) : following
+    season(code) == "fall" ? code + 10 : ((code / 100) + 1) * 100 + SEASON_SUFFIXES.fetch("fall")
   end
 
   # The first year of the catalog year of a term: 2025 for 202610, 202620,

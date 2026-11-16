@@ -13,11 +13,12 @@ module AcademicProfiles
     # hss: the HSS progress of DegreeProgress#hss_progress (categories,
     # min_credits, english_humanities, rows). english: the courses in the
     # English Sequence slots. slot_courses: the courses in the HSS slots.
-    # matcher: an HssMatcher.
-    def initialize(hss, english:, slot_courses:, matcher:)
+    # matcher: an HssMatcher. credits: the CourseCredits of the response.
+    def initialize(hss, english:, slot_courses:, matcher:, credits:)
       @hss = hss
       @english = english
       @matcher = matcher
+      @credits = credits
       @courses = (slot_courses + hss[:rows] + [ hss[:english_humanities] ].compact).uniq
     end
 
@@ -40,17 +41,17 @@ module AcademicProfiles
     def self.with_open_slots(entry)
       return entry if entry[:hss].nil?
 
-      slots = entry[:requirements].select { |row| row[:status] == "open" && HssMatcher.slot_list?(row[:elective_list]) }
+      slots = entry[:requirements].select { |row| row[:status] == "open" && DegreeRequirements::SharedElectives.hss_list?(row[:elective_list]) }
       entry.merge(hss: entry[:hss].merge(open_slots: slots.map { |row| row.slice(:label, :planned_term, :planned_term_uid, :hss_category) }))
     end
 
     private
 
-    def credits(courses) = courses.sum { |course| course.credits.to_i }
+    def credits(courses) = @credits.sum(courses)
 
     def category_json(category)
       checkable = HssMatcher.checkable?(category)
-      course = checkable && @courses.select { |candidate| meets?(category, candidate) }.min_by { |c| DegreeProgress::RANK.fetch(c.status) }
+      course = checkable && @courses.select { |candidate| meets?(category, candidate) }.min_by { |c| CourseHistory::RANK.fetch(c.status) }
       { name: category["name"], checkable: checkable, status: course ? course.status : "open", course: course ? course.code : nil,
         hint: HssMatcher.hint(category) }
     end
@@ -58,7 +59,7 @@ module AcademicProfiles
     # category: the first category, in category order, that the course meets,
     # or nil (a course in a Humanities slot can have a subject of no category).
     def course_json(course)
-      { code: course.code, title: course.title, credits: course.credits, status: course.status,
+      { code: course.code, title: course.title, credits: @credits.of(course), status: course.status,
         category: @matcher.category_of(@hss[:categories], course, english_humanities: @hss[:english_humanities]) }
     end
 

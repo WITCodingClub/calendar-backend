@@ -22,21 +22,20 @@ module AcademicProfiles
     ESTIMATE = "estimate"
 
     # start_term_uid and current_term_uid: Banner codes. prerequisites:
-    # answers prerequisites([subject, number]) (CourseDetails). aliases:
-    # each pair with its old and new pairs. taken: the [subject, number]
-    # keys of the courses the student did or takes.
-    def initialize(start_term_uid, current_term_uid:, prerequisites:, aliases: {}, taken: [])
+    # answers prerequisites([subject, number]) (CourseDetails). taken: the
+    # [subject, number] keys of the courses the student did or takes.
+    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys: CourseKeys.new, taken: [])
       @start = start_term_uid
       @current = current_term_uid
       @prerequisites = prerequisites
-      @aliases = aliases
+      @course_keys = course_keys
       @taken = taken
     end
 
     # The program entry of PlanTerms with the estimate.
     def call(entry)
       rows = entry[:requirements]
-      places = Placement.new(rows, current_term_uid: @current, prerequisites: @prerequisites, aliases: @aliases,
+      places = Placement.new(rows, current_term_uid: @current, prerequisites: @prerequisites, course_keys: @course_keys,
                                      taken: @taken).call
       rows = rows.each_with_index.map do |row, index|
         uid, moved = places.fetch(index)

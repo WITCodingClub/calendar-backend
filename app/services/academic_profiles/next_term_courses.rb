@@ -31,12 +31,17 @@ module AcademicProfiles
   #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
-    COUNTED = DegreeProgress::STATUSES
-    # An assumed course counts as passed with a C or better.
-    ASSUMED = { status: "assumed", outcome: nil }.freeze
-    # A course code inside a missing entry, such as "WDGT 1100 or WDGT 1200".
-    MISSING_CODE = /[A-Z]{2,5} \d{3,4}/
-    # The rows that get candidates.
+    COUNTED = CourseHistory::STATUSES
+
+    # The outcomes of the courses that count for PrerequisiteCheck: the
+    # taken courses (by key), and each assumed course as passed with a C or
+    # better (no outcome).
+    Counted = Struct.new(:taken, :assumed) do
+      def counted(key)
+        outcomes = taken.fetch(key, []).pluck(:outcome)
+        assumed.include?(key) ? [ *outcomes, nil ] : outcomes
+      end
+    end
     CANDIDATE_KINDS = %w[placeholder choice].freeze
 
     # term_uid: the Banner code of the term. Without one, the next fall or
@@ -88,13 +93,6 @@ module AcademicProfiles
       }
     end
 
-    # true when an include value names candidates. It takes "candidates",
-    # a list separated by commas ("candidates,other"), or an array.
-    def self.candidates_requested?(value)
-      values = value.is_a?(Array) ? value : [ value ]
-      values.flat_map { |item| item.is_a?(String) ? item.split(",") : [] }.map(&:strip).include?("candidates")
-    end
-
     def term_uid
       @term_uid ||= current_term_uid && TermCode.next_regular_term(current_term_uid)
     end
@@ -126,23 +124,23 @@ module AcademicProfiles
       # DegreeProgress checks it once.
       @term_rows ||= programs[:programs].uniq { |program| [ program[:program], program[:catalog_year], program[:status] ] }
                                         .filter_map do |program|
-        entry = progress[:programs].find do |candidate|
-          candidate[:program] == program[:program] && candidate[:catalog_year] == program[:catalog_year] &&
-            candidate[:status] == program[:status]
-        end
+        entry = DegreeProgress.entry_for(progress, program)
         next if entry.nil? || entry[:plan].nil?
 
-        [ program, entry, *split_rows(program, entry) ]
+        [ program, entry, *split_rows(entry) ]
       end
     end
 
-    def split_rows(program, entry)
-      start = TermCode.parse(program[:start_term])
+    # The rows by planned term (PlanTerms). A row has none without a start
+    # term.
+    def split_rows(entry)
       planned, behind = [], []
-      return [ planned, behind ] unless start && term_uid
+      return [ planned, behind ] unless term_uid
 
       plan_rows(entry).each do |row|
-        uid = TermCode.plan_term(start, row[:year], row[:season])
+        uid = row[:planned_term_uid]
+        next if uid.nil?
+
         if uid == term_uid && COUNTED.exclude?(row[:status])
           planned << row
         elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
@@ -157,8 +155,6 @@ module AcademicProfiles
     end
 
     def program_json(program, entry, planned, behind)
-      start = TermCode.parse(program[:start_term])
-
       {
         program:    program[:program],
         name:       program[:name],
@@ -166,7 +162,7 @@ module AcademicProfiles
         start_term: program[:start_term],
         # The plan semester of the term, such as year 2, spring. nil without a
         # start term, or when the term is after the end of the plan.
-        semester:   start && term_uid && semester_of(plan_rows(entry), start),
+        semester:   term_uid && semester_of(plan_rows(entry)),
         planned:    planned.map { |row| row_json(entry, row) },
         behind:     behind.map { |row| row_json(entry, row) },
         registered: registered_json(entry)
@@ -180,12 +176,11 @@ module AcademicProfiles
     # term. Each course once, in plan order.
     def registered_json(entry)
       codes = entry[:requirements].filter_map { |row| row[:course] if COUNTED.include?(row[:status]) }
-      codes.flat_map { |code| term_registered.select { |course| equivalent_codes(code).include?(course[:code]) } }
+      codes.flat_map { |code| term_registered.select { |course| course_keys.equivalent_codes(code).include?(course[:code]) } }
            .uniq { |course| course[:code] }
            .map { |course| { code: course[:code], title: course[:title], crns: term_crns.fetch(course[:code], []) } }
     end
 
-    # The courses of DegreeProgress with the registered status in the term.
     def term_registered
       @term_registered ||= progress[:courses].select { |course| course[:term_uid] == term_uid && course[:status] == "registered" }
     end
@@ -199,7 +194,7 @@ module AcademicProfiles
       else
         @user.courses.where(term: term).order(:crn)
              .pluck(Arel.sql(Course::SUBJECT_CODE_SQL), :course_number, :crn)
-             .group_by { |subject, number, _| "#{subject} #{number}" }
+             .group_by { |subject, number, _| CourseKeys.format([ subject, number ]) }
              .transform_values { |rows| rows.map(&:last).uniq }
       end
     end
@@ -211,8 +206,8 @@ module AcademicProfiles
       @behind_limit ||= [ current_term_uid, term_uid ].compact.min
     end
 
-    def semester_of(rows, start)
-      row = rows.find { |candidate| TermCode.plan_term(start, candidate[:year], candidate[:season]) == term_uid }
+    def semester_of(rows)
+      row = rows.find { |candidate| candidate[:planned_term_uid] == term_uid }
       row && { year: row[:year], season: row[:season] }
     end
 
@@ -249,7 +244,7 @@ module AcademicProfiles
     def term_course_rows
       term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
                .select { |row| row[:kind] == "course" }
-               .filter_map { |row| CatalogCourse.parse_code(row[:code]) }
+               .filter_map { |row| CourseKeys.parse(row[:code]) }
     end
 
     # The courses a row names: its code, or the options of a choice. An
@@ -263,13 +258,13 @@ module AcademicProfiles
     end
 
     def course_json(code)
-      keys = equivalent_codes(code)
-      catalog = keys.lazy.filter_map { |key| catalog_courses[key] }.first
+      key = CourseKeys.parse(code)
+      catalog = key && catalog_courses.catalog(key)
 
       {
         code:    code,
         title:   catalog&.title,
-        offered: sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
+        offered: sections_known? ? course_keys.equivalent_codes(code).any? { |found| offered_codes.include?(found) } : nil,
         **prerequisite_json(catalog)
       }.merge(CourseDetails.json(catalog).except(:title))
     end
@@ -278,41 +273,26 @@ module AcademicProfiles
     # missing courses, and the ones a row of the term names.
     def prerequisite_json(catalog)
       tree = catalog&.prerequisites.presence
-      result = tree ? check(tree) : nil
-      missing = result ? result[:missing] : []
-      { prerequisites: result && result[:status], missing: missing, missing_in_plan: missing_in_plan(missing) }
+      result = tree && prerequisite_check.call(tree)
+      { prerequisites: result && result[:status], missing: result ? result[:missing] : [],
+        missing_in_plan: result ? missing_in_plan(result[:missing_keys]) : [] }
     end
 
-    # The prerequisite tree walk (PrerequisiteCheck) with the courses that
-    # count.
-    def check(tree)
-      @prerequisite_check ||= PrerequisiteCheck.new(counted_courses, aliases)
-      @prerequisite_check.call(tree)
+    def prerequisite_check
+      @prerequisite_check ||= PrerequisiteCheck.new(Counted.new(taken_courses, assumed_courses.pairs.to_set), course_keys)
     end
 
-    # The course codes of missing that a planned or behind row of the term
-    # names, in any program, also through an alias. A missing entry with
-    # options, such as "WDGT 1100 or WDGT 1200", gives each of its codes
-    # that a row names.
-    def missing_in_plan(missing)
-      missing.flat_map { |entry| entry.scan(MISSING_CODE) }.uniq.select do |code|
-        equivalent_codes(code).any? { |key| term_row_codes.include?(key) }
-      end
+    # The missing courses that a planned or behind row of the term names, in
+    # any program, also through an alias.
+    def missing_in_plan(keys)
+      keys.select { |key| course_keys.equivalents(key).any? { |found| term_row_keys.include?(found) } }
+          .map { |key| CourseKeys.format(key) }
     end
 
-    def term_row_codes
-      @term_row_codes ||= term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
-                                   .flat_map { |row| row_codes(row) }
-                                   .flat_map { |code| equivalent_codes(code) }
-                                   .to_set
-    end
-
-    # The courses that count, by [subject, number]: the taken courses and
-    # the assumed courses.
-    def counted_courses
-      @counted_courses ||= assumed_courses.pairs.each_with_object(taken_courses.dup) do |pair, map|
-        map[pair] = [ *map[pair], ASSUMED ]
-      end
+    def term_row_keys
+      @term_row_keys ||= course_keys.expand(term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
+                                                     .flat_map { |row| row_codes(row) }
+                                                     .filter_map { |code| CourseKeys.parse(code) }).to_set
     end
 
     # The courses from DegreeProgress that count, by [subject, number]: done
@@ -322,7 +302,7 @@ module AcademicProfiles
     def taken_courses
       @taken_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
                                            .select { |course| term_uid.nil? || course[:term_uid].nil? || course[:term_uid] < term_uid }
-                                           .group_by { |course| CatalogCourse.parse_code(course[:code]) }
+                                           .group_by { |course| CourseKeys.parse(course[:code]) }
     end
 
     # The assumed courses, without the ones the student did or takes (also
@@ -336,47 +316,18 @@ module AcademicProfiles
     end
 
     def taken_with_c?(pair)
-      [ pair, *aliases.fetch(pair, []) ].any? do |key|
-        taken_courses.fetch(key, []).any? { |course| course[:outcome] != "passed_below_c" }
+      course_keys.equivalents(pair).any? do |key|
+        taken_courses.fetch(key, []).any? { |course| course[:outcome] != CourseOutcome::PASSED_BELOW_C }
       end
     end
 
-    # A code and its old or new codes, as "SUBJ 1234".
-    def equivalent_codes(code)
-      pair = CatalogCourse.parse_code(code)
-      return [ code ] if pair.nil?
+    def course_keys = CourseKeys.current
 
-      [ pair, *aliases.fetch(pair, []) ].map { |subject, number| "#{subject} #{number}" }.uniq
-    end
-
-    def aliases
-      @aliases ||= CourseCodeAlias.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
-                                  .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
-        map[[ fs, fn ]] << [ ts, tn ]
-        map[[ ts, tn ]] << [ fs, fn ]
-      end
-    end
-
-    def all_codes
-      @all_codes ||= program_rows.flat_map { |row| row_codes(row) }.flat_map { |code| equivalent_codes(code) }.uniq
-    end
-
-    def program_rows
-      progress[:programs].flat_map { |entry| entry[:requirements] }
-    end
-
+    # The catalog rows of every course a row of a program names.
     def catalog_courses
-      @catalog_courses ||= begin
-        pairs = all_codes.filter_map { |code| CatalogCourse.parse_code(code) }
-        if pairs.empty?
-          {}
-        else
-          pairs.group_by(&:first)
-               .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
-               .reduce(:or)
-               .index_by(&:code)
-        end
-      end
+      @catalog_courses ||= CourseDetails.new(progress[:programs].flat_map { |entry| entry[:requirements] }
+                                                                .flat_map { |row| row_codes(row) }
+                                                                .filter_map { |code| CourseKeys.parse(code) }, course_keys)
     end
 
     def term

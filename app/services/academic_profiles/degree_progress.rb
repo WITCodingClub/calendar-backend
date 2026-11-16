@@ -16,7 +16,9 @@ module AcademicProfiles
   class DegreeProgress
     # Raised when there is no program to check. The message says how to add
     # one. The tool and the endpoint pass it to the student.
-    class NoProgramError < StandardError; end
+    class NoProgramError < PlanningError
+      def code = "no_program"
+    end
 
     NO_PROGRAM_MESSAGE = "WIT Calendar has no major with a catalog year for this student that links to the " \
                          "degree catalog. The WIT Calendar browser extension reads the programs from the Student " \
@@ -38,26 +40,6 @@ module AcademicProfiles
       "WIT wins over a transfer credit for the same course."
     ].freeze
 
-    RANK = { "done" => 0, "in_progress" => 1, "registered" => 2, "not_passed" => 3 }.freeze
-    # The statuses of a course that fills a requirement (#1019).
-    STATUSES = %w[done in_progress registered].freeze
-    PASSED = %w[c_or_better passed_below_c].freeze
-
-    # A course the student took or takes. status is done, in_progress,
-    # registered (a term after the current term, #1019), or not_passed. A
-    # transfer credit (#1020) is done, with no term, no CRN, and its source
-    # (transcript or student). source is nil for a WIT course.
-    Taken = Struct.new(:subject_code, :course_number, :title, :term, :crn, :credits, :status, :outcome, :transfer,
-                       :source) do
-      def code = "#{subject_code} #{course_number}"
-      def key = [ subject_code, course_number ]
-
-      def as_json(*)
-        { code: code, title: title, term: term&.name, term_uid: term&.uid, crn: crn, credits: credits,
-          status: status, outcome: outcome, transfer: transfer || false, source: source }
-      end
-    end
-
     # include_planned also checks the student's planned programs (#867), so
     # the student sees the courses a planned minor adds. It does nothing with
     # a program argument. course_details: false leaves out the catalog
@@ -75,12 +57,24 @@ module AcademicProfiles
       @today = today
     end
 
+    # The entry of a result for a program of StudentProgramsSerializer, or
+    # nil. Two LeopardWeb rows can link to one catalog program, and the
+    # result has one entry for it.
+    def self.entry_for(result, program)
+      return nil if program[:program].nil?
+
+      result[:programs].find do |entry|
+        entry.values_at(:program, :catalog_year, :status) == program.values_at(:program, :catalog_year, :status)
+      end
+    end
+
     # Raises NoProgramError, or Catalog::FilterError for a bad catalog year.
     def call
       entries = requirement_sets
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
-      @course_details = CourseDetails.new(@with_details ? detail_codes(entries) : [], aliases)
+      @course_details = CourseDetails.new(@with_details ? detail_codes(entries) : [], course_keys)
+      @credits = CourseCredits.new(@course_details)
       programs = entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) }
       # The lists and the overlap (#992) read the planned terms of the active
       # programs, so they come after with_terms of every program.
@@ -88,8 +82,9 @@ module AcademicProfiles
       active = entries.zip(programs).select { |_, entry| entry[:status] == "active" }
       slots = {}.compare_by_identity
       active.each { |(set, plan_name, _), entry| slots[entry] = fit_slots(set, plan_name, entry) } if @include_planned
-      overlap = ProgramOverlap.new(active.map(&:last), aliases: aliases, attempts: attempts,
-                                                       course_details: @course_details, slots: slots, hss_matcher: hss_matcher)
+      overlap = ProgramOverlap.new(active.map(&:last), course_keys: course_keys, attempts: attempts,
+                                                       course_details: @course_details, credits: @credits, slots: slots,
+                                                       hss_matcher: hss_matcher)
       {
         programs:    entries.zip(programs).map { |(set, _, _), entry| overlap.call(set, entry) },
         courses:     taken.map(&:as_json),
@@ -121,7 +116,7 @@ module AcademicProfiles
     end
 
     def estimate(entry, start)
-      PlanEstimate.new(start, current_term_uid: current_term.uid, prerequisites: @course_details, aliases: aliases,
+      PlanEstimate.new(start, current_term_uid: current_term.uid, prerequisites: @course_details, course_keys: course_keys,
                               taken: attempts.map(&:key)).call(entry)
     end
 
@@ -219,7 +214,7 @@ module AcademicProfiles
         needs_review: set.needs_review,
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
-        counts:       [ *STATUSES, "open" ].index_with { |status| requirements.count { |r| r[:status] == status } },
+        counts:       [ *CourseHistory::STATUSES, "open" ].index_with { |status| requirements.count { |r| r[:status] == status } },
         summary:      summary_json(set, requirements, counted),
         requirements: requirements,
         open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) },
@@ -265,7 +260,7 @@ module AcademicProfiles
       # subjects (an HSS elective), then a free elective. A broad slot then
       # does not use a course that a narrow one needs.
       slots = items.select(&:placeholder?).filter_map { |item| [ item, groups[item.elective_group_id] ] if item.elective_group_id }
-      hss_slots, slots = slots.partition { |_, group| group.name == DegreeRequirements::SharedElectives::HSS.name }
+      hss_slots, slots = slots.partition { |_, group| group.shared_kind == :hss }
       needs = {}
       narrow, broad = slots.partition { |_, group| !group.any_course }
       narrow.sort_by.with_index { |(_, group), index| [ breadth(group), width(group), index ] }.each do |item, group|
@@ -286,7 +281,7 @@ module AcademicProfiles
     # third English course, which the notes let count as Humanities. nil for
     # a program with no HSS requirement and no HSS slot.
     def hss_progress(set, items, groups, results, pool, used)
-      slots = items.any? { |item| hss_group?(groups[item.elective_group_id]) }
+      slots = items.any? { |item| groups[item.elective_group_id]&.hss_list? }
       return nil if set.hss_requirement.blank? && !slots
 
       categories = HssMatcher.categories(set)
@@ -298,11 +293,11 @@ module AcademicProfiles
     end
 
     def english_sequence?(course)
-      DegreeRequirements::SharedElectives::ENGLISH_SEQUENCE.any? { |code| equivalents(code).include?(course.key) }
+      DegreeRequirements::SharedElectives::ENGLISH_SEQUENCE.any? { |code| course_keys.same?(code, course.key) }
     end
 
     def english_slots_full?(items, groups, results)
-      slots = items.select { |item| groups[item.elective_group_id]&.name == DegreeRequirements::SharedElectives::ENGLISH.name }
+      slots = english_items(items, groups)
       slots.any? && slots.all? { |item| results[item.id] }
     end
 
@@ -336,24 +331,22 @@ module AcademicProfiles
 
     # The courses in the HSS slots of a plan.
     def hss_courses(items, groups, results)
-      items.select { |item| item.placeholder? && hss_group?(groups[item.elective_group_id]) }.filter_map { |item| results[item.id] }
+      items.select { |item| item.placeholder? && groups[item.elective_group_id]&.hss_list? }.filter_map { |item| results[item.id] }
     end
 
-    def hss_group?(group) = HssMatcher.slot_list?(group&.name)
+    def english_items(items, groups) = items.select { |item| groups[item.elective_group_id]&.shared_kind == :english }
 
-    # The HSS categories and matching rules (HssMatcher), with the course
-    # code aliases of this student.
     def hss_matcher
-      @hss_matcher ||= HssMatcher.new(aliases)
+      @hss_matcher ||= HssMatcher.new(course_keys)
     end
 
     # The HSS requirement of the major (HssDetails).
     def hss_json(hss, items, groups, results)
       return nil if hss.nil?
 
-      english = items.select { |item| groups[item.elective_group_id]&.name == DegreeRequirements::SharedElectives::ENGLISH.name }
-                     .filter_map { |item| results[item.id] }
-      HssDetails.new(hss, english: english, slot_courses: hss_courses(items, groups, results), matcher: hss_matcher).call
+      english = english_items(items, groups).filter_map { |item| results[item.id] }
+      HssDetails.new(hss, english: english, slot_courses: hss_courses(items, groups, results), matcher: hss_matcher,
+                          credits: @credits).call
     end
 
     def breadth(group)
@@ -377,7 +370,7 @@ module AcademicProfiles
 
     def list_rule(group)
       @list_rules ||= {}
-      @list_rules[group.id] ||= ElectiveListRule.new(group, aliases)
+      @list_rules[group.id] ||= ElectiveListRule.new(group, course_keys)
     end
 
     # The open elective slots of an active program that a course of a planned
@@ -394,7 +387,7 @@ module AcademicProfiles
       plan.items.zip(entry[:requirements]).filter_map do |item, row|
         group = groups[item.elective_group_id]
         next unless item.placeholder? && group && row[:status] == "open"
-        next if group.name == DegreeRequirements::SharedElectives::CO_OP.name
+        next if group.shared_kind == :co_op
 
         category = row[:hss_category] && HssMatcher.categories(set).find { |found| found["name"] == row[:hss_category] }
         MinorFit::Slot.new(label: row[:label], term: row[:planned_term], term_uid: row[:planned_term_uid],
@@ -411,7 +404,7 @@ module AcademicProfiles
         kind:          item.kind,
         code:          item.code,
         label:         item.label,
-        options:       item.options.map { |option| "#{option['subject_code']} #{option['course_number']}" },
+        options:       item.options.map { |option| CourseKeys.format([ option["subject_code"], option["course_number"] ]) },
         elective_list: item.elective_group&.name,
         hss_category:  hss_category,
         # A slot with no elective list, such as a "CONM Elective" whose page
@@ -469,11 +462,11 @@ module AcademicProfiles
     # not_counted has the other best attempts the student passed or takes,
     # such as ENGL 700 or a course past a list's minimum. A third English
     # course that counts as Humanities fills no row, so it is not counted
-    # here, but hss.credits counts it. A course whose sections have no credit
-    # hours takes those of CatalogCourse. co_ops counts the co-op semester
+    # here, but hss.credits counts it. Each course counts by CourseCredits.
+    # co_ops counts the co-op semester
     # rows of the plan and the done ones.
     def summary_json(set, requirements, counted)
-      co_ops = requirements.select { |row| co_op_row?(row) }
+      co_ops = requirements.select { |row| CoOpRows.co_op?(row) }
       other = attempts - counted
       {
         total_credits: set.total_credits,
@@ -491,12 +484,8 @@ module AcademicProfiles
     end
 
     def credits_with(courses, status)
-      courses.select { |course| course.status == status }
-             .sum { |course| (course.credits || @course_details.for(course.key)[:credit_hours]).to_i }
+      @credits.sum(courses.select { |course| course.status == status })
     end
-
-    # A co-op semester row (CoOpRows). COOP2500 is a normal course.
-    def co_op_row?(row) = CoOpRows.co_op?(row)
 
     # A program with no plan of study, such as a minor: each elective list
     # with its minimum. Returns the rows, no HSS entry, and the courses the
@@ -512,7 +501,7 @@ module AcademicProfiles
         while (course = take(pool, used, codes))
           courses << course
           break if needed && courses.size >= needed
-          break if needed.nil? && courses.sum { |c| c.credits.to_i } >= group.min_credits
+          break if needed.nil? && @credits.sum(courses) >= group.min_credits
         end
         list_json(group, courses, needed)
       end
@@ -520,7 +509,7 @@ module AcademicProfiles
     end
 
     def list_json(group, courses, needed)
-      met = needed ? courses.size >= needed : courses.sum { |c| c.credits.to_i } >= group.min_credits
+      met = needed ? courses.size >= needed : @credits.sum(courses) >= group.min_credits
       # A met list has the status of its latest course: registered when one
       # course is in a later term.
       status = if !met then "open"
@@ -540,10 +529,10 @@ module AcademicProfiles
       }
     end
 
-    # A list with no minimum that the import could read. A "Required ..."
-    # list needs every course. Any other such list cannot be checked.
+    # A list with no minimum that is not a "Required ..." list cannot be
+    # checked.
     def countable?(group)
-      group.min_courses || group.min_credits || group.name.to_s.match?(/\Arequired\b/i)
+      group.min_courses || group.min_credits || group.every_course_required?
     end
 
     def unchecked_list_json(group)
@@ -551,133 +540,33 @@ module AcademicProfiles
         status: "open", courses: [] }
     end
 
-    # The courses that can meet a requirement: the best attempt of each
-    # course (a retake, or an old and a new code of one course, counts
-    # once), without the ones not passed.
-    def attempts
-      @attempts ||= taken.group_by { |course| equivalents(course.key).min }.values.filter_map { |tries| best_attempt(tries) }
-    end
-
-    # A course taken at WIT wins over a transfer credit for the same course
-    # (#1020). The transfer credit counts when no WIT attempt passed, is in
-    # progress, or is registered. nil when nothing counts.
-    def best_attempt(tries)
-      transfer, wit = tries.partition(&:transfer)
-      best = wit.min_by { |course| [ RANK.fetch(course.status), -course.term.uid ] }
-      best = transfer.first if transfer.any? && (best.nil? || best.status == "not_passed")
-      best unless best.status == "not_passed"
-    end
-
     # The best unused course that meets one of the codes: a done course
     # before one in progress. Marks it used.
     def take(pool, used, codes)
-      keys = codes.flat_map { |code| equivalents(code) }.uniq
+      keys = course_keys.expand(codes)
       take_where(pool, used) { |candidate| keys.include?(candidate.key) }
     end
 
     def take_where(pool, used)
       course = pool.reject { |candidate| used.include?(candidate) }
                    .select { |candidate| yield candidate }
-                   .min_by { |candidate| RANK.fetch(candidate.status) }
+                   .min_by { |candidate| CourseHistory::RANK.fetch(candidate.status) }
       used << course if course
       course
     end
 
-    # A code and its old or new codes (CourseCodeAlias), both ways. Only the
-    # aliases a person checked count: the matches can pair two courses that
-    # only share a title (#865).
-    def equivalents(code)
-      [ code, *aliases.fetch(code, []) ]
+    def course_keys
+      @course_keys ||= CourseKeys.current
     end
 
-    def aliases
-      @aliases ||= CourseCodeAlias.reviewed_pairs
+    def history
+      @history ||= CourseHistory.new(@user, course_keys: course_keys, today: @today)
     end
 
-    # Each enrolled course, newest term first, then the transfer credits.
-    def taken
-      @taken ||= wit_courses + transfer_courses
-    end
+    def taken = history.taken
 
-    # The AP, test, and transfer credit of the student (#1020), as done
-    # courses with no term. A credit with no title or credits takes those of
-    # its CatalogCourse.
-    def transfer_courses
-      credits = @user.transfer_credits.order(:code).to_a.select(&:key)
-      catalog = catalog_courses(credits.map(&:key))
-      credits.map do |credit|
-        subject_code, course_number = credit.key
-        course = catalog[credit.key]
-        Taken.new(subject_code, course_number, credit.title || course&.title || credit.code, nil, nil,
-                  credit.credits || course&.credit_hours, "done", nil, true, credit.source)
-      end
-    end
+    def attempts = history.attempts
 
-    # One query for every key: the subjects and numbers match apart, so the
-    # rows are filtered to the pairs after the query.
-    def catalog_courses(keys)
-      return {} if keys.empty?
-
-      CatalogCourse.where(subject_code: keys.map(&:first).uniq, course_number: keys.map(&:last).uniq)
-                   .select(:subject_code, :course_number, :title, :credit_hours)
-                   .index_by { |course| [ course.subject_code, course.course_number ] }.slice(*keys)
-    end
-
-    # Each course taken at WIT, newest term first.
-    def wit_courses
-      enrollments = @user.enrollments.includes(course: :term).to_a
-      outcomes = CourseOutcome.where(user: @user).to_h { |outcome| [ [ outcome.term_uid, outcome.crn ], outcome.outcome ] }
-
-      # A lecture and its lab share the code, so the sections of one course
-      # in one term are one course: the most credits of a section (as
-      # Catalog::ScheduleCheck counts them), and not passed when any
-      # section was not passed.
-      # A section stores the subject as Banner's label, "Computer Science
-      # (COMP)". The requirements name a course by its subject code.
-      sections = enrollments.map(&:course).uniq
-                            .group_by { |course| [ course.term_id, Course.prefix_of(course.subject).upcase, course.course_number ] }
-      sections.map do |(_, subject_code, _), group|
-        section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
-        failed = section_outcomes.find { |_, outcome| PASSED.exclude?(outcome) }
-        course, outcome = failed || section_outcomes.first || [ group.first, nil ]
-        Taken.new(subject_code, course.course_number, course.title, course.term, course.crn,
-                  group.filter_map(&:credit_hours).max, taken_status(course.term, outcome), outcome)
-      end.sort_by { |course| [ -course.term.uid, course.code ] }
-    end
-
-    def taken_status(term, outcome)
-      return PASSED.include?(outcome) ? "done" : "not_passed" if outcome
-      return "done" if past?(term)
-      return "registered" if later?(term)
-
-      "in_progress"
-    end
-
-    # A term after the current term (#1019): a term that has not started.
-    # Term.current picks the term by month, so a summer term that started in
-    # May is not current yet, and the start date decides first. A term with
-    # no start date is later when it is after the current term. With no
-    # current term, such a term is not later, so a course keeps in_progress.
-    def later?(term)
-      return term.start_date > @today if term.start_date
-
-      current = current_term
-      current.present? && term.uid > current.uid
-    end
-
-    # A term with no end date (an old term) is past when it is before the
-    # current term.
-    def past?(term)
-      return term.end_date < @today if term.end_date
-
-      current = current_term
-      current.present? && term.uid < current.uid
-    end
-
-    def current_term
-      return @current_term if defined?(@current_term)
-
-      @current_term = Term.current
-    end
+    def current_term = history.current_term
   end
 end

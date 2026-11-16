@@ -84,4 +84,14 @@ RSpec.describe DegreeRequirements::SharedElectives do
       expect(later.reload.elective_group.courses.map(&:course_number)).to eq([ 3500, 4500, 5000 ])
     end
   end
+
+  it "gives the kind of a list by its name" do
+    expect(described_class.kind_of("HSS Electives")).to eq(:hss)
+    expect(described_class.kind_of("HSS Elective (PSYC4552)")).to eq(:directed_hss)
+    expect(described_class.kind_of("Co-op")).to eq(:co_op)
+    expect(described_class.kind_of("Computer Science Electives")).to be_nil
+    expect(described_class.hss_list?("Humanities Electives")).to be(true)
+    expect(described_class.hss_list?("English Sequence")).to be(false)
+    expect(described_class.hss_list?(nil)).to be(false)
+  end
 end

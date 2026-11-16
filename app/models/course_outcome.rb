@@ -38,6 +38,9 @@ class CourseOutcome < ApplicationRecord
     withdrawn:      "withdrawn",
     incomplete:     "incomplete"
   }.freeze
+  PASSED_BELOW_C = OUTCOMES[:passed_below_c]
+  # A D passes and gives credit, but does not meet a minimum grade of C.
+  PASSED = [ OUTCOMES[:c_or_better], PASSED_BELOW_C ].freeze
 
   enum :outcome, OUTCOMES, validate: true
 
@@ -45,10 +48,4 @@ class CourseOutcome < ApplicationRecord
 
   validates :term_uid, :crn, presence: true
   validates :crn, uniqueness: { scope: %i[user_id term_uid] }
-
-  def passed? = c_or_better? || passed_below_c?
-
-  def course
-    Course.joins(:term).find_by(crn: crn, terms: { uid: term_uid })
-  end
 end

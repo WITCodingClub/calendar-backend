@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
 module AcademicProfiles
-  # The catalog details of the courses in a degree progress response (#989):
-  # title, description, credit hours, and the terms Banner usually offers
-  # each course. They come from CatalogCourse, in one query for every code.
+  # The CatalogCourse rows of the courses in a degree planning response (#989),
+  # in one query for every key: title, description, credit hours, the terms
+  # Banner usually offers each course, and its prerequisites.
   #
   # CatalogCourse has one row for each code, the same for every catalog
-  # year. A code with no row takes the row of an old or new code of the same
-  # course (CourseCodeAlias), so a plan from an old catalog year still finds
-  # a renumbered course.
+  # year. A key with no row takes the row of an old or new code of the same
+  # course (CourseKeys), so a plan from an old catalog year still finds a
+  # renumbered course.
   class CourseDetails
-    # The details of a code that CatalogCourse does not know.
     UNKNOWN = { title: nil, description: nil, credit_hours: nil, typically_offered: nil }.freeze
 
     # The details of one CatalogCourse row, or UNKNOWN for nil. A row that
@@ -27,44 +26,37 @@ module AcademicProfiles
       }
     end
 
-    # codes: [subject_code, course_number] pairs. aliases: each pair with the
-    # pairs of its old and new codes.
-    def initialize(codes, aliases = {})
-      @codes = codes.compact.uniq
-      @aliases = aliases
+    # keys: the [subject_code, course_number] keys to load.
+    def initialize(keys, course_keys = CourseKeys.new)
+      @keys = keys.compact.uniq
+      @course_keys = course_keys
     end
 
-    # The details of a [subject_code, course_number] pair, from its own row
-    # or the row of an alias.
-    def for(pair)
-      self.class.json(row(pair))
-    end
+    def for(key) = self.class.json(catalog(key))
 
-    # The prerequisite tree of a [subject_code, course_number] pair, or nil
-    # (no row, or no prerequisites). PlanEstimate (#1011) reads it. It comes
-    # from the same query as the details, and the response does not send it.
-    def prerequisites(pair)
-      row(pair)&.prerequisites.presence
+    # The CatalogCourse of a key or of an old or new code of it, or nil.
+    def catalog(key) = @course_keys.equivalents(key).lazy.filter_map { |found| rows[found] }.first
+
+    # The prerequisite tree of a key, or nil (no row, or no prerequisites).
+    # PlanEstimate (#1011) reads it. The response does not send it.
+    def prerequisites(key)
+      catalog(key)&.prerequisites.presence
     end
 
     private
 
-    def keys(pair) = [ pair, *@aliases.fetch(pair, []) ]
-
-    def row(pair) = keys(pair).lazy.filter_map { |key| rows[key] }.first
-
     def rows
       @rows ||= begin
-        pairs = @codes.flat_map { |pair| keys(pair) }.uniq
-        if pairs.empty?
+        keys = @course_keys.expand(@keys)
+        if keys.empty?
           {}
         else
-          pairs.group_by(&:first)
-               .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
-               .reduce(:or)
-               .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered,
-                       :details_fetched_at, :prerequisites)
-               .index_by { |row| [ row.subject_code, row.course_number ] }
+          keys.group_by(&:first)
+              .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
+              .reduce(:or)
+              .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered,
+                      :details_fetched_at, :prerequisites)
+              .index_by { |row| [ row.subject_code, row.course_number ] }
         end
       end
     end

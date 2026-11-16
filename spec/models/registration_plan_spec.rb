@@ -103,15 +103,6 @@ RSpec.describe RegistrationPlan, type: :model do
     expect(plan.course_count).to eq(2)
   end
 
-  it "finds the plans before a term, newest first" do
-    user = create(:user)
-    fall = create(:registration_plan, user: user, term: create(:term, uid: 202610, year: 2025, season: :fall))
-    spring = create(:registration_plan, user: user, term: create(:term, uid: 202620, year: 2026, season: :spring))
-    create(:registration_plan, user: user, term: create(:term, uid: 202710, year: 2026, season: :fall))
-
-    expect(user.registration_plans.before_term(202710).newest_first).to eq([ spring, fall ])
-  end
-
   it "is deleted with the user" do
     plan = create(:registration_plan)
 
