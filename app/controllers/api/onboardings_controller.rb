@@ -2,7 +2,7 @@
 
 module Api
   class OnboardingsController < BaseController
-    # Identity is the student's WIT Google account — the limited Workspace
+    # Identity is the student's WIT Google account: the limited Workspace
     # account the school provisions on the wit.edu domain. We verify it with
     # Google and key the account to that verified @wit.edu address, so it proves
     # two things at once: the caller controls the Google identity, and only WIT
@@ -15,8 +15,6 @@ module Api
     # already holds an access token may send that instead.
     # See GoogleSignIn::AuthCodeExchanger and GoogleSignIn::TokenVerifier.
     def create
-      preferred_name = params[:preferred_name]
-
       access_token, exchange_error = resolve_google_access_token
 
       if exchange_error
@@ -52,7 +50,12 @@ module Api
         return
       end
 
-      user = find_or_create_onboarding_user(wit_email, preferred_name)
+      # Matching only on the verified WIT address closes the takeover hole: a
+      # caller reaches exactly the account whose WIT identity they hold a
+      # Google token for. Linked personal accounts (oauth_credentials) are not
+      # matched, so a personal token never resolves to a WIT identity.
+      first_name, last_name = params[:preferred_name].to_s.strip.split(" ", 2)
+      user = User.find_or_provision_for_sign_in!(email: wit_email, first_name: first_name, last_name: last_name)
 
       token = JsonWebTokenService.issue(user: user, source: "google_onboard", request: request)
 
@@ -79,27 +82,6 @@ module Api
       end
 
       [ params[:google_access_token].presence || params[:access_token].presence, nil ]
-    end
-
-    # Resolves the account for a Google-verified WIT email. Accounts have always
-    # been keyed on the WIT address, so returning users match here — including
-    # the ones created before onboarding verified anything.
-    #
-    # Matching only on the verified address is what closes the takeover hole: a
-    # caller can reach exactly the account whose WIT identity they hold a Google
-    # token for. Linked personal accounts (oauth_credentials) are deliberately
-    # not matched, so a personal token can never resolve to a WIT identity.
-    def find_or_create_onboarding_user(wit_email, preferred_name)
-      existing = User.find_by(email: wit_email)
-      return existing if existing
-
-      first_name, last_name = preferred_name.to_s.strip.split(" ", 2)
-      User.create!(
-        email:      wit_email,
-        first_name: first_name,
-        last_name:  last_name,
-        password:   SecureRandom.hex(24)
-      )
     end
   end
 end
