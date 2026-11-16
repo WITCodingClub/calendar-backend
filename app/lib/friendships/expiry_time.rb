@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Friendships
-  # Reads a friendship or friend group end date from the API or the
-  # dashboard. All of them use this one rule:
+  # Reads a friendship, friend group, or meeting link end date from the API or
+  # the dashboard. All of them use this one rule:
   #
   # - A date with no time ("2026-12-01") means the end of that day in
   #   the school time zone (SchoolTimeZone).
