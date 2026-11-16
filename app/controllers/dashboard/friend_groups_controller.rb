@@ -5,6 +5,7 @@ module Dashboard
   # their end dates. Every action answers 404 while the friend_groups flag is
   # off for the user.
   class FriendGroupsController < Dashboard::ApplicationController
+    include FriendGroupsFlag
     include Dashboard::FriendGroupLookup
 
     before_action :set_group, only: %i[update destroy]

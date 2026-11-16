@@ -11,7 +11,7 @@ module Api
     class SharedGroupsController < Api::BaseController
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       before_action :set_group, except: :index
 

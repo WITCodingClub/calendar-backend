@@ -21,7 +21,7 @@ module Api
 
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       def index
         group = find_group

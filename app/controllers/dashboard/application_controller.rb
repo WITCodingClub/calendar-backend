@@ -2,6 +2,8 @@
 
 module Dashboard
   class ApplicationController < ApplicationController
+    include FeatureGate
+
     layout "dashboard"
     before_action :authenticate_user!
     before_action :require_processed_courses

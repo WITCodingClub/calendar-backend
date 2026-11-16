@@ -5,6 +5,7 @@ module Dashboard
   # from the friends page: active, hidden, or opted out. Answers 404 while the
   # friend_groups flag is off for the user.
   class SharedFriendGroupsController < Dashboard::ApplicationController
+    include FriendGroupsFlag
     include Dashboard::FriendGroupLookup
 
     NOTICES = {

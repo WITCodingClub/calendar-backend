@@ -4,6 +4,7 @@ module Dashboard
   # Adds friends to a friend group and removes them, from the friends page.
   # The member id in the path is the friend's user public id.
   class FriendGroupMembersController < Dashboard::ApplicationController
+    include FriendGroupsFlag
     include Dashboard::FriendGroupLookup
 
     before_action :set_group

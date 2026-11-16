@@ -11,5 +11,12 @@ module Api
     include Api::LegacyRouteCounting
     include Api::TokenAuthentication
     include Api::PublicIdLookupable
+    include FeatureGate
+
+    private
+
+    def feature_off(message)
+      render_error message, status: :not_found
+    end
   end
 end

@@ -6,7 +6,7 @@ module Api
   # a help for planning, not a degree audit.
   class DegreeProgressesController < BaseController
     authenticate_with_token
-    include Api::DegreePlanningFlag
+    include DegreePlanningFlag
 
     # GET /api/user/degree_progress
     # Params (all optional): program (a slug), catalog_year and plan (with

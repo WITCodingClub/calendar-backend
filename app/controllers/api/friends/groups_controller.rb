@@ -22,7 +22,7 @@ module Api
 
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       before_action :set_group, except: %i[index create]
 
