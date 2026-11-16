@@ -302,14 +302,9 @@ module McpTools
     end
 
     def date_range(start_date, end_date)
-      from = parse_date(start_date, "start_date")
-      to   = parse_date(end_date, "end_date")
-      raise ToolError, "end_date must not be before start_date" if to < from
-
-      days = (to - from).to_i + 1
-      raise ToolError, "the range must be #{BusyBlocks::MAX_DAYS} days or fewer" if days > BusyBlocks::MAX_DAYS
-
-      [ from, to ]
+      BusyBlocks::DateRange.parse(start_date, end_date)
+    rescue BusyBlocks::DateRange::InvalidError => e
+      raise ToolError, e.message
     end
 
     def limit_value(value, default:, max:)
