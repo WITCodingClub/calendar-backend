@@ -6,8 +6,8 @@
 # no "shared" key: every group here is shared. "status" is the viewer's own
 # status in the group.
 #
-# Preload :user and memberships: { friendship: [:requester, :addressee] }
-# before a list of groups is serialized, or each group runs its own queries.
+# Load a list of groups with FriendGroup.with_members before it is serialized,
+# or each group runs its own queries.
 class SharedFriendGroupSerializer
   def initialize(group, viewer:)
     @group  = group

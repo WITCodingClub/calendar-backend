@@ -61,15 +61,15 @@ module Dashboard
     end
 
     def destroy
-      friend     = current_user.friends.find_by_public_id(params[:id])
-      friendship = friend && Friendship.accepted_between(current_user, friend)
-      unless friendship
+      friend  = User.find_by_public_id(params[:id])
+      removal = Friendships::Removal.new(current_user, friend)
+      unless removal.found?
         skip_authorization
         return redirect_to dashboard_friends_path, alert: "Friend not found."
       end
 
-      authorize friendship, :destroy?
-      friendship.destroy!
+      authorize removal.friendship, :destroy?
+      removal.call
       redirect_to dashboard_friends_path, notice: "#{friend.first_name} removed."
     end
 
@@ -81,9 +81,9 @@ module Dashboard
       @groups_enabled = Friendships::Features.groups?(current_user)
       return unless @groups_enabled
 
-      @groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name)
+      @groups = policy_scope(FriendGroup).with_members.order(:name)
       @shared_groups = policy_scope(FriendGroup, policy_scope_class: FriendGroupPolicy::SharedScope)
-                       .includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name, :id)
+                       .with_members.order(:name, :id)
       @groups_by_friend = FriendGroup.by_friend_id_for(current_user)
     end
   end

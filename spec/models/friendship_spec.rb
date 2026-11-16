@@ -131,6 +131,28 @@ RSpec.describe Friendship, type: :model do
     end
   end
 
+  describe ".accepted_between and .unexpired_between" do
+    it "finds an accepted friendship with both and a pending request only with .unexpired_between" do
+      accepted = create(:friendship, :accepted, requester: requester, addressee: addressee)
+      other    = create(:user)
+      pending  = create(:friendship, requester: other, addressee: requester)
+
+      expect(described_class.accepted_between(addressee, requester)).to eq(accepted)
+      expect(described_class.unexpired_between(addressee, requester)).to eq(accepted)
+      expect(described_class.accepted_between(requester, other)).to be_nil
+      expect(described_class.unexpired_between(requester, other)).to eq(pending)
+    end
+
+    it "finds nothing after the end date" do
+      create(:friendship, :accepted, :temporary, requester: requester, addressee: addressee)
+
+      travel 8.days do
+        expect(described_class.accepted_between(requester, addressee)).to be_nil
+        expect(described_class.unexpired_between(requester, addressee)).to be_nil
+      end
+    end
+  end
+
   describe "removing a friend" do
     it "takes the ex-friends off each other's future meetings" do
       friendship = create(:friendship, :accepted)

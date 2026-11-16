@@ -68,6 +68,10 @@ class FriendGroup < ApplicationRecord
   validates :color, format: { with: Preferences::Colors::HEX_FORMAT }, allow_nil: true
   validate :expires_at_in_future, if: :will_save_change_to_expires_at?
 
+  # The preload that memberships_by_member, members, shared_people and the
+  # group serializers read, so a list of groups runs no query per group.
+  scope :with_members, -> { includes(:user, memberships: { friendship: %i[requester addressee] }) }
+
   # Returns { friend user id => [groups] } for every group the user owns, in two
   # queries, so a friends list can show each friend's groups without one query
   # per friend.
@@ -84,9 +88,8 @@ class FriendGroup < ApplicationRecord
     end
   end
 
-  # { friend user => membership }, sorted by the friend's name. Preload
-  # memberships: { friendship: [:requester, :addressee] } to read this for many
-  # groups without a query per group. It still runs one query per owner, for
+  # { friend user => membership }, sorted by the friend's name. Load the groups
+  # with_members to read this for many groups without a query per group. It still runs one query per owner, for
   # the owner's friendships, so a list of shared groups from many owners runs
   # one query per owner. A membership whose friendship is no longer an
   # accepted friendship of the owner is left out.

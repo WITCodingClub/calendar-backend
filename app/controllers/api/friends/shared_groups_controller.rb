@@ -20,8 +20,7 @@ module Api
       def index
         authorize FriendGroup
 
-        groups = shared_groups.includes(:user, memberships: { friendship: %i[requester addressee] })
-                              .order(:name, :id).to_a
+        groups = shared_groups.with_members.order(:name, :id).to_a
         groups.select! { |group| group.membership_for(current_user).active? } unless include_hidden?
 
         render json: { groups: groups.map { |group| serialize(group) } }, status: :ok
@@ -60,7 +59,7 @@ module Api
 
       # Loads the group again with its members, so the answer shows the change.
       def render_group
-        group = FriendGroup.includes(:user, memberships: { friendship: %i[requester addressee] }).find(@group.id)
+        group = FriendGroup.with_members.find(@group.id)
         # The owner can remove the user while this request runs.
         raise ActiveRecord::RecordNotFound, "Group not found" if group.membership_for(current_user).nil?
 

@@ -88,6 +88,12 @@ class Friendship < ApplicationRecord
     active.between(user, other).first
   end
 
+  # The friendship or pending request of two users, or nil. An expired row does
+  # not count.
+  def self.unexpired_between(user, other)
+    unexpired.between(user, other).first
+  end
+
   after_create_commit :email_addressee_about_request, if: :pending?
   # Ex-friends come off each other's future meetings.
   after_destroy_commit :remove_from_friend_meetings, if: :accepted?

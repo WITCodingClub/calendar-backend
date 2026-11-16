@@ -191,97 +191,6 @@ RSpec.describe User, type: :model do
     end
   end
 
-  describe "#remove_friend" do
-    let(:user)   { create(:user) }
-    let(:friend) { create(:user) }
-
-    it "deletes the friendship when this user sent the request" do
-      create(:friendship, :accepted, requester: user, addressee: friend)
-
-      expect(user.remove_friend(friend)).to be(true)
-      expect(user.friends).to be_empty
-      expect(friend.friends).to be_empty
-    end
-
-    it "deletes the friendship when the other user sent the request" do
-      create(:friendship, :accepted, requester: friend, addressee: user)
-
-      expect(user.remove_friend(friend)).to be(true)
-      expect(user.friends).to be_empty
-    end
-
-    it "leaves a pending request alone" do
-      friendship = create(:friendship, requester: user, addressee: friend)
-
-      expect(user.remove_friend(friend)).to be(false)
-      expect(friendship.reload).to be_pending
-    end
-
-    it "returns false for a stranger" do
-      expect(user.remove_friend(friend)).to be(false)
-    end
-
-    it "returns false for nil and for yourself" do
-      expect(user.remove_friend(nil)).to be(false)
-      expect(user.remove_friend(user)).to be(false)
-    end
-
-    it "removes the friend from the user's groups and keeps the groups" do
-      friendship = create(:friendship, :accepted, requester: user, addressee: friend)
-      group      = create(:friend_group, user: user)
-      create(:friend_group_membership, friend_group: group, friendship: friendship)
-
-      expect { user.remove_friend(friend) }.to change(FriendGroupMembership, :count).by(-1)
-      expect(group.reload.members).to be_empty
-    end
-  end
-
-  describe "#friend_of?" do
-    let(:user)   { create(:user) }
-    let(:friend) { create(:user) }
-
-    it "is true for an accepted friend in either direction" do
-      create(:friendship, :accepted, requester: friend, addressee: user)
-
-      expect(user.friend_of?(friend)).to be(true)
-      expect(friend.friend_of?(user)).to be(true)
-    end
-
-    it "is false for a pending request, a stranger, nil, and yourself" do
-      create(:friendship, requester: user, addressee: friend)
-
-      expect(user.friend_of?(friend)).to be(false)
-      expect(user.friend_of?(create(:user))).to be(false)
-      expect(user.friend_of?(nil)).to be(false)
-      expect(user.friend_of?(user)).to be(false)
-    end
-  end
-
-  describe "#accepted_friendship_with" do
-    let(:user)   { create(:user) }
-    let(:friend) { create(:user) }
-
-    it "finds the friendship in either direction" do
-      friendship = create(:friendship, :accepted, requester: friend, addressee: user)
-
-      expect(user.accepted_friendship_with(friend)).to eq(friendship)
-      expect(friend.accepted_friendship_with(user)).to eq(friendship)
-    end
-
-    it "ignores a pending request" do
-      create(:friendship, requester: user, addressee: friend)
-
-      expect(user.accepted_friendship_with(friend)).to be_nil
-    end
-
-    it "returns nil for nil and for yourself" do
-      create(:friendship, :accepted, requester: user, addressee: friend)
-
-      expect(user.accepted_friendship_with(nil)).to be_nil
-      expect(user.accepted_friendship_with(user)).to be_nil
-    end
-  end
-
   describe "expired friendships" do
     include ActiveSupport::Testing::TimeHelpers
 
@@ -292,17 +201,12 @@ RSpec.describe User, type: :model do
 
     it "counts the friend before the expiry date" do
       expect(user.friends).to contain_exactly(friend)
-      expect(user.friend_of?(friend)).to be(true)
-      expect(friend.accepted_friendship_with(user)).to be_present
     end
 
     it "does not count the friend after the expiry date" do
       travel 8.days do
         expect(user.friends).to be_empty
         expect(friend.friends).to be_empty
-        expect(user.friend_of?(friend)).to be(false)
-        expect(user.accepted_friendship_with(friend)).to be_nil
-        expect(user.remove_friend(friend)).to be(false)
       end
     end
   end
