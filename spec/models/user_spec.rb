@@ -175,6 +175,14 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe "#access_at_least?" do
+    it "counts each level as having the levels below it" do
+      levels = %i[user admin super_admin owner].index_with { |level| build(:user, access_level: level).access_at_least?(:admin) }
+
+      expect(levels).to eq(user: false, admin: true, super_admin: true, owner: true)
+    end
+  end
+
   describe "#super_admin_access?" do
     it "is true for a super admin and an owner only" do
       levels = %i[user admin super_admin owner].index_with { |level| build(:user, access_level: level).super_admin_access? }

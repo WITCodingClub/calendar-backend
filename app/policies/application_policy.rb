@@ -18,17 +18,9 @@ class ApplicationPolicy
 
   private
 
-  def admin?
-    user&.admin_access?
-  end
-
-  def super_admin?
-    user&.super_admin? || user&.owner?
-  end
-
-  def owner?
-    user&.owner?
-  end
+  def admin?       = user.present? && user.admin_access?
+  def super_admin? = user.present? && user.super_admin_access?
+  def owner?       = user.present? && user.owner?
 
   def owner_of_record?
     return false unless user
@@ -82,5 +74,15 @@ class ApplicationPolicy
     private
 
     attr_reader :user, :scope
+  end
+
+  # Every row, for anyone.
+  class AllScope < Scope
+    def resolve = scope.all
+  end
+
+  # Admins see every row. Everyone else sees the rows with their user_id.
+  class OwnerScope < Scope
+    def resolve = user&.admin_access? ? scope.all : scope.where(user_id: user&.id)
   end
 end

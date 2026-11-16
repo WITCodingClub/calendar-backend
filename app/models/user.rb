@@ -155,9 +155,6 @@ class User < ApplicationRecord
     owner: 3
   }, default: :user, null: false
 
-  scope :admins, -> { where(access_level: [ :admin, :super_admin, :owner ]) }
-  scope :super_admins, -> { where(access_level: [ :super_admin, :owner ]) }
-  scope :owners, -> { where(access_level: :owner) }
   # The nightly sync skips users with no course calendar, so the flag alone
   # does not mean a sync is waiting. See #calendar_sync_pending?.
   scope :needs_sync, -> {
@@ -171,9 +168,12 @@ class User < ApplicationRecord
     calendar_needs_sync && course_calendars.any?
   end
 
-  def admin_access?
-    admin? || super_admin? || owner?
+  # Each access level includes the ones below it.
+  def access_at_least?(level)
+    User.access_levels.fetch(access_level) >= User.access_levels.fetch(level.to_s)
   end
+
+  def admin_access? = access_at_least?(:admin)
 
   # True once the extension has processed the user's courses for any term.
   # POST /api/process_courses enrolls the user, and /api/user/processed_events/status
@@ -189,9 +189,7 @@ class User < ApplicationRecord
     admin_access? || processed_courses?
   end
 
-  def super_admin_access?
-    super_admin? || owner?
-  end
+  def super_admin_access? = access_at_least?(:super_admin)
 
   def access_level_text
     access_level.to_s.humanize

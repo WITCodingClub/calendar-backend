@@ -12,22 +12,17 @@ class UserPolicy < ApplicationPolicy
   def force_calendar_sync?       = super_admin?
   def manage_friendships?        = super_admin?
 
-  def view_user_details?         = show?
   def view_oauth_credentials?    = super_admin?
   # Sessions are what an admin acts on when a student reports a compromise, so
-  # any admin can see and end them — narrower than the OAuth credentials below,
-  # which expose tokens.
+  # any admin can see and end them. The OAuth credentials expose tokens, so
+  # they need a super admin.
   def view_sessions?             = admin?
   def revoke_session?            = admin?
-  def manage_oauth_credentials?  = super_admin?
   def view_enrollments?          = super_admin?
-  def view_calendar_sync_info?   = admin?
   def view_access_level?         = super_admin?
   def edit_access_level?         = super_admin?
 
   class Scope < ApplicationPolicy::Scope
-    def resolve
-      user&.admin_access? ? scope.all : scope.where(id: user&.id)
-    end
+    def resolve = user&.admin_access? ? scope.all : scope.where(id: user&.id)
   end
 end

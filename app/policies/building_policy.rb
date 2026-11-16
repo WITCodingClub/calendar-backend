@@ -6,7 +6,5 @@ class BuildingPolicy < ApplicationPolicy
   def apply_formal_name? = admin?
   def apply_all?         = super_admin?
 
-  class Scope < ApplicationPolicy::Scope
-    def resolve = scope.all
-  end
+  class Scope < ApplicationPolicy::AllScope; end
 end

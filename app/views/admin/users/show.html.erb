@@ -165,10 +165,10 @@
               </div>
             </div>
             <div class="admin-actions flex flex-wrap gap-2">
-              <% if policy(credential).refresh? %>
+              <% if policy(@user).refresh_oauth_credential? %>
                 <%= button_to "Refresh token", refresh_oauth_credential_admin_user_path(@user, credential_id: credential.id), method: :post, class: "m3-btn-outlined" %>
               <% end %>
-              <% if policy(credential).revoke? %>
+              <% if policy(@user).revoke_oauth_credential? %>
                 <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
                     method: :delete,
                     form: { data: { turbo_confirm: "Are you sure? This will disconnect #{credential.email} from the calendar system." } },

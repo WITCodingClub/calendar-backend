@@ -9,9 +9,5 @@ class RegistrationPlanPolicy < ApplicationPolicy
   def update?  = owner_of_record?
   def destroy? = owner_of_record?
 
-  class Scope < ApplicationPolicy::Scope
-    def resolve
-      user&.admin_access? ? scope.all : scope.where(user_id: user&.id)
-    end
-  end
+  class Scope < ApplicationPolicy::OwnerScope; end
 end
