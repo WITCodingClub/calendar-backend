@@ -37,7 +37,7 @@ module Admin
     def sync_health
       @sync_health ||= begin
         total = counts[:calendars]
-        stale = CourseCalendar.stale(CourseCalendar::STALE_AFTER).count
+        stale = CourseCalendar.stale.count
         {
           total: total,
           healthy: total - stale,

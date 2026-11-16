@@ -29,10 +29,11 @@ RSpec.describe CourseCalendars::SyncJob do
     expect(user.reload).to have_attributes(calendar_needs_sync: false, last_calendar_sync_at: be_present)
   end
 
-  describe ".perform_bulk_later" do
-    it "queues the sync on default, behind the other default jobs" do
-      expect { described_class.perform_bulk_later(user, force: true) }
-        .to have_enqueued_job(described_class).with(user, force: true).on_queue("default").at_priority(described_class::BULK_PRIORITY)
+  describe ".bulk_job" do
+    it "puts the sync on default, behind the other default jobs" do
+      job = described_class.bulk_job(user, force: true)
+
+      expect(job).to have_attributes(queue_name: "default", priority: described_class::BULK_PRIORITY, arguments: [ user, { force: true } ])
     end
   end
 

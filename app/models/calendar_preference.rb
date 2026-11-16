@@ -63,11 +63,7 @@ class CalendarPreference < ApplicationRecord
     super
   end
 
-  scope :for_event_type,       ->(type) { where(scope: :event_type, event_type: type) }
-  scope :for_uni_cal_category, ->(cat) { where(scope: :uni_cal_category, event_type: cat) }
-  scope :global_scope,         -> { where(scope: :global) }
   scope :for_uni_cal_category_scope, -> { where(scope: :uni_cal_category) }
-  scope :uni_cal_global_scope, -> { where(scope: :uni_cal_global) }
 
   private
 

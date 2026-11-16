@@ -17,21 +17,16 @@ module CourseCalendars
     # Solid Queue runs the job with the lowest number first. Other jobs use 0.
     BULK_PRIORITY = 10
 
-    # Enqueues a sync that is one of many (the nightly sync, a holiday change,
-    # a finals import, a rake task over all users). A fan-out on high would
-    # hold up every default job, mail too, because the worker takes high first
-    # (config/queue.yml). On default at a higher number, mail and the other
-    # default jobs go first.
+    # A sync that is one of many (the nightly sync, a holiday change, a
+    # finals import, a rake task over all users), not enqueued yet, for
+    # enqueue_bulk_batch. A fan-out on high would hold up every default job,
+    # mail too, because the worker takes high first (config/queue.yml). On
+    # default at a higher number, mail and the other default jobs go first.
     #
     # Not on low: Solid Queue takes the per-user lock at enqueue, so a sync
     # that the person starts waits until their bulk sync runs. Behind a low
     # backlog (catalog imports, embeddings) that wait could pass the lock
     # duration, and then both syncs run at once.
-    def self.perform_bulk_later(user, **)
-      set(queue: :default, priority: BULK_PRIORITY).perform_later(user, **)
-    end
-
-    # A bulk sync job that is not enqueued yet, for enqueue_bulk_batch.
     def self.bulk_job(user, **)
       new(user, **).set(queue: :default, priority: BULK_PRIORITY)
     end
