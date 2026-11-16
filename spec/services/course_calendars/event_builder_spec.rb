@@ -3,7 +3,13 @@
 require "rails_helper"
 
 RSpec.describe CourseCalendars::EventBuilder do
+  include ActiveSupport::Testing::TimeHelpers
+
   subject(:builder) { described_class.new(user) }
+
+  # The course factory's dates are fixed (first class on Monday 2026-09-14),
+  # and some examples use times relative to now, so now is fixed too.
+  around { |example| travel_to(Time.zone.local(2026, 9, 10, 12)) { example.run } }
 
   let(:user)     { create(:user) }
   let(:term)     { create(:term) }

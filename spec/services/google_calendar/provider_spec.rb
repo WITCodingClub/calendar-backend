@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe GoogleCalendar::Provider do
+  include ActiveSupport::Testing::TimeHelpers
+
   it ".gone? is true for a 404 or a 410, and .rate_limited? for a RateLimitError" do
     expect(described_class.gone?(Google::Apis::ClientError.new("missing", status_code: 404))).to be(true)
     expect(described_class.gone?(Google::Apis::ClientError.new("deleted", status_code: 410))).to be(true)
@@ -19,9 +21,11 @@ RSpec.describe GoogleCalendar::Provider do
     # The admin calendars page reads last_synced_at. Before this, only the
     # events got a sync time, so every Google calendar showed "Never synced".
     it "records the sync time on the calendar" do
-      described_class.new(user).update_calendar_events([])
+      freeze_time do
+        described_class.new(user).update_calendar_events([])
 
-      expect(course_calendar.reload.last_synced_at).to be_within(1.minute).of(Time.current)
+        expect(course_calendar.reload.last_synced_at).to eq(Time.current)
+      end
     end
 
     # With nothing to change, the sync sends no event call. It must still

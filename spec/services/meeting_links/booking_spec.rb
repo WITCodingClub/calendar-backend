@@ -123,7 +123,7 @@ RSpec.describe MeetingLinks::Booking, "with two guests at once" do
   before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
   after do
-    Flipper.disable(FeatureFlags::MEETING_LINKS)
+    Flipper.disable_actor(FeatureFlags::MEETING_LINKS, owner)
     MeetingLink.where(user: owner).delete_all
     FriendMeeting.where(user: owner).destroy_all
     owner.destroy!
@@ -171,20 +171,24 @@ RSpec.describe MeetingLinks::Booking, "with two links of one owner at once" do
   before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
   after do
-    Flipper.disable(FeatureFlags::MEETING_LINKS)
+    Flipper.disable_actor(FeatureFlags::MEETING_LINKS, owner)
     MeetingLink.where(user: owner).delete_all
     FriendMeeting.where(user: owner).destroy_all
     owner.destroy!
   end
 
   # Each booking waits after it finds the slot free, so without the owner
-  # lock both bookings would see the slot free before either saves.
+  # lock both bookings see the slot free before either saves.
   def slow_down_slot_checks
+    both_checked = Concurrent::CountDownLatch.new(2)
     allow(MeetingLinks::Slots).to receive(:new).and_wrap_original do |original, *args, **options|
       slots = original.call(*args, **options)
       allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
         found = find.call(*find_args)
-        sleep 0.3
+        # Wait for the other booking's check. A lock holds the other booking
+        # back, so this waits out the timeout and then saves.
+        both_checked.count_down
+        both_checked.wait(0.5)
         found
       end
       slots
@@ -236,19 +240,23 @@ RSpec.describe MeetingLinks::Booking, "with two people booking each other at onc
   before { [ first_person, second_person ].each { |person| Flipper.enable_actor(FeatureFlags::MEETING_LINKS, person) } }
 
   after do
-    Flipper.disable(FeatureFlags::MEETING_LINKS)
     people = [ first_person, second_person ]
+    people.each { |person| Flipper.disable_actor(FeatureFlags::MEETING_LINKS, person) }
     MeetingLink.where(user: people).delete_all
     FriendMeeting.where(user: people).destroy_all
     people.each(&:destroy!)
   end
 
   def slow_down_slot_checks
+    both_checked = Concurrent::CountDownLatch.new(2)
     allow(MeetingLinks::Slots).to receive(:new).and_wrap_original do |original, *args, **options|
       slots = original.call(*args, **options)
       allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
         found = find.call(*find_args)
-        sleep 0.3
+        # Wait for the other booking's check. A lock holds the other booking
+        # back, so this waits out the timeout and then saves.
+        both_checked.count_down
+        both_checked.wait(0.5)
         found
       end
       slots

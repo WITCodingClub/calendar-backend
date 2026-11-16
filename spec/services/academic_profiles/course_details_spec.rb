@@ -3,12 +3,6 @@
 require "rails_helper"
 
 RSpec.describe AcademicProfiles::CourseDetails do
-  def queries(&)
-    count = 0
-    ActiveSupport::Notifications.subscribed(->(*) { count += 1 }, "sql.active_record", &)
-    count
-  end
-
   it "gives the details of a code from its own row, or from the row of an alias" do
     create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000, title: "Widget Basics",
                                            description: "Making widgets.", typically_offered: %w[Fall])
@@ -25,7 +19,7 @@ RSpec.describe AcademicProfiles::CourseDetails do
     create(:catalog_course, subject_code: "GEAR", course_number: 2000)
     details = described_class.new([ [ "WDGT", 1000 ], [ "GEAR", 2000 ] ], AcademicProfiles::CourseKeys.new({}))
 
-    expect(queries { details.for([ "WDGT", 1000 ]) && details.for([ "GEAR", 2000 ]) }).to eq(1)
-    expect(queries { described_class.new([], AcademicProfiles::CourseKeys.new({})).for([ "WDGT", 1000 ]) }).to eq(0)
+    expect(count_queries { details.for([ "WDGT", 1000 ]) && details.for([ "GEAR", 2000 ]) }).to eq(1)
+    expect(count_queries { described_class.new([], AcademicProfiles::CourseKeys.new({})).for([ "WDGT", 1000 ]) }).to eq(0)
   end
 end
