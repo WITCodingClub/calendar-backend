@@ -18,25 +18,42 @@ module Catalog
     # skips callbacks, so the cache has only a TTL.
     CACHE_TTL = 10.minutes
 
-    # The daily run is course_data_sync in config/recurring.yml, the seat
-    # refresh is catalog_seat_refresh, the weekly one is
-    # university_calendar_sync, the monthly one is
-    # degree_requirements_current_year, and term_electives_import runs each
-    # night.
+    # The recurring tasks of production (config/recurring.yml). The schedule
+    # text below is read from them, so it changes with the file.
+    RECURRING = YAML.load_file(Rails.root.join("config/recurring.yml")).fetch("production").freeze
+
+    WEEKDAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/
+
+    # "every saturday at 2am" as "every Saturday at 2am Eastern". Times in the
+    # file are in the application time zone.
+    def self.schedule(task)
+      text = RECURRING.fetch(task.to_s).fetch("schedule").sub(WEEKDAYS, &:capitalize)
+      text.match?(/\d(am|pm)\b/) ? "#{text} Eastern" : text
+    end
+
+    # "30 minutes", from "every 30 minutes".
+    def self.interval(task)
+      RECURRING.fetch(task.to_s).fetch("schedule").delete_prefix("every ")
+    end
+
+    # How old a seat count can be while a term is in registration
+    # (Catalog::SeatRefreshJob).
+    SEAT_AGE = "seat counts can be up to #{interval(:catalog_seat_refresh)} old".freeze
+
     SOURCES = {
       sections:            {
         data:     "Course sections: meeting times, rooms, instructors, and seats",
         source:   "Wentworth Banner class schedule (LeopardWeb)",
-        schedule: "Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed " \
-                  "after it ends. Seats also every 30 minutes, from the time a term's sections are listed until " \
-                  "#{SeatRefreshJob::ADD_DROP.in_days.to_i} days after its classes start."
+        schedule: "#{schedule(:course_data_sync).upcase_first}, for the current and future terms. A past term is not refreshed " \
+                  "after it ends. Seats also every #{interval(:catalog_seat_refresh)}, from the time a term's " \
+                  "sections are listed until #{SeatRefreshJob::ADD_DROP.in_days.to_i} days after its classes start."
       },
       course_details:      {
         data:     "Course descriptions, credits, prerequisites, corequisites, and restrictions",
         source:   "Wentworth Banner course catalog",
         schedule: "Each course at most once every #{CourseDetailsSync::FRESH_FOR.in_days.to_i} days, in the " \
-                  "daily 4 AM Eastern run, for the current and future terms. A course that is not offered in " \
-                  "those terms keeps the details of the last term that offered it."
+                  "daily run (#{schedule(:course_data_sync)}), for the current and future terms. A course that is " \
+                  "not offered in those terms keeps the details of the last term that offered it."
       },
       finals:              {
         data:     "Final exam dates, times, and rooms",
@@ -46,19 +63,19 @@ module Catalog
       university_calendar: {
         data:     "Holidays, term dates, registration, deadlines, and finals week",
         source:   "Wentworth academic calendar (25Live)",
-        schedule: "Every Saturday at 2 AM Eastern."
+        schedule: "#{schedule(:university_calendar_sync).upcase_first}."
       },
       degree_requirements: {
         data:     "Degree programs, plans of study, and elective lists for each catalog year",
         source:   "Wentworth academic catalog (catalog.wit.edu)",
-        schedule: "On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before. " \
-                  "Older catalog years do not change."
+        schedule: "#{schedule(:degree_requirements_current_year).upcase_first}, for the current catalog year and the year " \
+                  "before. Older catalog years do not change."
       },
       term_electives:      {
         data:     "The elective lists that each school publishes for a term",
         source:   "Wentworth Registrar elective lists (PDF)",
-        schedule: "Every day at 3:30 AM Eastern, for each list that the Registrar's page links. The time is " \
-                  "the newest read of any list. Each list gives its own fetched_at."
+        schedule: "#{schedule(:term_electives_import).upcase_first}, for each list that the Registrar's page links. The " \
+                  "time is the newest read of any list. Each list gives its own fetched_at."
       }
     }.freeze
 

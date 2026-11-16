@@ -87,15 +87,12 @@ RSpec.describe Catalog::Freshness do
     expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
   end
 
-  # The schedule text gives these times. It must change with the recurring jobs.
-  it "matches the schedules of the recurring syncs" do
-    recurring = YAML.load_file(Rails.root.join("config/recurring.yml"))
-
-    expect(recurring.dig("production", "course_data_sync", "schedule")).to eq("every day at 4am")
-    expect(recurring.dig("production", "catalog_seat_refresh", "schedule")).to eq("every 30 minutes")
-    expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
-    expect(recurring.dig("production", "degree_requirements_current_year", "schedule")).to eq("every month on the 2nd at 3am")
-    expect(recurring.dig("production", "term_electives_import", "schedule")).to eq("every day at 3:30am")
+  # The schedule text comes from config/recurring.yml, so it changes with the jobs.
+  it "words the schedules of the recurring syncs" do
+    expect(described_class.schedule(:course_data_sync)).to eq("every day at 4am Eastern")
+    expect(described_class.schedule(:university_calendar_sync)).to eq("every Saturday at 2am Eastern")
+    expect(described_class.interval(:catalog_seat_refresh)).to eq("30 minutes")
+    expect(described_class::SOURCES[:sections][:schedule]).to start_with("Every day at 4am Eastern, for the current")
   end
 
   it "gives the time of the newest catalog import" do

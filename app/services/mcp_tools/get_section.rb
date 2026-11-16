@@ -6,11 +6,12 @@ module McpTools
 
     # Banner's own pages need no sign-in. Catalog::BannerThrottle says why the
     # model reads only a few.
-    BANNER_HINT = "For a current or future term, when the advisory says the section data is more than 2 days old " \
-                  "or has no refresh time, " \
+    BANNER_HINT = "For a current or future term, when the advisory says the section data is more than " \
+                  "#{Catalog::StaleSections::FRESH_FOR.in_hours.to_i} hours old or has no refresh time, " \
                   "and you can fetch web pages, read Banner itself. " \
                   "Send one GET for each CRN, one at a time, for at most 10 CRNs, because Banner fails after " \
-                  "about 40 requests in a minute. The term_uid is the Banner term code. " \
+                  "about #{Catalog::BannerThrottle::FAILED_AFTER_PER_MINUTE} requests in a minute. " \
+                  "The term_uid is the Banner term code. " \
                   "#{format(BANNER_URL, 'getEnrollmentInfo')} gives the seats and the waitlist as HTML. " \
                   "#{format(BANNER_URL, 'getFacultyMeetingTimes')} gives the meeting times, rooms, and instructors " \
                   "as JSON. Tell the student which data came from Banner."
