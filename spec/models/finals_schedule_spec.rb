@@ -48,7 +48,7 @@ RSpec.describe FinalsSchedule, type: :model do
   end
 
   describe "#trigger_calendar_resyncs_for_term" do
-    it "queues a bulk sync for each Google user in the term" do
+    it "queues a bulk sync for each user with a calendar in the term" do
       schedule = create(:finals_schedule)
       user = create(:user)
       create(:course_calendar, oauth_credential: create(:oauth_credential, user: user, provider: "google"))

@@ -114,18 +114,32 @@ class Term < ApplicationRecord
     update!(start_date: new_start, end_date: new_end)
   end
 
-  # The dates this term can have. start_date is the day the schedule or
+  # The dates a term can have. start_date is the day the schedule or
   # registration opens, so a spring term starts in the fall before it. Classes
-  # end in the term's own year. See UniversityCalendarEvent.detect_term_dates.
-  def date_window
-    UniversityCalendarEvent.term_detection_date_window(year, season)
+  # end in the term's own year. See UniversityCalendar::TermDates.
+  def self.date_window(year, season)
+    case season.to_sym
+    when :spring then Date.new(year - 1, 8, 1)..Date.new(year, 6, 30)
+    when :summer then Date.new(year, 1, 1)..Date.new(year, 8, 31)
+    when :fall   then Date.new(year, 1, 1)..Date.new(year, 12, 31)
+    else Date.new(year - 1, 1, 1)..Date.new(year + 1, 12, 31)
+    end
   end
 
-  # The date columns that fall outside date_window, for lib/tasks/terms.rake.
+  # Classes end in the term's own year for every season.
+  def self.plausible_end_date?(date, year, window = nil)
+    return false if date.nil? || date.year != year
+
+    window.nil? || date.in?(window)
+  end
+
+  def date_window = self.class.date_window(year, season)
+
+  # The date columns that fall outside date_window, for lib/tasks/term_dates.rake.
   def implausible_date_fields
     fields = []
     fields << :start_date if start_date && !start_date.in?(date_window)
-    fields << :end_date if end_date && !UniversityCalendarEvent.term_end_date?(end_date, year, date_window)
+    fields << :end_date if end_date && !self.class.plausible_end_date?(end_date, year, date_window)
     fields
   end
 

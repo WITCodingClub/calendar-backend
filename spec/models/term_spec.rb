@@ -185,6 +185,18 @@ RSpec.describe Term, type: :model do
     end
   end
 
+  describe ".date_window" do
+    it "gives a window for each season" do
+      expect(described_class.date_window(2026, :spring)).to eq(Date.new(2025, 8, 1)..Date.new(2026, 6, 30))
+      expect(described_class.date_window(2026, :summer)).to eq(Date.new(2026, 1, 1)..Date.new(2026, 8, 31))
+      expect(described_class.date_window(2026, :fall)).to eq(Date.new(2026, 1, 1)..Date.new(2026, 12, 31))
+    end
+
+    it "gives a wide window for an unknown season" do
+      expect(described_class.date_window(2026, :winter)).to eq(Date.new(2025, 1, 1)..Date.new(2027, 12, 31))
+    end
+  end
+
   describe "#implausible_date_fields" do
     it "names a summer term's dates from the year before" do
       term = build(:term, year: 2031, season: :summer, start_date: Date.new(2030, 7, 25), end_date: Date.new(2030, 8, 11))

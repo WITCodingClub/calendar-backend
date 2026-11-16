@@ -21,9 +21,9 @@ namespace :terms do
   end
 
   # A term date outside the term's window (Term#date_window) is cleared, then
-  # filled again from the term's courses and the university calendar, with the
-  # same rules as UniversityCalendar::SyncJob. A date with no source stays
-  # empty until the next sync finds one.
+  # filled again from the term's courses and the university calendar
+  # (UniversityCalendar::TermDates). A date with no source stays empty until
+  # the next sync finds one.
   desc "Clear term dates outside the term's window and detect them again"
   task fix_implausible_dates: :environment do
     Term.find_each do |term|
@@ -34,9 +34,7 @@ namespace :terms do
       term.update!(fields.index_with(nil))
       term.update_dates_from_courses! if term.courses.exists?
 
-      detected = UniversityCalendarEvent.detect_term_dates(term.year, term.season)
-      fill = { start_date: detected[:start_date], end_date: detected[:end_date] }.select { |field, value| value && term[field].nil? }
-      term.update!(fill) if fill.any?
+      UniversityCalendar::TermDates.fill_missing(term)
 
       puts "  #{term.name}: #{old_dates} -> #{term.start_date} to #{term.end_date}"
     end

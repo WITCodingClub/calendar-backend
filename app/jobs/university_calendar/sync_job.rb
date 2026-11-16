@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 module UniversityCalendar
-  # Syncs university calendar events from the 25Live ICS feed and also refreshes
-  # 25Live reference data (organizations, event categories, resources) via
-  # TwentyFiveLive::Client. Scheduled to run daily at 3am via Solid Queue.
+  # Imports the university calendar from the 25Live ICS feed, syncs the
+  # calendars of the users that a change reaches, and fills missing term dates.
+  # TwentyFiveLive::SyncJob refreshes the 25Live reference data on its own
+  # schedule (config/recurring.yml).
   class SyncJob < ApplicationJob
     queue_as :low
 
@@ -15,14 +16,6 @@ module UniversityCalendar
 
     def perform
       Rails.logger.info("Starting university calendar sync")
-
-      # Refresh 25Live reference data (organizations, categories, resources)
-      begin
-        TwentyFiveLive::Client.call
-        Rails.logger.info("25Live reference data sync complete")
-      rescue => e
-        Rails.error.report(e, handled: true)
-      end
 
       result = UniversityCalendar::IcsImport.call
 
@@ -54,31 +47,19 @@ module UniversityCalendar
     def trigger_sync_for_all_users
       Rails.logger.info("Holiday changes detected - syncing all users")
 
-      users = User.joins(oauth_credentials: :course_calendar).distinct
-      CourseCalendars::SyncJob.perform_bulk_in_batch(users, reason: "holidays", force: true)
+      CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.all, reason: "holidays", force: true)
     end
 
     def trigger_sync_for_opted_in_users
       Rails.logger.info("Non-holiday changes detected - syncing opted-in users only")
 
-      users = User.joins(:user_extension_config)
-                  .where(user_extension_configs: { sync_university_events: true })
-                  .joins(oauth_credentials: :course_calendar)
-                  .distinct
-      CourseCalendars::SyncJob.perform_bulk_in_batch(users, reason: "university_events", force: true)
+      CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.with_university_events,
+                                                     reason: "university_events", force: true)
     end
 
     def update_term_dates_from_events
-      current_year = Time.zone.today.year
-
-      Term.where(year: (current_year - 1)..).find_each do |term|
-        dates = UniversityCalendarEvent.detect_term_dates(term.year, term.season)
-
-        updates = {}
-        updates[:start_date] = dates[:start_date] if dates[:start_date] && term.start_date.nil?
-        updates[:end_date]   = dates[:end_date]   if dates[:end_date]   && term.end_date.nil?
-
-        term.update!(updates) if updates.any?
+      Term.where(year: (Time.zone.today.year - 1)..).find_each do |term|
+        updates = TermDates.fill_missing(term)
         Rails.logger.info("Updated term #{term.name} with dates: #{updates}") if updates.any?
       rescue => e
         Rails.error.report(e, handled: true, context: { term_id: term.id })
