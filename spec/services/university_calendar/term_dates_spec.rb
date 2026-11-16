@@ -20,6 +20,7 @@ RSpec.describe UniversityCalendar::TermDates do
       expect(described_class.finals_period_summary?("Final Exam Period")).to be(true)
       expect(described_class.finals_period_summary?("Finals Week")).to be(true)
       expect(described_class.finals_period_summary?("Final exam schedule posted")).to be(false)
+      expect(described_class.finals_period_summary?("Summer 2026 Final Exam Schedule Availabl")).to be(false)
       expect(described_class.finals_period_summary?("Commencement")).to be(false)
     end
   end

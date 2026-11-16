@@ -26,26 +26,26 @@ module UniversityCalendar
 
       any_changes = result[:created].positive? || result[:updated].positive? || result[:cancelled].positive?
 
-      if any_changes
-        no_class_changed = Array(result[:changed_categories]).any? { |category| UniversityCalendarEvent.no_class_category?(category) }
-        trigger_user_calendar_syncs(no_class_changed:)
-      end
+      self.class.resync_users(result[:changed_categories]) if any_changes
 
       update_term_dates_from_events
 
       result
     end
 
-    private
-
-    def trigger_user_calendar_syncs(no_class_changed:)
-      if no_class_changed
+    # Queues the calendar syncs that a change to events in these categories
+    # needs. A no-class category changes the class days of every user; any
+    # other category reaches only the users who sync university events.
+    def self.resync_users(changed_categories)
+      if Array(changed_categories).any? { |category| UniversityCalendarEvent.no_class_category?(category) }
         CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.all, reason: "holidays", force: true)
       else
         CourseCalendars::SyncJob.perform_bulk_in_batch(CourseCalendars::ResyncAudience.with_university_events,
                                                        reason: "university_events", force: true)
       end
     end
+
+    private
 
     def update_term_dates_from_events
       Term.where(year: (Time.zone.today.year - 1)..).find_each do |term|

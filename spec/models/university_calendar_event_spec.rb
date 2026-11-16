@@ -69,7 +69,7 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
 
     it "returns the description of a known category" do
-      expect(described_class.category_description("finals")).to eq("Final exam schedules and exam periods")
+      expect(described_class.category_description("finals")).to eq("Final exam periods")
     end
 
     it "falls back for an unknown category" do
@@ -149,6 +149,18 @@ RSpec.describe UniversityCalendarEvent, type: :model do
 
       expect(described_class.no_class_dates_between(Date.new(2026, 10, 9), Date.new(2026, 10, 20)))
         .to contain_exactly(Date.new(2026, 10, 9), Date.new(2026, 10, 10), Date.new(2026, 10, 11))
+    end
+
+    it ".no_class_dates_between keeps classes on the day a finals schedule is announced" do
+      summary = "Spring 2027 Final Exam Schedule Available to Students"
+      event_in(UniversityCalendar::Category.infer(summary, "Calendar Announcement"), summary: summary,
+               start_time: Time.zone.local(2027, 2, 22), end_time: Time.zone.local(2027, 2, 22, 23, 59))
+      period = "Final Exam Period (15-week & 2nd 7-week classes)"
+      event_in(UniversityCalendar::Category.infer(period, nil), summary: period,
+               start_time: Time.zone.local(2027, 4, 26), end_time: Time.zone.local(2027, 4, 26, 23, 59))
+
+      expect(described_class.no_class_dates_between(Date.new(2027, 2, 1), Date.new(2027, 4, 30)))
+        .to contain_exactly(Date.new(2027, 4, 26))
     end
 
     it ".no_class_spans_between returns holidays, study days and finals only, earliest first" do

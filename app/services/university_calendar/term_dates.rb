@@ -99,15 +99,10 @@ module UniversityCalendar
       summary.to_s.match?(/registration/i)
     end
 
-    # Wider than UniversityCalendarEvent.finals_periods, which decides the
-    # days with no classes: any finals event that is not a schedule release
-    # can end the term.
-    def self.finals_period_summary?(summary)
-      summary = summary.to_s
-      return false if summary.match?(/schedule\s+(available|online|release|released|posted)/i)
-
-      summary.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
-    end
+    # Wider than UniversityCalendarEvent.finals_periods, which also needs a
+    # "Final Exam Period" or "Study Day" title: any finals event whose title
+    # names an exam period (Category.finals_period?) can end the term.
+    def self.finals_period_summary?(summary) = Category.finals_period?(summary)
 
     # Fills each date the term does not have with the detected one. Returns the
     # dates it wrote.

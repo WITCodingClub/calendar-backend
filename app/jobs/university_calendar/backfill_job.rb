@@ -20,6 +20,7 @@ module UniversityCalendar
       result = UniversityCalendar::IcsImport.call(ics_url: url)
 
       Rails.logger.info("University calendar backfill complete: #{result}")
+      SyncJob.resync_users(result[:changed_categories]) if result.values_at(:created, :updated, :cancelled).any?(&:positive?)
       result
     end
   end

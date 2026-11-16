@@ -35,13 +35,43 @@ module UniversityCalendar
 
     FALLBACK = "campus_event"
 
+    # "finals" cancels classes, so it is an allowlist: only a title that
+    # names the exam period gets it. "Final Exam Schedule ..." and "Final Exam
+    # Conflict ..." do not, even with "(" or a word after them.
+    FINALS_PERIOD_PATTERN = /
+      final\s+exam\s+period | finals\s+week | exam(?:ination)?\s+period | final\s+examinations |
+      final\s+exams?(?!\s+(?:schedule|conflict))(?:\s|\(|$)
+    /x
+
+    # A title with a finals word that does not name the exam period.
+    NOT_A_PERIOD_DEADLINE_PATTERN = /\b(?:due|submit|request)/
+
     module_function
 
     def infer(summary, event_type)
       summary = summary.to_s.downcase
       return "holiday" if HOLIDAY_WORDS.any? { |word| summary.include?(word) } || summary.match?(HOLIDAY_PATTERN)
 
-      first_match(SUMMARY_WORDS, summary) || first_match(EVENT_TYPE_WORDS, event_type.to_s.downcase) || FALLBACK
+      category = first_match(SUMMARY_WORDS, summary)
+      category = finals_word_category(summary) if category == "finals"
+
+      category || first_match(EVENT_TYPE_WORDS, event_type.to_s.downcase) || FALLBACK
+    end
+
+    # True when the title names a final exam period, the only finals title
+    # that cancels classes. TermDates reads the same rule.
+    def finals_period?(summary)
+      summary.to_s.downcase.match?(FINALS_PERIOD_PATTERN)
+    end
+
+    # The category of a title with a finals word: finals for an exam period,
+    # deadline for a deadline or a request, and academic for any other
+    # announcement, such as "Final Exam Schedule Available to Students".
+    def finals_word_category(summary)
+      return "finals" if finals_period?(summary)
+      return "deadline" if summary.match?(NOT_A_PERIOD_DEADLINE_PATTERN) || SUMMARY_WORDS["deadline"].any? { |word| summary.include?(word) }
+
+      "academic"
     end
 
     def first_match(table, text)

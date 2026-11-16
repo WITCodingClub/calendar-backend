@@ -36,3 +36,26 @@ flowchart TD
 ```
 
 The values do not depend on today's date. A request after finals have passed gets the same dates. The university events endpoint lists only upcoming events, so it cannot give these dates.
+
+## Which events cancel classes
+
+A university calendar event in the `holiday`, `study_day` or `finals` category cancels classes on its dates (`UniversityCalendarEvent::NO_CLASS_CATEGORIES`). The feed has no category field, so `UniversityCalendar::Category` reads the title.
+
+`finals` is an allowlist (`Category.finals_period?`). A title gets `finals` only when it names the exam period: "Final Exam Period", "Final Exams" followed by "(", a space or the end of the title, "Finals Week", "Exam Period", "Examination Period" or "Final Examinations". "Final Exam Schedule ..." and "Final Exam Conflict ..." never count. Any other title with a finals word goes to `deadline` or `academic`:
+
+| Title | Category |
+| --- | --- |
+| "Final Exam Period (15-week & 2nd 7-week classes)", "Final Exams (see schedule posted)", "Finals Week" | `finals` |
+| A deadline or request: a `deadline` word, "due", "submit" or "request", such as "Final Exam Conflict Requests Due" | `deadline` |
+| Any other title, such as "Spring 2027 Final Exam Schedule Available to Students", "Final Exam Schedule Is Live", or a title the feed cuts short ("Schedule Availabl") | `academic` |
+
+`UniversityCalendar::TermDates` reads the same rule when it finds the end of a term.
+
+The weekly import infers the category again for every event that the feed still lists. A row that the feed no longer lists keeps its old category. After a change to `UniversityCalendar::Category`, run the recategorize task once after the deploy:
+
+```sh
+bin/rails university_calendar:recategorize            # prints the changes only
+bin/rails university_calendar:recategorize DRY_RUN=0  # saves them and queues the calendar syncs
+```
+
+The task skips rows with a `manual:` uid, because an admin chose their category. When a no-class category changes, it resyncs the calendars of all users, as the import and the backfill do (`UniversityCalendar::SyncJob.resync_users`).

@@ -273,8 +273,12 @@ module UniversityCalendar
       content_changed = event.changed? && (event.changed - [ "last_fetched_at" ]).any?
 
       if was_new || content_changed
+        # A row that leaves a no-class category changes the class days of
+        # every user, so the old category counts as changed too.
+        previous_category = event.category_in_database
         event.save!
         stats[:changed_categories] << event.category if event.category.present?
+        stats[:changed_categories] << previous_category if previous_category.present?
         was_new ? stats[:created] += 1 : stats[:updated] += 1
         add_event_to_content_cache(event)
       else

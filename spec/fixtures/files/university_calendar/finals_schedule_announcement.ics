@@ -1,0 +1,11 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example Test//Synthetic Feed//EN
+BEGIN:VEVENT
+UID:finals-schedule-announcement@example.test
+SUMMARY:Spring 2027 Final Exam Schedule Available to Students
+DTSTART;VALUE=DATE:20270222
+DTEND;VALUE=DATE:20270223
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Calendar Announcement
+END:VEVENT
+END:VCALENDAR
