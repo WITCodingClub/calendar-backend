@@ -87,39 +87,11 @@ module McpTools
       },
       required: [ "courses" ]
     )
-    # Catalog::ScheduleOptions::Finder#call.
-    output_schema(
-      Schemas.object(
-        term:        Schemas::TERM_REF,
-        count:       Schemas::INTEGER,
-        capped:      Schemas::BOOLEAN,
-        schedules:   Schemas.array(
-          Schemas.object(
-            rank:       Schemas::INTEGER,
-            score:      Schemas::NUMBER,
-            crns:       Schemas::STRINGS,
-            courses:    Schemas.array(Schemas.object(code: Schemas::STRING, crns: Schemas::STRINGS)),
-            highlights: Schemas::STRINGS,
-            avoid_hits: Schemas::INTEGER,
-            totals:     Schemas::SCHEDULE_TOTALS
-          )
-        ),
-        relax:       Schemas.array(
-          Schemas.object(
-            preference: { type: "string", enum: Catalog::ScheduleOptions::Preferences::RELAXABLE.map(&:to_s) },
-            label:      Schemas::STRING,
-            count:      Schemas::INTEGER
-          )
-        ),
-        not_offered: Schemas::STRINGS
-      )
-    )
+    output_schema(Schemas::SCHEDULE_OPTIONS)
 
     def perform(courses:, term_uid: nil, preferences: nil, limit: nil)
       params = { term_uid: find_term(term_uid).uid, courses: courses, preferences: preferences, limit: limit }.compact
       Catalog::ScheduleOptions::Finder.new(params, surface: "mcp").call
-    rescue Catalog::FilterError => e
-      raise ToolError, e.message
     rescue Catalog::ScheduleOptions::BusyError
       raise ToolError, "The schedule builder is busy. Wait a moment, then call find_schedules again."
     end

@@ -27,7 +27,6 @@ module FriendMeetings
   class Creator < ApplicationService
     class Error < StandardError; end
 
-    UTC_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})\z/
     REPEAT_OPTIONS_NEED_FREQUENCY = "repeat_interval, repeat_days, and repeat_until need a repeating frequency"
 
     def initialize(user:, title:, start_time:, end_time:, friend_ids:, location: nil,
@@ -91,15 +90,8 @@ module FriendMeetings
       find_existing || raise
     end
 
-    # The offset is required: without it, the time would depend on the server's
-    # zone and not on the person's.
     def self.parse_time(value, name)
-      value = value.to_s
-      raise ArgumentError unless value.match?(UTC_OFFSET)
-
-      Time.iso8601(value).in_time_zone
-    rescue ArgumentError
-      raise Error, "#{name} must be an ISO 8601 time with a UTC offset"
+      Friendships::OffsetTime.parse(value) || raise(Error, "#{name} must be an ISO 8601 time with a UTC offset")
     end
 
     # A repeating meeting belongs to the term that holds its first day. Between

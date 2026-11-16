@@ -38,10 +38,4 @@ module ApplicationHelper
       { css_class: "bg-surface-container-high border-outline text-on-surface", icon: :information, role: "status", timeout: 8000 }
     end
   end
-
-  def normalize_section_number(section_number)
-    return nil if section_number.blank?
-
-    section_number.to_s.gsub(/^0+/, "").presence || "0"
-  end
 end

@@ -6,7 +6,7 @@ module Dashboard
   # AcademicProfiles::PlannedPrograms, as POST and DELETE
   # /api/user/planned_programs do. A LeopardWeb program never changes here.
   class PlannedProgramsController < Dashboard::ApplicationController
-    include Dashboard::DegreePlanningFlag
+    include DegreePlanningFlag
 
     def create
       planned = AcademicProfiles::PlannedPrograms.new(current_user)

@@ -13,8 +13,6 @@ module Api
       before_action :require_friend_meeting_events
       before_action :set_meeting, only: %i[show update destroy leave]
 
-      # GET /api/friends/meetings?start=&end=
-      #
       # The person's own meetings and the ones that invited them, with each
       # occurrence in the range. It reads only the database, so it works for a
       # person who uses only the ICS feed.
@@ -36,14 +34,11 @@ module Api
         }
       end
 
-      # GET /api/friends/meetings/:id
       def show
         authorize @meeting, :show?
         render json: { meeting: serialize(@meeting) }
       end
 
-      # POST /api/friends/meetings
-      #
       # A retry with the same Idempotency-Key answers 200 with the first meeting.
       def create
         authorize FriendMeeting, :create?
@@ -69,8 +64,6 @@ module Api
         render_error e.message, status: :unprocessable_content
       end
 
-      # PATCH /api/friends/meetings/:id
-      #
       # Changes the whole series, the repeat options too. Only the owner can do
       # it.
       def update
@@ -82,8 +75,6 @@ module Api
         render_error e.message, status: :unprocessable_content
       end
 
-      # DELETE /api/friends/meetings/:id
-      #
       # The meeting is gone for the person at once. A job deletes the provider
       # events, which sends each invited friend a cancellation.
       def destroy
@@ -94,8 +85,6 @@ module Api
         head :no_content
       end
 
-      # DELETE /api/friends/meetings/:id/attendance
-      #
       # An invited friend leaves the meeting. It is gone from their list, their
       # busy blocks, and their ICS feed at once. For a meeting that has not ended,
       # a job updates the provider events, so the owner sees that they left.

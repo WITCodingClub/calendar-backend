@@ -11,7 +11,6 @@ module Api
     before_action :authenticate_oauth_token!
     before_action :challenge_missing_tool_scope
 
-    # POST /api/mcp
     def create
       server    = McpTools::Server.build(user: current_user, application: @access_token.application,
                                          scopes: @scopes, request: request)
@@ -87,7 +86,7 @@ module Api
     # every scope, so the student picks on the consent page. A client without
     # step-up support can get a scope only there.
     def challenge(error: nil, description: nil, scope: McpTools::Scopes::NAMES.join(" "))
-      metadata = Oauth::Metadata.new(host: request.host, port: request.port, protocol: request.protocol)
+      metadata = Oauth::Metadata.from_request(request)
       parts = [ %(resource_metadata="#{metadata.resource_metadata_url}"), %(scope="#{scope}") ]
       parts << %(error="#{error}") if error
       parts << %(error_description="#{description}") if description

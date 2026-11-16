@@ -7,7 +7,6 @@ module Api
 
     authenticate_with_token
 
-    # GET /api/user/processed_events/status
     def processing_status
       authorize current_user, :show?
 
@@ -19,37 +18,14 @@ module Api
       render json: TermProcessingStatusSerializer.new(status_row, enrolled: enrolled).as_json, status: :ok
     end
 
-    # GET /api/user/processed_events
     def index
       authorize current_user, :show?
 
       term = find_term_by_uid
       return if performed?
 
-      enrollments = current_user
-                    .enrollments
-                    .where(term_id: term.id)
-                    .includes(course: [
-                      :faculties,
-                      { meeting_times: [ :event_preference, { rooms: :building }, { course: :faculties } ] }
-                    ])
-
-      preference_resolver = Preferences::Resolver.new(current_user)
-      template_renderer   = Preferences::TemplateRenderer.new(user_id: current_user.id)
-      recurrence          = CourseCalendars::RecurrenceBuilder.preloaded(current_user, enrollments.map(&:course))
-
-      structured_data = enrollments.map do |enrollment|
-        EnrolledCourseSerializer.new(
-          enrollment,
-          term:               term,
-          preference_resolver: preference_resolver,
-          template_renderer:  template_renderer,
-          recurrence:         recurrence
-        ).as_json
-      end
-
       render json: {
-        classes:                structured_data,
+        classes:                Courses::EnrolledCourses.for(current_user, term),
         notifications_disabled: current_user.notifications_disabled?
       }, status: :ok
     end

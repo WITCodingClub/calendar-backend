@@ -4,6 +4,8 @@ module McpTools
   # PATCH and DELETE /api/meeting_times/:id/preference: the calendar event
   # settings of one class meeting, above the calendar-wide settings.
   class UpdateClassSettings < BaseWriteTool
+    include SettingsTool
+
     tool_name "update_class_settings"
     title "Change one class's calendar events"
     description "Changes how one weekly class meeting appears in my calendar: the event title, " \
@@ -68,7 +70,7 @@ module McpTools
         class_settings:  preference && EventPreferenceSerializer.new(preference).as_json,
         resolved:        resolved[:preferences],
         sources:         resolved[:sources],
-        preview:         generate_preview(resolved[:preferences], context)
+        preview:         Preferences::Preview.new.call(resolved[:preferences], context)
       }
     end
 

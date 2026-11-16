@@ -15,8 +15,6 @@ module Api
 
     MAX_BATCH_SIZE = 200
 
-    # POST /api/meeting_times/preferences
-    #
     # The same body as GET /api/meeting_times/:id/preference, for many meeting
     # times in one request, keyed by the id the caller sent. The calendar page
     # used to send one request per meeting time. Ids that match no meeting time
@@ -67,23 +65,7 @@ module Api
 
       if preference.update(event_preference_params)
         sync_updated_event
-
-        fresh_resolver = Preferences::Resolver.new(current_user)
-        resolved_data  = fresh_resolver.resolve_with_sources(@preferenceable)
-        context        = Preferences::TemplateRenderer.build_context_from_meeting_time(@preferenceable)
-        preview        = generate_preview(resolved_data[:preferences], context)
-
-        resolved_prefs = resolved_data[:preferences].dup
-        resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
-
-        render json: {
-          individual_preference: EventPreferenceSerializer.new(preference).as_json,
-          resolved:              resolved_prefs,
-          sources:               resolved_data[:sources],
-          preview:               preview,
-          templates:             context,
-          notifications_disabled: fresh_resolver.notifications_disabled?
-        }
+        render json: preference_payload(Preferences::Resolver.new(current_user), @preferenceable)
       else
         render_error preference.errors.full_messages.join(", "), status: :unprocessable_content,
                      errors: preference.errors.full_messages
@@ -113,7 +95,7 @@ module Api
       authorize preference || EventPreference.new(user: current_user, preferenceable: preferenceable), :show?
 
       context        = Preferences::TemplateRenderer.build_context_from_meeting_time(preferenceable)
-      preview        = generate_preview(resolved_data[:preferences], context)
+      preview        = (@preview ||= Preferences::Preview.new).call(resolved_data[:preferences], context)
 
       resolved_prefs = resolved_data[:preferences].dup
       resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])

@@ -19,7 +19,6 @@ module Auth
       @error = params[:error] || "Unknown error occurred"
     end
 
-    # GET /oauth/confirm
     # Names the Google account and the calendar account, so the person can see
     # whose account the link goes to before any token is saved.
     def confirm
@@ -27,7 +26,6 @@ module Auth
       @user_email   = @user.email
     end
 
-    # POST /oauth/confirm
     def link
       pending_id = session.delete(:pending_google_link)
       GoogleSignIn::AccountLink.discard_pending(pending_id)
@@ -42,7 +40,6 @@ module Auth
       redirect_to "/oauth/failure?error=#{CGI.escape('Could not connect the Google account. Please try again.')}"
     end
 
-    # DELETE /oauth/confirm
     def cancel
       GoogleSignIn::AccountLink.discard_pending(session.delete(:pending_google_link))
 

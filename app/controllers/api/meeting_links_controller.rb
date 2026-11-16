@@ -6,9 +6,9 @@ module Api
   class MeetingLinksController < BaseController
     authenticate_with_token
 
-    before_action :require_meeting_links
+    # Off for everyone until the privacy policy covers meeting links.
+    require_feature FeatureFlags::MEETING_LINKS, "Meeting links are not enabled"
 
-    # GET /api/meeting_links
     def index
       authorize MeetingLink, :index?
 
@@ -16,7 +16,6 @@ module Api
       render json: { meeting_links: MeetingLinkSerializer.render_collection(links) }
     end
 
-    # POST /api/meeting_links
     def create
       authorize MeetingLink, :create?
 
@@ -32,47 +31,28 @@ module Api
              status: :created
     end
 
-    # DELETE /api/meeting_links/:id
-    #
-    # Revokes the link. A used link keeps its meeting: delete the event in the
-    # calendar to cancel it.
-    #
-    # With permanent=true, deletes a revoked or expired link, so it leaves the
-    # list (#854). An active or used link answers 409.
+    # A plain DELETE revokes the link. With permanent=true, it deletes a
+    # revoked or expired link. An active or used link then answers 409.
     def destroy
       link = policy_scope(MeetingLink).find_by_public_id(params[:id])
       return render_not_found unless link
 
       authorize link, :destroy?
-      return delete_permanently(link) if permanent?
+      permanent = MeetingLinks::Removal.permanent?(params[:permanent])
+      result    = MeetingLinks::Removal.call(link, permanent: permanent)
 
-      link.revoke! unless link.used?
-      render json: { meeting_link: MeetingLinkSerializer.new(link).as_json }
-    end
-
-    private
-
-    # Only "true" or "1" deletes. Any other value revokes, so a typo never
-    # deletes a link.
-    def permanent? = params[:permanent].to_s.in?(%w[true 1])
-
-    def delete_permanently(link)
-      if link.used?
-        render_error "A used link keeps its meeting, so it cannot be deleted", status: :conflict, code: "MEETING_LINK_USED"
-      elsif link.usable?
-        render_error "Revoke the link before you delete it", status: :conflict, code: "MEETING_LINK_ACTIVE"
-      else
-        link.destroy!
+      if result == :deleted
         head :no_content
+      elsif result == :active
+        render_error "Revoke the link before you delete it", status: :conflict, code: "MEETING_LINK_ACTIVE"
+      elsif result == :used && permanent
+        render_error "A used link keeps its meeting, so it cannot be deleted", status: :conflict, code: "MEETING_LINK_USED"
+      else
+        render json: { meeting_link: MeetingLinkSerializer.new(link).as_json }
       end
     end
 
-    # Off for everyone until the privacy policy covers meeting links.
-    def require_meeting_links
-      return if Flipper.enabled?(FeatureFlags::MEETING_LINKS, current_user)
-
-      render_error "Meeting links are not enabled", status: :not_found
-    end
+    private
 
     def parse_date(value, name)
       Date.iso8601(value.to_s)
@@ -80,15 +60,11 @@ module Api
       raise ActionController::BadRequest, "#{name} must be an ISO 8601 date"
     end
 
-    # The offset is required, like FriendMeetings::Creator, so the time does not
-    # depend on the server's zone.
     def parse_time(value)
       return nil if value.blank?
-      raise ArgumentError unless value.to_s.match?(FriendMeetings::Creator::UTC_OFFSET)
 
-      Time.iso8601(value.to_s)
-    rescue ArgumentError
-      raise ActionController::BadRequest, "expires_at must be an ISO 8601 time with a UTC offset"
+      Friendships::OffsetTime.parse(value) ||
+        raise(ActionController::BadRequest, "expires_at must be an ISO 8601 time with a UTC offset")
     end
   end
 end

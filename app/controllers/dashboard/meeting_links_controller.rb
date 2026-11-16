@@ -8,7 +8,7 @@ module Dashboard
     # banner that closes after five seconds.
     NEW_URL_KEY = :new_meeting_link_url
 
-    before_action :require_meeting_links
+    require_feature FeatureFlags::MEETING_LINKS, "Meeting links are not enabled"
     after_action :verify_policy_scoped, only: :index
 
     def index
@@ -31,8 +31,6 @@ module Dashboard
       end
     end
 
-    # Revokes the link. A used link keeps its meeting. With permanent, deletes
-    # a revoked or expired link, so it leaves the list (#854).
     def destroy
       # The scope is the access check: another person's link finds nothing.
       link = policy_scope(MeetingLink).find_by_public_id(params[:id])
@@ -42,34 +40,23 @@ module Dashboard
       end
 
       authorize link, :destroy?
-      return delete_permanently(link) if permanent?
 
-      if link.used?
-        redirect_to dashboard_meeting_links_path, alert: "This link was already used. Delete the event in your calendar to cancel the meeting."
+      permanent = MeetingLinks::Removal.permanent?(params[:permanent])
+
+      case MeetingLinks::Removal.call(link, permanent: permanent)
+      when :revoked then redirect_to dashboard_meeting_links_path, notice: "Link revoked."
+      when :deleted then redirect_to dashboard_meeting_links_path, notice: "Link deleted."
       else
-        link.revoke!
-        redirect_to dashboard_meeting_links_path, notice: "Link revoked."
+        alert = if permanent
+          "Only a revoked or expired link can be deleted."
+        else
+          "This link was already used. Delete the event in your calendar to cancel the meeting."
+        end
+        redirect_to dashboard_meeting_links_path, alert: alert
       end
     end
 
     private
-
-    # Only "true" or "1" deletes. Any other value revokes, so a typo never
-    # deletes a link.
-    def permanent? = params[:permanent].to_s.in?(%w[true 1])
-
-    def delete_permanently(link)
-      if link.removable?
-        link.destroy!
-        redirect_to dashboard_meeting_links_path, notice: "Link deleted."
-      else
-        redirect_to dashboard_meeting_links_path, alert: "Only a revoked or expired link can be deleted."
-      end
-    end
-
-    def require_meeting_links
-      head :not_found unless Flipper.enabled?(FeatureFlags::MEETING_LINKS, current_user)
-    end
 
     # The form asks for an expiry date. The link works until the end of that
     # day. With no date, the model uses the end of the last day in the range.

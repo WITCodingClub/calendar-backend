@@ -29,15 +29,9 @@ module Dashboard
     def update
       authorize current_user, :update?
 
-      if params[:disable] == "true"
-        current_user.disable_notifications!
-        CourseCalendars::SyncJob.perform_later(current_user, force: true)
-        redirect_to dashboard_notifications_path, notice: "Notifications disabled."
-      else
-        current_user.enable_notifications!
-        CourseCalendars::SyncJob.perform_later(current_user, force: true)
-        redirect_to dashboard_notifications_path, notice: "Notifications enabled."
-      end
+      disabled = params[:disable] == "true"
+      Notifications::Toggle.call(current_user, disabled: disabled)
+      redirect_to dashboard_notifications_path, notice: "Notifications #{disabled ? 'disabled' : 'enabled'}."
     end
 
     # Turns the friend emails (friend requests and end date changes) on or off.

@@ -5,7 +5,7 @@ module Api
   # registers for next (#449). It is a help for planning, not a degree audit.
   class NextTermCoursesController < BaseController
     authenticate_with_token
-    include Api::DegreePlanningFlag
+    include DegreePlanningFlag
 
     # GET /api/user/next_term_courses
     # Params (optional): term, a Banner code (202720) or a label

@@ -34,11 +34,10 @@ module Oauth
     # Doorkeeper refuses a request for a scope that the client does not list,
     # so give each registered client the current list.
     def sync_client_scopes
-      application = Doorkeeper::Application.find_by(uid: params[:client_id].to_s)
-      return unless application&.dynamic?
+      return unless client_application&.dynamic?
 
       scopes = McpTools::Scopes::NAMES.join(" ")
-      application.update!(scopes: scopes) unless application.scopes.to_s == scopes
+      client_application.update!(scopes: scopes) unless client_application.scopes.to_s == scopes
     end
 
     # The legacy read scope becomes the read scopes it stands for, so the
@@ -53,11 +52,16 @@ module Oauth
       params[:scope] = consent_scopes.granted_scope(params[:scopes])
     end
 
-    def previous_token_scopes
-      application = Doorkeeper::Application.find_by(uid: params[:client_id].to_s)
-      return if application.nil? || current_resource_owner.nil?
+    def client_application
+      return @client_application if defined?(@client_application)
 
-      Doorkeeper::AccessToken.where(application: application, resource_owner_id: current_resource_owner.id, revoked_at: nil)
+      @client_application = Doorkeeper::Application.find_by(uid: params[:client_id].to_s)
+    end
+
+    def previous_token_scopes
+      return if client_application.nil? || current_resource_owner.nil?
+
+      Doorkeeper::AccessToken.where(application: client_application, resource_owner_id: current_resource_owner.id, revoked_at: nil)
                              .order(created_at: :desc).pick(:scopes)
     end
 
@@ -79,7 +83,7 @@ module Oauth
     def check_resource
       resource = params[:resource]
       return if resource.blank?
-      return if resource.to_s.chomp("/") == Oauth::Metadata.new(host: request.host, port: request.port, protocol: request.protocol).resource
+      return if resource.to_s.chomp("/") == Oauth::Metadata.from_request(request).resource
 
       render :unavailable, status: :bad_request, locals: { message: "This server cannot issue a token for #{resource}." }
     end

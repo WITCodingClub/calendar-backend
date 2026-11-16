@@ -1,21 +1,11 @@
 # frozen_string_literal: true
 
 module McpTools
-  # PATCH and DELETE /api/calendar_preferences/:scope: the calendar settings
-  # of one level. A class's own settings (update_class_settings) come first,
+  # The calendar settings of one level, like PATCH and DELETE
+  # /api/calendar_preferences/:scope. A class's own settings (update_class_settings) come first,
   # then the schedule type or final exams, then every class.
   class UpdateCalendarSettings < BaseWriteTool
-    # The level names of this tool, and the scope parameter of the API for
-    # each (PreferenceParams#calendar_preference_for_scope).
-    LEVELS = {
-      "all_classes" => "global",
-      "final_exam"  => "final_exam",
-      "university"  => PreferenceParams::UNI_CAL_GLOBAL_SCOPE_PARAM
-    }.merge(Course::ScheduleType::TYPES.keys.to_h { |key| [ key.to_s, key.to_s ] })
-     .merge(CalendarPreference::UNI_CAL_CATEGORIES.to_h do |category|
-       [ "university:#{category}", "#{PreferenceParams::UNI_CAL_CATEGORY_SCOPE_PREFIX}#{category}" ]
-     end)
-     .freeze
+    include SettingsTool
 
     tool_name "update_calendar_settings"
     title "Change calendar settings"
@@ -27,7 +17,7 @@ module McpTools
     requires_scope "settings:write"
     input_schema(
       properties: {
-        level: { type: "string", enum: LEVELS.keys, description: "Which events the settings apply to." },
+        level: { type: "string", enum: CalendarLevels::NAMES, description: "Which events the settings apply to." },
         **SETTING_PROPERTIES
       },
       required: [ "level" ]
@@ -37,7 +27,7 @@ module McpTools
     output_schema(
       Schemas.object(
         {
-          level:       { type: "string", enum: LEVELS.keys },
+          level:       { type: "string", enum: CalendarLevels::NAMES },
           result:      Schemas::SAVE_RESULT,
           settings:    Schemas.nullable(Schemas::CALENDAR_SETTINGS),
           not_changed: Schemas::NOT_CHANGED
@@ -48,8 +38,8 @@ module McpTools
     links { [ calendar_settings_link ] }
 
     def perform(level:, **arguments)
-      scope = LEVELS[level] || raise(ToolError, "level must be one of #{LEVELS.keys.join(', ')}")
-      preference = calendar_preference_for_scope(scope)
+      scope = CalendarLevels.scope_for(level) || raise(ToolError, "level must be one of #{CalendarLevels::NAMES.join(', ')}")
+      preference = Preferences::ScopeParam.find_or_initialize(user, scope)
 
       authorize_change(preference)
       attributes = setting_attributes(arguments)

@@ -4,7 +4,6 @@ module Api
   class NotificationsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/notifications
     def show
       authorize current_user, :show?
       render json: {
@@ -13,8 +12,6 @@ module Api
       }, status: :ok
     end
 
-    # PATCH /api/user/notifications
-    #
     # Send "disabled": true to turn notifications off, with an optional
     # "duration" in seconds, or "disabled": false to turn them on again.
     def update
@@ -31,58 +28,42 @@ module Api
     def disable
       authorize current_user, :update?
 
-      duration_provided  = params.key?(:duration) && params[:duration].present?
-
-      if duration_provided
-        unless params[:duration].to_s.match?(/\A-?\d+\z/)
+      duration = params[:duration].presence
+      if duration
+        unless duration.to_s.match?(/\A-?\d+\z/)
           render_error "Duration must be a whole number of seconds", status: :bad_request
           return
         end
 
-        duration_seconds = params[:duration].to_i
-
-        if duration_seconds < 0
+        duration = duration.to_i
+        if duration < 0
           render_error "Duration cannot be negative", status: :bad_request
           return
         end
 
-        if duration_seconds > 100.years.to_i
+        if duration > 100.years.to_i
           render_error "Duration cannot exceed 100 years", status: :bad_request
           return
         end
       end
 
-      if duration_provided && duration_seconds > 0
-        current_user.disable_notifications!(duration: duration_seconds.seconds)
-      else
-        current_user.disable_notifications!
-      end
-
-      render json: {
-        message:                      "Notifications disabled",
-        notifications_disabled:       true,
-        notifications_disabled_until: current_user.notifications_disabled_until
-      }, status: :ok
-    rescue ActiveRecord::ActiveRecordError => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to disable notifications", status: :internal_server_error
+      Notifications::Toggle.call(current_user, disabled: true, duration: duration&.positive? ? duration.seconds : nil)
+      render_state "Notifications disabled"
     end
 
     def enable
       authorize current_user, :update?
 
-      current_user.enable_notifications!
-      current_user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
-      CourseCalendars::SyncJob.perform_later(current_user, force: true)
+      Notifications::Toggle.call(current_user, disabled: false)
+      render_state "Notifications enabled"
+    end
 
+    def render_state(message)
       render json: {
-        message:                      "Notifications enabled",
-        notifications_disabled:       false,
-        notifications_disabled_until: nil
+        message:                      message,
+        notifications_disabled:       current_user.notifications_disabled?,
+        notifications_disabled_until: current_user.notifications_disabled_until
       }, status: :ok
-    rescue ActiveRecord::ActiveRecordError => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to enable notifications", status: :internal_server_error
     end
   end
 end

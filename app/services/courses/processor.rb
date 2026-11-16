@@ -2,8 +2,6 @@
 
 module Courses
   class Processor < ApplicationService
-    include ApplicationHelper
-
     attr_reader :courses, :user
 
     def initialize(courses, user)
@@ -147,7 +145,7 @@ module Courses
                                                                      codes: subject_codes[course_data[:term].to_s])
               course.course_number  = course_data[:courseNumber]
               course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
-              course.section_number = normalize_section_number(detailed_course_info[:section_number])
+              course.section_number = Catalog::SectionNumber.normalize(detailed_course_info[:section_number])
               course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? nil : detailed_course_info[:credit_hours]
               course.grade_mode     = detailed_course_info[:grade_mode]
               course.seats_available = detailed_course_info[:seats_available]

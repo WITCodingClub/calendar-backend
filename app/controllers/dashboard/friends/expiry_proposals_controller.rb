@@ -10,7 +10,6 @@ module Dashboard
     class ExpiryProposalsController < Dashboard::ApplicationController
       include Dashboard::FriendFeatures
 
-      # PATCH /dashboard/friends/:friend_id/expiry_proposal
       def update
         friend, friendship = find_expiry_friendship(require_flag: false)
         return if performed?
@@ -26,7 +25,6 @@ module Dashboard
         redirect_to dashboard_friends_path, notice: notice
       end
 
-      # DELETE /dashboard/friends/:friend_id/expiry_proposal
       def destroy
         _friend, friendship = find_expiry_friendship(require_flag: false)
         return if performed?

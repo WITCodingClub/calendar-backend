@@ -2,6 +2,8 @@
 
 module Dashboard
   class ApplicationController < ApplicationController
+    include FeatureGate
+
     layout "dashboard"
     before_action :authenticate_user!
     before_action :require_processed_courses
@@ -23,6 +25,11 @@ module Dashboard
 
     def onboarding_complete?
       current_user.onboarding_complete?
+    end
+
+    # The query string of the schedule partial (Courses::Schedule.build).
+    def schedule_params
+      params.permit(:term_uid, :week_start, :month, :view).to_h.symbolize_keys
     end
 
     # Where to go after a user answers a friend request. The friends page is

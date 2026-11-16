@@ -153,6 +153,64 @@ module McpTools
       meetings_before_nine: INTEGER
     ).freeze
 
+    # Catalog::ScheduleCheck#call.
+    SCHEDULE_CHECK = object(
+      term:          TERM_REF,
+      sections:      array(
+        object(
+          crn:           INTEGER,
+          course_code:   STRING,
+          title:         STRING,
+          schedule_type: STRING,
+          credit_hours:  nullable(INTEGER),
+          meeting_times: array(object(day: DAY, begin_time: TIME, end_time: TIME))
+        )
+      ),
+      not_found:     INTEGERS,
+      cancelled:     INTEGERS,
+      conflicts:     array(
+        object(crns: INTEGERS, day: DAY, times: STRINGS)
+      ),
+      link_problems: array(
+        object(
+          crn:             INTEGER,
+          source:          LINKED[:properties][:source],
+          partner_crns:    INTEGERS,
+          partner_options: array(INTEGERS),
+          problem:         { type: "string", enum: %w[missing_partner unverified_link] },
+          message:         STRING
+        )
+      ),
+      duplicates:    array(object(course_code: STRING, crns: INTEGERS)),
+      totals:        SCHEDULE_TOTALS
+    ).freeze
+
+    # Catalog::ScheduleOptions::Finder#call.
+    SCHEDULE_OPTIONS = object(
+      term:        TERM_REF,
+      count:       INTEGER,
+      capped:      BOOLEAN,
+      schedules:   array(
+        object(
+          rank:       INTEGER,
+          score:      NUMBER,
+          crns:       STRINGS,
+          courses:    array(object(code: STRING, crns: STRINGS)),
+          highlights: STRINGS,
+          avoid_hits: INTEGER,
+          totals:     SCHEDULE_TOTALS
+        )
+      ),
+      relax:       array(
+        object(
+          preference: { type: "string", enum: Catalog::ScheduleOptions::Preferences::RELAXABLE.map(&:to_s) },
+          label:      STRING,
+          count:      INTEGER
+        )
+      ),
+      not_offered: STRINGS
+    ).freeze
+
     # Catalog::SectionSerializer. Catalog::CourseSerializer leaves out course.
     SECTION_PROPERTIES = {
       crn:                INTEGER,
@@ -377,6 +435,20 @@ module McpTools
     }.freeze
     MY_COURSE = object(MY_COURSE_PROPERTIES).freeze
     MY_COURSE_IN_TERM = object(MY_COURSE_PROPERTIES, optional: %i[term]).freeze
+
+    # Courses::HistoryBuilder.
+    COURSE_HISTORY = object(
+      terms: array(
+        object(
+          uid:     INTEGER,
+          pub_id:  STRING,
+          name:    STRING,
+          season:  STRING,
+          year:    INTEGER,
+          courses: array(MY_COURSE_IN_TERM)
+        )
+      )
+    ).freeze
 
     # BusyBlocksSerializer.
     BUSY_TIMES_PROPERTIES = {
@@ -752,7 +824,7 @@ module McpTools
     RESOLVED_SETTINGS = object(SETTINGS_PROPERTIES).freeze
     SETTING_SOURCES = object(Preferences::Resolver::PREFERENCE_FIELDS.to_h { |field| [ field, nullable(STRING) ] }).freeze
 
-    # PreferenceParams#generate_preview.
+    # Preferences::Preview.
     PREVIEW = object(title: nullable(STRING), description: nullable(STRING), location: nullable(STRING)).freeze
 
     # unchanged: the student did not confirm the change (McpTools::Confirmation).

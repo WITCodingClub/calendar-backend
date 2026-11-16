@@ -35,13 +35,11 @@ module McpTools
       open_world_hint:  false
     }.freeze
 
-    # A date in a tool argument: YYYY-MM-DD.
     DATE_SCHEMA = { type: "string", format: "date", description: "A date in YYYY-MM-DD format." }.freeze
     ADVISORY = "WIT Calendar is not an official Wentworth service. It copies this data from official Wentworth " \
                "sources on a schedule, so the data can be out of date. data_sources gives each source, how often " \
                "WIT Calendar refreshes it, and when it last did. Tell the student to confirm any course plan with " \
-               "their program director and their academic advisor before they register, drop a course, or " \
-               "change their plan."
+               "their #{Policy::PLAN_CONFIRMERS} before they register, drop a course, or change their plan."
 
     # The advisory key in the result of an academic planning tool. A term
     # source (Catalog::Freshness::TERM_SOURCES) has terms, the other sources
@@ -64,6 +62,19 @@ module McpTools
         )
       )
     ).freeze
+
+    # Errors whose message answers the person who asked: a term that does not
+    # exist, a filter value that is not valid, a student with no program.
+    # They go back as a tool error with the message and are not reported, the
+    # same as a 4xx answer from the API.
+    ANSWER_ERRORS = [
+      ToolError,
+      ActiveRecord::RecordNotFound,
+      Catalog::FilterError,
+      AcademicProfiles::InvalidProfileError,
+      AcademicProfiles::AssumedCourses::InvalidCodesError,
+      AcademicProfiles::DegreeProgress::NoProgramError
+    ].freeze
 
     FLAG_OFF_MESSAGE = "This feature is not enabled for this student yet. Do not call the tool again."
 
@@ -127,7 +138,6 @@ module McpTools
         apply_output_schema
       end
 
-      # The scope a token needs to call this tool (McpTools::Scopes).
       def requires_scope(name)
         raise ArgumentError, "unknown MCP scope #{name}" unless Scopes::BY_NAME.key?(name)
 
@@ -165,10 +175,7 @@ module McpTools
         links = PageLinks.supported?(server_context) ? tool.page_links(data) : []
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *links ], structured_content: data)
-      rescue ToolError, ActiveRecord::RecordNotFound => e
-        # The message is for the person who asked: a term that does not exist,
-        # a friend who does not share. These are answers, not faults, so they
-        # are not reported, the same as a 404 from the API.
+      rescue *ANSWER_ERRORS => e
         error_response(e.message)
       rescue Pundit::NotAuthorizedError
         # Pundit's message names the policy method, which means nothing to the

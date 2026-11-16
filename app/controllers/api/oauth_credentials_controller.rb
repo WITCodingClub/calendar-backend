@@ -4,7 +4,6 @@ module Api
   class OauthCredentialsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/oauth_credentials
     def index
       authorize current_user, :show?
 
@@ -27,35 +26,22 @@ module Api
       render json: { oauth_credentials: credentials }, status: :ok
     end
 
-    # DELETE /api/user/oauth_credentials/:credential_id
     def destroy
-      credential_id = params[:credential_id]
-
-      if credential_id.blank?
+      if params[:credential_id].blank?
         render_error "credential_id is required", status: :bad_request
         return
       end
 
-      credential = find_by_any_id(OauthCredential, credential_id)
-      credential = nil unless credential&.user_id == current_user.id
-
-      if credential.nil?
-        render_error "OAuth credential not found", status: :not_found
-        return
-      end
+      credential = find_by_any_id(current_user.oauth_credentials, params[:credential_id])
+      return render_error("OAuth credential not found", status: :not_found) if credential.nil?
 
       authorize credential, :destroy?
 
-      unless credential.removable?
+      if OauthCredentials::Disconnect.call(credential)
+        render json: { message: "OAuth credential disconnected successfully" }, status: :ok
+      else
         render_error "Cannot disconnect your last Google account.", status: :unprocessable_content
-        return
       end
-
-      credential.destroy!
-      render json: { message: "OAuth credential disconnected successfully" }, status: :ok
-    rescue ActiveRecord::ActiveRecordError => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id, oauth_credential_id: params[:credential_id] })
-      render_error "Failed to disconnect OAuth credential", status: :internal_server_error
     end
   end
 end

@@ -28,33 +28,12 @@ module Api
     private
 
     def authenticate_user_from_token!
-      token = extract_token_from_header
+      @current_session, code = token_session
+      @current_user = user_loaded_by_rack_attack || @current_session.user unless code
+      code ||= "AUTH_INVALID" if @current_user.nil?
 
-      if token.blank?
-        render_error "Authentication required", status: :unauthorized, code: "AUTH_MISSING"
-        return
-      end
-
-      decoded = JsonWebTokenService.decode(token)
-
-      if decoded.nil?
-        render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
-        return
-      end
-
-      # The session is what makes a token revocable: the signature can be perfect
-      # and the token still be one the user has since signed out.
-      @current_session = UserSession.find_by(jti: decoded[:jti])
-
-      if @current_session.nil? || !@current_session.active?
-        render_error "Session ended", status: :unauthorized, code: "AUTH_REVOKED"
-        return
-      end
-
-      @current_user = user_loaded_by_rack_attack || @current_session.user
-
-      if @current_user.nil?
-        render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
+      if code
+        render_error code == "AUTH_REVOKED" ? "Session ended" : "Authentication required", status: :unauthorized, code: code
         return
       end
 
@@ -63,18 +42,24 @@ module Api
 
     # The user of a valid token, or nil. For a public route that reads a
     # per-user flag only: it never answers 401 and never sets current_user,
-    # so a bad or ended token is the same as no token. It makes the same
-    # checks as authenticate_user_from_token!: the signature, then an active
-    # session.
+    # so a bad or ended token is the same as no token.
     def optional_token_user
+      token_session.first&.user
+    end
+
+    # The active session of the bearer token, as [session, nil], or
+    # [nil, code] with the reason there is none. The session is what makes a
+    # token revocable: the signature can be perfect and the token still be one
+    # the user has since signed out.
+    def token_session
       token = extract_token_from_header
-      return nil if token.blank?
+      return [ nil, "AUTH_MISSING" ] if token.blank?
 
       decoded = JsonWebTokenService.decode(token)
-      return nil if decoded.nil?
+      return [ nil, "AUTH_INVALID" ] if decoded.nil?
 
       session = UserSession.find_by(jti: decoded[:jti])
-      session.user if session&.active?
+      session&.active? ? [ session, nil ] : [ nil, "AUTH_REVOKED" ]
     end
 
     # The Rack::Attack safelist for privileged users loads the user of the

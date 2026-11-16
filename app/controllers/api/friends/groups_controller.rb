@@ -22,13 +22,12 @@ module Api
 
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       before_action :set_group, except: %i[index create]
 
       rescue_from FriendGroup::UnknownFriends, with: :render_unknown_friends
 
-      # GET /api/friends/groups
       def index
         authorize FriendGroup
 
@@ -38,15 +37,13 @@ module Api
         render json: { groups: groups.map { |group| FriendGroupSerializer.new(group).as_json } }, status: :ok
       end
 
-      # GET /api/friends/groups/:group_id
       def show
         authorize @group
         render_group
       end
 
-      # POST /api/friends/groups
-      #   { "name": "Study group", "member_ids": ["usr_..."], "expires_at": "2026-12-01",
-      #     "shared": true, "color": "#33b679" }
+      # Body: { "name": "Study group", "member_ids": ["usr_..."], "expires_at": "2026-12-01",
+      #       "shared": true, "color": "#33b679" }
       #
       # Only name is required. The group and its members save in
       # one transaction.
@@ -58,9 +55,8 @@ module Api
         render_group(group, status: :created)
       end
 
-      # PATCH /api/friends/groups/:group_id
-      #   { "name": "Roommates", "member_ids": ["usr_..."], "expires_at": null,
-      #     "shared": false, "color": null }
+      # Body: { "name": "Roommates", "member_ids": ["usr_..."], "expires_at": null,
+      #       "shared": false, "color": null }
       #
       # Each key is optional, but one must be there.
       # When member_ids is there, it REPLACES the members. If any id is not an
@@ -74,7 +70,6 @@ module Api
         render_group
       end
 
-      # DELETE /api/friends/groups/:group_id
       def destroy
         authorize @group
         @group.destroy!
@@ -82,9 +77,8 @@ module Api
         render json: { ok: true }, status: :ok
       end
 
-      # POST /api/friends/groups/:group_id/members  { "friend_id": "usr_..." }
-      #
-      # Adding a friend who is already in the group changes nothing and answers 200.
+      # Body: { "friend_id": "usr_..." }. Adding a friend who is already in the
+      # group changes nothing and answers 200.
       def add_member
         authorize @group, :manage_members?
 
@@ -96,7 +90,6 @@ module Api
         render_group(status: created ? :created : :ok)
       end
 
-      # DELETE /api/friends/groups/:group_id/members/:friend_id
       def remove_member
         authorize @group, :manage_members?
 

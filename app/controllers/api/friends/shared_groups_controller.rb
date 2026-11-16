@@ -11,13 +11,10 @@ module Api
     class SharedGroupsController < Api::BaseController
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       before_action :set_group, except: :index
 
-      # GET /api/friends/shared_groups
-      # GET /api/friends/shared_groups?include_hidden=true
-      #
       # Lists the active groups. include_hidden=true adds the hidden groups and
       # the groups the user opted out of, so the user can change them back.
       def index
@@ -30,15 +27,12 @@ module Api
         render json: { groups: groups.map { |group| serialize(group) } }, status: :ok
       end
 
-      # GET /api/friends/shared_groups/:group_id
       def show
         authorize @group, :show_shared?
 
         render_group
       end
 
-      # PATCH /api/friends/shared_groups/:group_id  { "status": "hidden" }
-      #
       # status is "active", "hidden", or "opted_out". Any other value answers 422.
       def update
         authorize @group, :update_membership?

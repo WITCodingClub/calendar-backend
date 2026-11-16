@@ -8,9 +8,8 @@ module Api
 
       authenticate_with_token
 
-      before_action :require_availability_only_flag, only: [ :update ]
+      require_feature FeatureFlags::FRIENDS_AVAILABILITY_ONLY, "Not found", only: :update
 
-      # GET /api/friends/:friend_id/visibility
       def show
         friendship = find_accepted_friendship!
         return if performed?
@@ -21,8 +20,6 @@ module Api
         render json: FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json, status: :ok
       end
 
-      # PATCH /api/friends/:friend_id/visibility
-      #
       # Sets the level for the current user's own schedule toward this friend.
       def update
         friendship = find_accepted_friendship!

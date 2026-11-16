@@ -2,12 +2,10 @@
 
 module Dashboard
   class SchedulesController < Dashboard::ApplicationController
-    include ScheduleLoading
-
     def show
       authorize current_user, :show?
 
-      @schedule = build_schedule_for(current_user)
+      @schedule = Courses::Schedule.build(current_user, **schedule_params)
       @extension_install_url = Rails.configuration.x.extension_install_url
     end
   end

@@ -1,21 +1,12 @@
 # frozen_string_literal: true
 
 module Dashboard
-  # Shared by the dashboard friend group controllers: the flag gate and the
-  # lookup of one of the user's own groups.
+  # The lookup of one of the user's own groups, for the dashboard friend group
+  # controllers.
   module FriendGroupLookup
     extend ActiveSupport::Concern
 
-    included do
-      before_action :require_friend_groups
-    end
-
     private
-
-    # A halted before_action skips verify_authorized, so the 404 needs no authorize.
-    def require_friend_groups
-      head :not_found unless FriendGroup.enabled_for?(current_user)
-    end
 
     # Scoping to the user's own groups is the access check: another user's group
     # id finds nothing.

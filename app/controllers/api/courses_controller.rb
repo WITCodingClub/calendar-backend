@@ -4,7 +4,6 @@ module Api
   class CoursesController < BaseController
     authenticate_with_token
 
-    # POST /api/process_courses
     def process_courses
       skip_authorization
 
@@ -27,13 +26,8 @@ module Api
       render_error e.message, status: :bad_request
     rescue Catalog::BannerThrottle::CooldownError => e
       render_banner_unavailable(e)
-    rescue => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to process courses", status: :internal_server_error
     end
 
-    # POST /api/process_courses/batch
-    #
     # Body: { "terms": [ { "term": "202710", "courses": [ ... ] }, ... ] }
     # Each "courses" array has the same shape as the body of
     # POST /api/process_courses. The first term is processed now. The other
@@ -62,7 +56,6 @@ module Api
       render json: CourseBatchResultSerializer.new(current_user, results).as_json, status: :ok
     end
 
-    # POST /api/courses/reprocess
     def reprocess
       skip_authorization
 
@@ -83,13 +76,10 @@ module Api
         removed_courses:     result[:removed_courses],
         processed_courses:   result[:processed_courses]
       }, status: :ok
-    rescue ArgumentError => e
+    rescue Courses::InvalidPayloadError => e
       render_error e.message, status: :bad_request
     rescue Catalog::BannerThrottle::CooldownError => e
       render_banner_unavailable(e)
-    rescue => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to reprocess courses", status: :internal_server_error
     end
 
     private

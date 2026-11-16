@@ -21,7 +21,7 @@ RSpec.describe Dashboard::SchedulesHelper, type: :helper do
   end
 
   def schedule_with(*entries, no_class_dates: [])
-    ScheduleLoading::Schedule.new(
+    Courses::Schedule.new(
       terms:           [],
       selected_term:   term,
       view_mode:       "week",

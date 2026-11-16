@@ -25,7 +25,7 @@
               <% end %>
             </div>
             <div class="flex gap-2">
-              <% if Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user) %>
+              <% if Friendships::Features.availability_only?(current_user) %>
                 <%= form_with url: dashboard_friends_request_path(fr.id), method: :patch, class: "flex gap-2" do |f| %>
                   <%= f.select :visibility,
                       [ [ "Share full schedule", "full" ], [ "Share only when I am busy", "availability_only" ] ],

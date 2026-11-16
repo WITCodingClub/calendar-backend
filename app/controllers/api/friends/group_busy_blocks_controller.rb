@@ -2,8 +2,6 @@
 
 module Api
   module Friends
-    # GET /api/friends/groups/:group_id/busy_blocks?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
-    #
     # The busy times of everyone in a friend group: the owner first, then each
     # member. The owner of the group can read it, and so can each member of a
     # shared group who did not opt out. A member sees the busy times of members
@@ -21,7 +19,7 @@ module Api
 
       authenticate_with_token
 
-      include Api::FriendGroupsFlag
+      include FriendGroupsFlag
 
       def index
         group = find_group

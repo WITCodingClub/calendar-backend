@@ -139,7 +139,7 @@ The Registrar's notice for Spring 2027 gives these rules. `plan_term_schedule` g
 - **Minimum grades:** some prerequisites need a minimum grade. `Catalog::CourseDetailsSync` stores it as `min_grade` in the prerequisite tree, and `get_course` gives it. `my_course_history` has no grades, so the model asks the student for the grade. `get_course`, `plan_term_schedule`, and `plan_degree_progression` say this.
 - **Substitutions and transfer credit:** a course substitution or transfer credit for a degree requirement needs approval from the program director, the dean's office of the school, or both. `degree_requirements` and `plan_degree_progression` say this.
 
-No tool reads the time ticket, the RAC, or the standing of a student. The dates of each registration window change each term, so the docs and the server do not give them. When the Registrar changes these rules, change the text in each place.
+No tool reads the time ticket, the RAC, or the standing of a student. The dates of each registration window change each term, so the docs and the server do not give them. When the Registrar changes these rules, change `McpTools::Policy`. The server instructions, the prompts, `check_schedule` and the advisory build their text from it. The descriptions of `get_course` and `degree_requirements` still have their own copy.
 
 ### Old section data
 
@@ -274,7 +274,7 @@ Rules:
 - The `mcp` gem does not check content items. It sends each Hash as it is.
 - Only a client on protocol version 2025-06-18 or later gets links. An older client can check the content against a closed list of types and refuse the whole result. The server reads the version from the `_meta` envelope (2026-07-28) first, then from the `MCP-Protocol-Version` header. A request with no version is 2025-03-26, so it gets no links. This rule also applies to the missing permission error.
 - The dashboard sends a student with no processed courses to the onboarding page. Such a student gets no link to those pages. Use `onboarded_page_link` for them. The notification and settings pages skip onboarding, so they use `page_link`. `User#onboarding_complete?` is the rule for both.
-- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`ScheduleLoading.terms_for`). `my_courses` links only to a term in that list.
+- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`Courses::Schedule.terms_for`). `my_courses` links only to a term in that list.
 - A link is extra. When a `links` block raises an error, the server reports it with `Rails.error.report` and sends the result with no links.
 
 To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of link Hashes from `page_link` or `onboarded_page_link` (`McpTools::PageLinks`):

@@ -56,7 +56,8 @@ scope "user", as: :user do
   put "backfills/:name", to: "backfills#update"
 
   # Passkeys: a quick second sign-in for an account Google already vouched
-  # for. The two authentication routes are the only unauthenticated ones.
+  # for. authentication_options, authenticate, and exchange are the only
+  # unauthenticated ones.
   get    "passkeys",                        to: "passkeys#index"
   post   "passkeys/registration_options",   to: "passkeys#registration_options"
   post   "passkeys",                        to: "passkeys#create"

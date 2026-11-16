@@ -242,7 +242,7 @@ RSpec.describe "MCP tool output schemas" do
       expect(saved[:result]).to eq(:saved)
 
       deleted = expect_valid(McpTools::UpdateClassSettings, meeting_time_id: meeting_time.public_id,
-                                                            reset: McpTools::BaseWriteTool::SETTING_FIELDS)
+                                                            reset: McpTools::SettingsTool::SETTING_FIELDS)
       expect(deleted[:class_settings]).to be_nil
 
       expect_valid(McpTools::UpdateCalendarSettings, level: "lecture", visibility: "private")

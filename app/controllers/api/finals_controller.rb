@@ -10,7 +10,6 @@ module Api
 
     authenticate_with_token
 
-    # GET /api/user/finals?term_uid=202610
     def index
       authorize current_user, :show?
 

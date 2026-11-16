@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { createCredential, getCredential, isCancelled } from "lib/webauthn"
+import { createCredential, getCredential, isCancelled, postJson } from "lib/webauthn"
 
 // Runs a passkey ceremony for the extension, then hands the result back to
 // it. The ceremony runs on this site so the origin the browser reports is
@@ -31,19 +31,19 @@ export default class extends Controller {
   }
 
   async register() {
-    const { handle, options } = await this.post("/api/user/passkeys/registration_options", { handoff: this.handoffValue })
+    const { handle, options } = await postJson("/api/user/passkeys/registration_options", { handoff: this.handoffValue })
     const credential = await createCredential(options)
     // The handoff authenticates this call too, and is spent here.
-    await this.post("/api/user/passkeys", { handle, handoff: this.handoffValue, nickname: this.nicknameValue, credential })
+    await postJson("/api/user/passkeys", { handle, handoff: this.handoffValue, nickname: this.nicknameValue, credential })
 
     this.say("Passkey added. Returning to the extension…")
     this.handBack({ ok: "1" })
   }
 
   async signIn() {
-    const { handle, options } = await this.post("/api/user/passkeys/authentication_options")
+    const { handle, options } = await postJson("/api/user/passkeys/authentication_options")
     const credential = await getCredential(options)
-    const { code } = await this.post("/api/user/passkeys/authenticate", { handle, handoff: true, credential })
+    const { code } = await postJson("/api/user/passkeys/authenticate", { handle, handoff: true, credential })
 
     this.say("Signed in. Returning to the extension…")
     this.handBack({ code })
@@ -60,16 +60,5 @@ export default class extends Controller {
     if (this.stateValue) target.searchParams.set("state", this.stateValue)
     for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value)
     window.location.replace(target.toString())
-  }
-
-  async post(path, body) {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body ?? {})
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`)
-    return data
   }
 }

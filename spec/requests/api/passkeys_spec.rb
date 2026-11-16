@@ -503,6 +503,18 @@ RSpec.describe "Api::Passkeys", type: :request do
       expect(response).to have_http_status(:bad_request)
     end
 
+    it "answers 401 for an expired handle with no credential, and spends the challenge" do
+      post "/api/user/passkeys/authentication_options"
+      handle = json["handle"]
+
+      post "/api/user/passkeys/authenticate", params: { handle: "never-issued" }, as: :json
+      expect(response).to have_http_status(:unauthorized)
+
+      post "/api/user/passkeys/authenticate", params: { handle: handle }, as: :json
+      expect(response).to have_http_status(:bad_request)
+      expect(WebauthnChallenge.consume(handle: handle, purpose: "authentication")).to be_nil
+    end
+
     it "rejects an assertion signed for another challenge" do
       register
 

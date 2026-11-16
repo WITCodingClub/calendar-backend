@@ -3,7 +3,7 @@
 module Api
   # Reads and checks start_date and end_date for the busy-block routes. It
   # renders a 400 and returns nil when a date is not valid.
-  module Api::BusyBlocksParams
+  module BusyBlocksParams
     extend ActiveSupport::Concern
 
     private
@@ -17,12 +17,12 @@ module Api
       return if performed?
 
       if to < from
-        render json: { error: "end_date must not be before start_date" }, status: :bad_request
+        render_error "end_date must not be before start_date", status: :bad_request
         return
       end
 
       if (to - from).to_i + 1 > BusyBlocks::MAX_DAYS
-        render json: { error: "The range must be #{BusyBlocks::MAX_DAYS} days or fewer" }, status: :bad_request
+        render_error "The range must be #{BusyBlocks::MAX_DAYS} days or fewer", status: :bad_request
         return
       end
 
@@ -35,7 +35,7 @@ module Api
 
       Date.iso8601(value.to_s)
     rescue Date::Error
-      render json: { error: "#{name} must be a date in YYYY-MM-DD format" }, status: :bad_request
+      render_error "#{name} must be a date in YYYY-MM-DD format", status: :bad_request
       nil
     end
   end

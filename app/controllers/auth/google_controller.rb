@@ -43,7 +43,8 @@ module Auth
       return false if params[:state].blank?
 
       GoogleSignIn::OauthState.verify_state(params[:state]).present?
-    rescue
+    rescue StandardError => e
+      Rails.error.report(e, handled: true)
       false
     end
 

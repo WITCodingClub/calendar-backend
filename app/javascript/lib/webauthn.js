@@ -70,3 +70,16 @@ export async function createCredential(options) {
 export function isCancelled(error) {
   return error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "AbortError")
 }
+
+// Sends one step of a ceremony to the server as JSON. Adds the CSRF token when
+// the page has one. Throws an Error with the server's message on a failure.
+export async function postJson(url, body, fallbackMessage) {
+  const headers = { "Content-Type": "application/json" }
+  const token = document.querySelector('meta[name="csrf-token"]')?.content
+  if (token) headers["X-CSRF-Token"] = token
+
+  const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body ?? {}) })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.error || fallbackMessage || `Request failed (${response.status})`)
+  return data
+}

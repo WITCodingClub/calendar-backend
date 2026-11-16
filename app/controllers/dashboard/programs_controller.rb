@@ -14,7 +14,7 @@ module Dashboard
   # The programs come only from LeopardWeb, through the extension. A student
   # cannot change them here.
   class ProgramsController < Dashboard::ApplicationController
-    include Dashboard::DegreePlanningFlag
+    include DegreePlanningFlag
 
     def index
       authorize current_user, :show?

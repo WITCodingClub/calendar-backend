@@ -7,7 +7,7 @@ module Dashboard
   # program of the pathway that the student does not have yet. Removing
   # deletes only those planned rows.
   class PlannedPathwaysController < Dashboard::ApplicationController
-    include Dashboard::DegreePlanningFlag
+    include DegreePlanningFlag
 
     def create
       planned = AcademicProfiles::PlannedPrograms.new(current_user)

@@ -6,7 +6,7 @@ module Api
   # registration. RegistrationPlan has the limits of a plan.
   class RegistrationPlansController < BaseController
     authenticate_with_token
-    include Api::DegreePlanningFlag
+    include DegreePlanningFlag
 
     before_action :set_term, except: :index
 

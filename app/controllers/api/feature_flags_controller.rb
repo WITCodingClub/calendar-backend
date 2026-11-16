@@ -4,7 +4,6 @@ module Api
   class FeatureFlagsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/feature_flags
     def index
       authorize current_user, :show?
       flags = {}
