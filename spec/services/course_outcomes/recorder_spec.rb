@@ -53,7 +53,7 @@ RSpec.describe CourseOutcomes::Recorder do
     course.delete
     new_course = create(:course, term: fall, crn: course.crn)
 
-    expect(user.course_outcomes.sole).to have_attributes(outcome: "c_or_better", course: new_course)
+    expect(user.course_outcomes.sole).to have_attributes(outcome: "c_or_better", term_uid: fall.uid, crn: new_course.crn)
   end
 
   it "keeps the stored outcome of a CRN that is in the payload but not enrolled now" do
@@ -76,17 +76,17 @@ RSpec.describe CourseOutcomes::Recorder do
   describe "invalid payloads" do
     it "rejects a term it cannot read with the invalid_term code" do
       expect { record([ { term: "Fall", courses: [] } ]) }
-        .to raise_error(AcademicProfiles::InvalidProfileError) { |error| expect(error.code).to eq("invalid_term") }
+        .to raise_error(CourseOutcomes::InvalidOutcomesError) { |error| expect(error.code).to eq("invalid_term") }
     end
 
     it "rejects a letter grade, a bad CRN, a repeated term, or no terms" do
       expect { record([ { term: "202610", courses: [ { crn: "1", outcome: "B+" } ] } ]) }
-        .to raise_error(AcademicProfiles::InvalidProfileError, /outcome must be one of/)
+        .to raise_error(CourseOutcomes::InvalidOutcomesError, /outcome must be one of/)
       expect { record([ { term: "202610", courses: [ { crn: "abc", outcome: "failed" } ] } ]) }
-        .to raise_error(AcademicProfiles::InvalidProfileError, /crn must be a number/)
+        .to raise_error(CourseOutcomes::InvalidOutcomesError, /crn must be a number/)
       expect { record([ { term: "202610", courses: [] }, { term: "Fall 2025", courses: [] } ]) }
-        .to raise_error(AcademicProfiles::InvalidProfileError, /more than once/)
-      expect { record([]) }.to raise_error(AcademicProfiles::InvalidProfileError, /non-empty/)
+        .to raise_error(CourseOutcomes::InvalidOutcomesError, /more than once/)
+      expect { record([]) }.to raise_error(CourseOutcomes::InvalidOutcomesError, /non-empty/)
     end
 
     it "writes nothing when a later term is not valid" do
@@ -95,7 +95,7 @@ RSpec.describe CourseOutcomes::Recorder do
       expect do
         record([ { term: fall.uid, courses: [ { crn: course.crn, outcome: "c_or_better" } ] },
                  { term: spring.uid, courses: [ { crn: "1", outcome: "A" } ] } ])
-      end.to raise_error(AcademicProfiles::InvalidProfileError)
+      end.to raise_error(CourseOutcomes::InvalidOutcomesError)
 
       expect(CourseOutcome.count).to eq(0)
     end
