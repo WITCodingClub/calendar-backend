@@ -15,8 +15,8 @@ module AcademicProfiles
       @arguments = { program: program, catalog_year: catalog_year, plan: plan, include_planned: include_planned }
     end
 
-    # Raises PlanningError, or Catalog::FilterError for a catalog year or a
-    # plan that does not exist.
+    # Raises PlanningError, or Catalog::ProgramQuery::FilterError for a
+    # program or catalog year that the catalog does not have.
     def call(user) = DegreeProgress.new(user, **@arguments).call
   end
 end

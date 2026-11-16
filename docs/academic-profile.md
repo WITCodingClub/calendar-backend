@@ -101,7 +101,7 @@ flowchart TD
   L -- yes --> S[Save the row with status planned]
 ```
 
-- `AcademicProfiles::PlannedPrograms` does the checks. A planned row always has a `DegreeProgram` and a `CatalogYear`, and no catalog term. The role comes from the program kind: a `minor` program gives a `minor` row, and a bachelor's or master's program gives a `major` row.
+- `AcademicProfiles::PlannedPrograms` does the checks. `Catalog::ProgramQuery#catalog_year!` and `#find!` find the catalog year and the program, as they do for `GET /api/user/degree_progress`, the public `GET /api/v1/catalog/programs/:slug` (404 there) and the MCP tools. Their errors carry the codes `invalid_catalog_year`, `unknown_catalog_year` and `unknown_program`, and `Api::DomainErrors` answers them with 422. A planned row always has a `DegreeProgram` and a `CatalogYear`, and no catalog term. The role comes from the program kind: a `minor` program gives a `minor` row, and a bachelor's or master's program gives a `major` row.
 - `AcademicProfiles::Sync` and `ProgramMatcher.relink_active` read only active rows, so a LeopardWeb sync never changes or ends a planned row.
 - A planned row is deleted when the student removes it. A LeopardWeb row is never deleted.
 - An ended program can be planned again, for example a major the student changed.

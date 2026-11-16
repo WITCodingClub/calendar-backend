@@ -27,10 +27,7 @@ module McpTools
 
     def perform(program:, catalog_year: nil)
       query = Catalog::ProgramQuery.new
-      year = query.catalog_year!(catalog_year)
-      set = query.find(program, catalog_year: year)
-      raise ToolError, "No program #{program} in the #{year.name} catalog. Call list_programs to find the slug." if set.nil?
-
+      set = query.find!(program, catalog_year: query.catalog_year!(catalog_year))
       Catalog::ProgramSerializer.new(set).as_json
     end
   end

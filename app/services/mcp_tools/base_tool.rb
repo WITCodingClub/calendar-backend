@@ -182,6 +182,8 @@ module McpTools
         links = PageLinks.supported?(server_context) ? tool.page_links(data) : []
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *links ], structured_content: data)
+      rescue Catalog::ProgramQuery::UnknownProgramError => e
+        error_response("#{e.message}. Call list_programs to find the slug.")
       rescue *ANSWER_ERRORS => e
         error_response(e.message)
       rescue Pundit::NotAuthorizedError

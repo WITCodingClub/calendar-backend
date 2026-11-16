@@ -7,8 +7,10 @@ module Api
       # (docs/degree-requirements.md). Without catalog_year, the newest
       # imported year.
       class ProgramsController < Api::V1::PublicController
+        rescue_from ::Catalog::ProgramQuery::NotFoundError, with: :render_not_found
+
         def index
-          catalog_year = find_catalog_year
+          catalog_year = query.catalog_year!(params[:catalog_year])
           programs = query.call(catalog_year: catalog_year, kind: array_param(:kind), level: array_param(:level), q: params[:q],
                                 parent: params[:parent_program]).to_a
 
@@ -19,22 +21,14 @@ module Api
         end
 
         def show
-          catalog_year = find_catalog_year
-          set = query.find(params[:slug], catalog_year: catalog_year)
-          raise ActiveRecord::RecordNotFound, "No program #{params[:slug]} in the #{catalog_year.name} catalog" if set.nil?
-
+          catalog_year = query.catalog_year!(params[:catalog_year])
+          set = query.find!(params[:slug], catalog_year: catalog_year)
           render_resource(::Catalog::ProgramSerializer.new(set).as_json)
         end
 
         private
 
         def query = @query ||= ::Catalog::ProgramQuery.new
-
-        def find_catalog_year
-          query.catalog_year!(params[:catalog_year])
-        rescue ::Catalog::ProgramQuery::UnknownCatalogYearError => e
-          raise ActiveRecord::RecordNotFound, e.message
-        end
       end
     end
   end

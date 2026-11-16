@@ -4,11 +4,41 @@ module Catalog
   # Finds the degree programs of one catalog year (RequirementSet rows). The
   # REST controller and the MCP tools list_programs and degree_requirements
   # use this object. docs/degree-requirements.md describes the data.
+  #
+  # A lookup raises a FilterError with a code, and each surface maps it once:
+  # the public API answers 400, or 404 for a NotFoundError
+  # (Api::V1::Catalog::ProgramsController), the signed-in API answers 422 with
+  # the code (Api::DomainErrors), and an MCP tool gives the message
+  # (McpTools::BaseTool).
   class ProgramQuery
-    class FilterError < ::Catalog::FilterError; end
+    class FilterError < ::Catalog::FilterError
+      def code = nil
+    end
+
+    class InvalidCatalogYearError < FilterError
+      def initialize(msg = "catalog_year must be a catalog year such as 2024-2025, or the term a program started, " \
+                           "such as Spring 2024")
+        super
+      end
+
+      def code = "invalid_catalog_year"
+    end
+
+    class NotFoundError < FilterError; end
+
     # No imported catalog year matches. The message lists the years there
     # are.
-    class UnknownCatalogYearError < FilterError; end
+    class UnknownCatalogYearError < NotFoundError
+      def code = "unknown_catalog_year"
+    end
+
+    class UnknownProgramError < NotFoundError
+      def initialize(program, catalog_year)
+        super("No program #{program} in the #{catalog_year.name} catalog")
+      end
+
+      def code = "unknown_program"
+    end
 
     YEAR_SPAN = /\A(\d{4})(?:\s*[-\u2013\u2014]\s*(\d{2}|\d{4}))?\z/
 
@@ -39,15 +69,13 @@ module Catalog
     end
 
     # The catalog year for a parameter, or the newest imported year when the
-    # parameter is blank. Raises FilterError for a value that is not a year.
+    # parameter is blank. Raises InvalidCatalogYearError for a value that is
+    # not a year.
     def catalog_year(value)
       return catalog_years.first if value.blank?
 
       start_year = self.class.start_year(value)
-      if start_year.nil?
-        raise FilterError, "catalog_year must be a catalog year such as 2024-2025, or the term a program started, " \
-                           "such as Spring 2024"
-      end
+      raise InvalidCatalogYearError if start_year.nil?
 
       catalog_years.find_by(start_year: start_year)
     end
@@ -92,6 +120,11 @@ module Catalog
       key = program.to_s.strip.downcase
       relation.find_by(degree_programs: { slug: DegreeProgram.current_slug(key) }) ||
         relation.where("lower(requirement_sets.name) = ?", key).order(:id).first
+    end
+
+    # find, or UnknownProgramError.
+    def find!(program, catalog_year:)
+      find(program, catalog_year: catalog_year) || raise(UnknownProgramError.new(program, catalog_year))
     end
 
     private

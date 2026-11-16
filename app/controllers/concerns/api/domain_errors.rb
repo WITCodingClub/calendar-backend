@@ -4,14 +4,17 @@ module Api
   # The errors of shared services that any API action can meet, each with its
   # status. An action does not rescue them itself. AcademicProfiles::Error
   # covers every degree planning error, CourseOutcomes::InvalidOutcomesError
-  # too, with its code.
+  # too, with its code. A program or catalog year that a degree planning
+  # request names and the catalog does not have is a
+  # Catalog::ProgramQuery::FilterError, with its code. The public catalog API
+  # maps it to 400 and 404 itself.
   module DomainErrors
     extend ActiveSupport::Concern
 
     included do
       rescue_from Courses::InvalidPayloadError, with: :render_bad_request
       rescue_from FriendMeetings::Error, with: :render_unprocessable
-      rescue_from AcademicProfiles::Error, with: :render_unprocessable
+      rescue_from AcademicProfiles::Error, Catalog::ProgramQuery::FilterError, with: :render_unprocessable
       rescue_from Catalog::BannerThrottle::CooldownError, with: :render_banner_unavailable
     end
 

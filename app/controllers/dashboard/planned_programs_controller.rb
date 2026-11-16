@@ -15,7 +15,7 @@ module Dashboard
       planned.save!(program)
 
       redirect_to dashboard_programs_path(anchor: "planned-programs"), notice: "#{program.name} added to your planned programs."
-    rescue AcademicProfiles::InvalidProfileError => e
+    rescue AcademicProfiles::InvalidProfileError, Catalog::ProgramQuery::FilterError => e
       # build raises before a record exists to authorize. The policy allows a
       # student to plan programs only for themselves, and build makes the row
       # for current_user, so no other check is needed.

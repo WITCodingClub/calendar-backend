@@ -29,17 +29,16 @@ module AcademicProfiles
 
     # An unsaved planned row for a program in the degree catalog. program is
     # a slug or the exact name, as degree_requirements takes it. A blank
-    # catalog_year is the newest one. Raises InvalidProfileError.
+    # catalog_year is the newest one. Raises InvalidProfileError, or
+    # Catalog::ProgramQuery::FilterError for a program or catalog year that
+    # the catalog does not have.
     def build(program:, catalog_year: nil)
       raise InvalidProfileError, "program is required" unless program.is_a?(String) && program.present?
       raise InvalidProfileError, "catalog_year must be a string" unless catalog_year.nil? || catalog_year.is_a?(String)
 
       query = Catalog::ProgramQuery.new
-      year = catalog_year!(query, catalog_year)
-      set = query.find(program.to_s, catalog_year: year)
-      raise InvalidProfileError.new("No program #{program} in the #{year.name} catalog", code: "unknown_program") if set.nil?
-
-      row = row_for(set, year)
+      year = query.catalog_year!(catalog_year)
+      row = row_for(query.find!(program, catalog_year: year), year)
       check!(row)
       row
     end
@@ -47,7 +46,8 @@ module AcademicProfiles
     # The pathway and the unsaved planned rows for its steps that the user
     # does not have yet (as an active or planned program). Each row links
     # to the pathway. pathway is a slug from the pathways list. A blank
-    # catalog_year is the newest one. Raises InvalidProfileError.
+    # catalog_year is the newest one. Raises InvalidProfileError or
+    # Catalog::ProgramQuery::FilterError.
     def build_pathway(pathway:, catalog_year: nil)
       raise InvalidProfileError, "pathway is required" unless pathway.is_a?(String) && pathway.present?
       raise InvalidProfileError, "catalog_year must be a string" unless catalog_year.nil? || catalog_year.is_a?(String)
@@ -57,13 +57,13 @@ module AcademicProfiles
 
       check_bachelors!(record)
 
-      year = catalog_year!(Catalog::ProgramQuery.new, catalog_year)
+      year = Catalog::ProgramQuery.new.catalog_year!(catalog_year)
       steps = record.steps.reject { |step| held_program_ids.include?(step.degree_program_id) }
       sets = year.requirement_sets.includes(:degree_program).where(degree_program_id: steps.map(&:degree_program_id))
                  .index_by(&:degree_program_id)
       rows = steps.map do |step|
         set = sets[step.degree_program_id]
-        raise InvalidProfileError.new("No program #{step.degree_program.slug} in the #{year.name} catalog", code: "unknown_program") if set.nil?
+        raise Catalog::ProgramQuery::UnknownProgramError.new(step.degree_program.slug, year) if set.nil?
 
         row_for(set, year).tap { |row| row.program_pathway = record }
       end
@@ -187,14 +187,6 @@ module AcademicProfiles
     def held_program_ids
       @held_program_ids ||= user.student_programs.where(status: %w[active planned]).where.not(degree_program_id: nil)
                                 .pluck(:degree_program_id).to_set
-    end
-
-    def catalog_year!(query, value)
-      query.catalog_year!(value)
-    rescue Catalog::ProgramQuery::UnknownCatalogYearError => e
-      raise InvalidProfileError.new(e.message, code: "unknown_catalog_year")
-    rescue Catalog::FilterError => e
-      raise InvalidProfileError.new(e.message, code: "invalid_catalog_year")
     end
   end
 end

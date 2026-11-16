@@ -6,6 +6,8 @@ module AcademicProfiles
   # program of the student with a catalog link. The plan is the plan
   # argument, or the plan the student picked (#867), or the standard plan.
   class ProgramSelection
+    class UnknownPlanError < PlanningError; end
+
     # program, catalog_year, plan: the arguments of the request, as text or
     # nil.
     def initialize(user, program:, catalog_year:, plan:, include_planned:)
@@ -17,8 +19,9 @@ module AcademicProfiles
     end
 
     # Each requirement set to check, with its plan name and the student's
-    # row (nil for the program argument). Raises Catalog::FilterError for a
-    # program argument that the catalog does not have.
+    # row (nil for the program argument). Raises
+    # Catalog::ProgramQuery::FilterError for a program argument that the
+    # catalog does not have.
     def entries
       if @program
         set = find_argument_set(Catalog::ProgramQuery.new)
@@ -40,13 +43,13 @@ module AcademicProfiles
 
     # The plan with this name, or the standard plan. A picked plan that a
     # later import renamed falls back to the standard plan. An unknown plan
-    # argument raises Catalog::FilterError.
+    # argument raises UnknownPlanError.
     def plan(set, plan_name)
       picked = plan_name && set.plan_named(plan_name)
       return picked if picked
 
       if @plan_name
-        raise Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{set.program_plans.map(&:name).join(', ')}"
+        raise UnknownPlanError, "No plan #{@plan_name}. #{set.name} has: #{set.program_plans.map(&:name).join(', ')}"
       end
 
       set.standard_plan
@@ -56,9 +59,7 @@ module AcademicProfiles
 
     def find_argument_set(query)
       year = @catalog_year ? query.catalog_year!(@catalog_year) : own_catalog_year(query)
-
-      query.find(@program, catalog_year: year) ||
-        raise(Catalog::FilterError, "No program #{@program} in the #{year.name} catalog. Call list_programs to find the slug.")
+      query.find!(@program, catalog_year: year)
     end
 
     # The catalog year of the student's own program with this slug, or the
