@@ -5,7 +5,6 @@ namespace :finals do
        "Current and future terms are always protected. Safe by default (dry run); " \
        "pass CONFIRM=1 to apply. Optionally keep extra past terms with KEEP=\"season-year,...\"."
   task reset: :environment do
-    # Default to a dry run — only an explicit CONFIRM=1 actually deletes.
     dry_run = ENV["CONFIRM"] != "1"
     puts dry_run ? "DRY RUN — no changes will be made (pass CONFIRM=1 to apply)." : "Deleting finals data..."
     puts
@@ -14,7 +13,6 @@ namespace :finals do
     # regardless of when the task is run.
     protected_terms = Term.current_and_future.to_a
 
-    # Optionally protect additional past terms, e.g. KEEP="summer-2025,fall-2025".
     ENV["KEEP"].to_s.split(",").map(&:strip).reject(&:blank?).each do |token|
       season, year = token.split("-", 2)
       term = Term.find_by(season: season&.downcase, year: year.to_i)

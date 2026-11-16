@@ -26,7 +26,6 @@ module DegreeRequirements
 
       module_function
 
-      # Is `text` the first line of a plan cell?
       def code?(text)
         text = clean_code(text)
         text.match?(COURSE) || choice_codes(text).present? || both_codes(text).present? ||

@@ -1,5 +1,3 @@
-# Run using bin/ci
-#
 # These steps match .github/workflows/ci.yml. The test steps need
 # HASHID_SALT and the POSTGRES_* variables (see CLAUDE.md).
 

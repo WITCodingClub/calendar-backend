@@ -3,9 +3,6 @@
 module Api
   module V1
     module Catalog
-      # POST /api/v1/catalog/schedule_options
-      # POST /api/v1/catalog/schedule_options/count
-      #
       # Builds and ranks schedules for a list of courses, or only counts them.
       # Catalog::ScheduleOptions::Finder has the rules. The body carries the
       # request, so the edge cache of the GET routes does not apply, and the

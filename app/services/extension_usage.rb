@@ -55,7 +55,6 @@ module ExtensionUsage
   VERSIONS = VersionLabels.new(limit: 50)
 
   class << self
-    # Returns the number of events counted.
     def record(events:, version:, browser:)
       labels = {
         version: VERSIONS.label_for(version),

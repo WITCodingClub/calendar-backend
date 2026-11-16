@@ -42,7 +42,6 @@ module Catalog
         @preferences = preferences
       end
 
-      # @return [Array<Scored>] the best `limit` schedules, best first
       def call(schedules, limit:)
         schedules.map { |units| score(units) }
                  .sort_by { |scored| [ -scored.score.round(6), scored.avoid_hits, scored.units.flat_map(&:crns) ] }
@@ -79,7 +78,6 @@ module Catalog
         week.days.count { |_day, intervals| Week.lunch?(intervals) } / week.days.size.to_f
       end
 
-      # Short statements that are true of the schedule.
       def highlights(week, hits)
         return [] if week.slots.empty?
 

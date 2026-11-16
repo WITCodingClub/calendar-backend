@@ -19,7 +19,6 @@ class MeetingLinksController < ApplicationController
   before_action :hide_token_from_other_sites
   before_action :find_link
 
-  # GET /meet/:token
   def show
     return render_booked if booked_by_this_browser?
     return render_gone unless usable?
@@ -27,7 +26,6 @@ class MeetingLinksController < ApplicationController
     load_slots
   end
 
-  # POST /meet/:token
   def create
     return render_gone unless usable?
     return redirect_to(meeting_link_path(params[:token])) if owner_viewing?
@@ -50,8 +48,6 @@ class MeetingLinksController < ApplicationController
     render :show, status: :unprocessable_content
   end
 
-  # GET /meet/:token/sign_in
-  #
   # Remembers the link, then sends the guest to the sign-in page. After
   # sign-in, ApplicationController#after_sign_in_path_for sends them back.
   def start_sign_in

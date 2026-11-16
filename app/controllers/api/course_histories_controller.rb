@@ -6,7 +6,6 @@ module Api
   class CourseHistoriesController < BaseController
     authenticate_with_token
 
-    # GET /api/user/course_history
     def show
       authorize current_user, :show?
 

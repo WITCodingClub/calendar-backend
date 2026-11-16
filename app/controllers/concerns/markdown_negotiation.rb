@@ -10,8 +10,6 @@ module MarkdownNegotiation
 
   private
 
-  # @return [Mime::Type, nil] Mime[:md] or Mime[:html], whichever the client
-  #   ranks higher, or nil when the header names neither.
   def preferred_document_type
     types = Mime::Type.parse(request.headers["Accept"].to_s)
     types.find { |type| type == Mime[:md] || type == Mime[:html] }

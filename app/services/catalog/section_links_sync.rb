@@ -18,7 +18,6 @@ module Catalog
       new(course).call
     end
 
-    # @return [Hash] counts of synced and failed sections
     def self.for_term(term, pause: PAUSE)
       counts = { synced: 0, failed: 0 }
 
@@ -34,7 +33,6 @@ module Catalog
       @course = course
     end
 
-    # @return [Boolean] true when the links were stored
     def call
       return clear_links unless @course.is_section_linked
 

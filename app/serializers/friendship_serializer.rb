@@ -66,7 +66,6 @@ class FriendshipSerializer
     }
   end
 
-  # The expiry keys of one friend in GET /api/friends.
   def expiry_json
     { expires_at: expires_at, expiry_proposal: expiry_proposal }
   end
@@ -104,7 +103,6 @@ class FriendshipSerializer
     }
   end
 
-  # A pending request shows on the requests page, a friend on the friends page.
   def review_url
     helpers = Rails.application.routes.url_helpers
     options = Rails.application.config.action_controller.default_url_options || {}

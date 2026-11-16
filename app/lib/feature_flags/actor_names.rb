@@ -12,7 +12,6 @@ module FeatureFlags
   module ActorNames
     USER_PREFIX = "User;"
 
-    # Returns { gate value => label } for the values that have a label.
     def self.call(actor_ids)
       ids = actor_ids.filter_map { |value| value.delete_prefix(USER_PREFIX) if value.start_with?(USER_PREFIX) }
       names = User.where(id: ids).to_h { |user| [ user.flipper_id, user.email ] }
@@ -27,7 +26,6 @@ module FeatureFlags
       names
     end
 
-    # Returns the user that an email or a public id names, or nil.
     def self.user_for(value)
       value.include?("@") ? User.find_by(email: value) : User.find_by_public_id(value)
     end

@@ -6,10 +6,10 @@
 # controller that needs a user calls authenticate_with_token.
 
 namespace :api do
-  draw "api/catalog"  # public, read-only course data and GraphQL
-  draw "api/user"     # /api/user: the signed-in account
-  draw "api/friends"  # /api/friends and /api/meeting_links
-  draw "api/calendar" # courses, preferences, and university calendar events
+  draw "api/catalog"
+  draw "api/user"
+  draw "api/friends"
+  draw "api/calendar"
 
   # The MCP server (docs/mcp.md). Its bearer tokens come from the OAuth server
   # in config/routes/oauth.rb, not from the extension sign-in. The server is

@@ -47,7 +47,6 @@ class FriendGroupMembership < ApplicationRecord
   before_create :apply_saved_opt_out
   after_save :sync_opt_out, if: :saved_change_to_status?
 
-  # The user in the group: the friend of the owner.
   def member_user_id
     friendship.friend_id_for(friend_group.user)
   end
