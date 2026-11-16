@@ -56,21 +56,7 @@ module Catalog
       end
 
       # "1315" and "800" from Banner, "13:15" and "1:15 PM" from an upload.
-      def self.parse_time(value)
-        str = value.to_s.strip
-        if (match = str.match(/\A(\d{1,2}):(\d{2})\s*(AM|PM)?\z/i))
-          hours = match[1].to_i
-          hours = (hours % 12) + (match[3].casecmp?("PM") ? 12 : 0) if match[3]
-          minutes = match[2].to_i
-        elsif str.match?(/\A\d{3,4}\z/)
-          hours, minutes = str.to_i.divmod(100)
-        else
-          return nil
-        end
-        return nil if hours > 23 || minutes > 59
-
-        (hours * 100) + minutes
-      end
+      def self.parse_time(value) = Hhmm.parse(value)
 
       # Dates, hours, and at least one day: enough for a meeting time row.
       def complete?
@@ -98,8 +84,7 @@ module Catalog
       end
 
       def hours
-        start, finish = [ begin_time, end_time ].map { |hhmm| (hhmm / 100) + ((hhmm % 100) / 60.0) }
-        [ finish - start, 0 ].max.round
+        [ Hhmm.hours(end_time) - Hhmm.hours(begin_time), 0 ].max.round
       end
     end
   end

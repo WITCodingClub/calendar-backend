@@ -41,16 +41,7 @@ module Catalog
     def time(value, name = "time")
       return nil if value.blank?
 
-      string = value.to_s.strip
-      hhmm =
-        case string
-        when /\A(\d{1,2}):(\d{2})\z/ then (::Regexp.last_match(1).to_i * 100) + ::Regexp.last_match(2).to_i
-        when /\A\d{3,4}\z/           then string.to_i
-        end
-
-      return hhmm if hhmm&.between?(0, 2359) && (hhmm % 100) < 60
-
-      raise FilterError, "Invalid #{name} #{value.inspect}; use HH:MM or HHMM"
+      Hhmm.parse(value) || raise(FilterError, "Invalid #{name} #{value.inspect}; use HH:MM or HHMM")
     end
   end
 end

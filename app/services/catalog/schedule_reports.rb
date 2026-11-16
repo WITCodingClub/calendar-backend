@@ -102,7 +102,7 @@ module Catalog
             row.schedule_type, row.status, row.credit_hours, row.faculty,
             row.seats_capacity, row.seats_available, row.enrollment_current,
             row.day_of_week, Course::MeetingTime.day_of_weeks.fetch(row.day_of_week),
-            format_hhmm(row.begin_time), format_hhmm(row.end_time),
+            Hhmm.format(row.begin_time), Hhmm.format(row.end_time),
             row.meeting_type,
             row.building_abbreviation, row.building_name, format_room_number(row.room_number),
             format_room(row.building_abbreviation, row.room_number), row.room_capacity
@@ -191,7 +191,7 @@ module Catalog
             row = pattern_rows.first
             {
               days:          day_codes(pattern_rows),
-              time:          "#{format_hhmm(row.begin_time)}-#{format_hhmm(row.end_time)}",
+              time:          "#{Hhmm.format(row.begin_time)}-#{Hhmm.format(row.end_time)}",
               meeting_type:  row.meeting_type,
               room:          format_room(row.building_abbreviation, row.room_number),
               room_capacity: row.room_capacity
@@ -216,11 +216,6 @@ module Catalog
       return values.first if values.length == 1
 
       values.map(&:presence).join(PATTERN_SEPARATOR)
-    end
-
-    # begin_time/end_time are stored as HHMM integers (e.g. 1350 => "13:50")
-    def format_hhmm(hhmm)
-      format("%02d:%02d", hhmm / 100, hhmm % 100)
     end
 
     # Room#formatted_number pads a numeric room to 3 digits, so "5" and "005"

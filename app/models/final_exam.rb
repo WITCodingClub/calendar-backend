@@ -84,15 +84,15 @@ class FinalExam < ApplicationRecord
   def linked?   = course.present?
   def orphan?   = course.blank?
 
-  def formatted_start_time      = format_time(start_time)
-  def formatted_end_time        = format_time(end_time)
-  def formatted_start_time_ampm = format_time_ampm(start_time)
-  def formatted_end_time_ampm   = format_time_ampm(end_time)
+  def formatted_start_time      = start_time && Hhmm.format(start_time)
+  def formatted_end_time        = end_time && Hhmm.format(end_time)
+  def formatted_start_time_ampm = start_time && Hhmm.format_12h(start_time)
+  def formatted_end_time_ampm   = end_time && Hhmm.format_12h(end_time)
 
   def duration_hours
     return 0 unless start_time && end_time
 
-    (((end_time / 100 * 60) + (end_time % 100)) - ((start_time / 100 * 60) + (start_time % 100))) / 60.0
+    Hhmm.hours(end_time) - Hhmm.hours(start_time)
   end
 
   def time_of_day
@@ -138,13 +138,13 @@ class FinalExam < ApplicationRecord
   def start_datetime
     return nil unless exam_date && start_time
 
-    Time.zone.local(exam_date.year, exam_date.month, exam_date.day, start_time / 100, start_time % 100)
+    Hhmm.on(exam_date, start_time)
   end
 
   def end_datetime
     return nil unless exam_date && end_time
 
-    Time.zone.local(exam_date.year, exam_date.month, exam_date.day, end_time / 100, end_time % 100)
+    Hhmm.on(exam_date, end_time)
   end
 
   # The location with building names in place of abbreviations. Pass the
@@ -161,23 +161,6 @@ class FinalExam < ApplicationRecord
   # with no course.
   def link_course
     self.course = Course.find_by(crn: crn, term_id: term_id)
-  end
-
-  def format_time(time_int)
-    return nil unless time_int
-
-    format("%02d:%02d", time_int / 100, time_int % 100)
-  end
-
-  def format_time_ampm(time_int)
-    return nil unless time_int
-
-    hours = time_int / 100
-    minutes = time_int % 100
-    meridian = hours >= 12 ? "PM" : "AM"
-    hours = hours % 12
-    hours = 12 if hours == 0
-    format("%d:%02d %s", hours, minutes, meridian)
   end
 
   def end_time_after_start_time
