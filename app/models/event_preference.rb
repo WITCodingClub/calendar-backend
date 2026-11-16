@@ -27,7 +27,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class EventPreference < ApplicationRecord
-  include ReminderSettingsNormalizable
+  include PreferenceFields
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :epf, min_hash_length: 12
@@ -35,37 +35,13 @@ class EventPreference < ApplicationRecord
   belongs_to :user
   belongs_to :preferenceable, polymorphic: true
 
-  validates :title_template, length: { maximum: 500 }, allow_blank: true
-  validates :description_template, length: { maximum: 2000 }, allow_blank: true
-  validates :location_template, length: { maximum: 500 }, allow_blank: true
-  normalizes :color_id, with: Preferences::Colors.method(:normalize_attribute)
-  validates :color_id, format: { with: Preferences::Colors::HEX_FORMAT }, allow_nil: true
-  validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
-  validate :validate_template_syntax
   validate :at_least_one_preference_set
 
-  scope :for_meeting_times,          -> { where(preferenceable_type: "Course::MeetingTime") }
-  scope :for_calendar_events, -> { where(preferenceable_type: "CalendarEvent") }
+  scope :for_meeting_times, -> { where(preferenceable_type: "Course::MeetingTime") }
 
   private
 
-  def validate_template_syntax
-    [ :title_template, :description_template, :location_template ].each do |field|
-      value = send(field)
-      next if value.blank?
-
-      Preferences::TemplateRenderer.validate_template(value)
-    rescue Preferences::TemplateRenderer::InvalidTemplateError => e
-      errors.add(field, "invalid syntax: #{e.message}")
-    end
-  end
-
   def at_least_one_preference_set
-    # reminder_settings uses .nil? not .blank? because [] means "no notifications" (valid)
-    return unless title_template.blank? && description_template.blank? &&
-                  location_template.blank? && reminder_settings.nil? &&
-                  color_id.blank? && visibility.blank?
-
-    errors.add(:base, "At least one preference must be set")
+    errors.add(:base, "At least one preference must be set") unless any_preference_set?
   end
 end

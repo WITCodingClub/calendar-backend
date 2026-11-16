@@ -6,7 +6,7 @@ module Preferences
   #
   # "notification" is another name for "popup": old extension versions send it.
   # The preference models check a list against these rules
-  # (ReminderSettingsNormalizable), and each provider sends the result of
+  # (PreferenceFields), and each provider sends the result of
   # .for_sync in its own form.
   module Reminders
     METHODS    = %w[popup notification email].freeze
