@@ -203,8 +203,12 @@ class User < ApplicationRecord
     notifications_disabled_until.present? && notifications_disabled_until > Time.current
   end
 
+  # The longest pause of the reminders. A pause with no duration lasts this long
+  # too. The API and the MCP tool reject a longer duration.
+  MAX_NOTIFICATION_PAUSE = 100.years
+
   def disable_notifications!(duration: nil)
-    update!(notifications_disabled_until: duration.nil? ? 100.years.from_now : duration.from_now)
+    update!(notifications_disabled_until: (duration || MAX_NOTIFICATION_PAUSE).from_now)
   end
 
   def enable_notifications!
