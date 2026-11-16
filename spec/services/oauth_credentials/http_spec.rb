@@ -12,8 +12,8 @@ RSpec.describe OauthCredentials::Http do
       described_class.post_form("https://oauth.example.com/token", { grant_type: "refresh_token" })
 
       expect(request).to have_been_requested
-      expect(described_class.connection.options).to have_attributes(open_timeout: described_class::OPEN_TIMEOUT,
-                                                                     timeout: described_class::READ_TIMEOUT)
+      # A slow OAuth server must not hold a request or a job for long.
+      expect(described_class.connection.options).to have_attributes(open_timeout: 5, timeout: 10)
     end
   end
 

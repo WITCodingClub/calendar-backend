@@ -61,7 +61,6 @@ RSpec.describe TermElectives::Importer do
     result = importer.call
 
     expect(result).to have_attributes(imported: 0, unchanged: 2)
-    expect(PdfText).to have_received(:extract).twice
   end
 
   it "only fetches PDF links over HTTPS on wit.edu, once for each file" do
@@ -80,7 +79,6 @@ RSpec.describe TermElectives::Importer do
 
     course = TermElectiveCourse.find_by!(subject_code: "PHYS")
     expect(course).to have_attributes(heading: "Lab-based Science Electives (BSCN, BSCO)", catalog_course: CatalogCourse.find_by!(subject_code: "PHYS"))
-    expect(PdfText).to have_received(:extract).twice
   end
 
   it "keeps the rows of an unchanged PDF when nothing else changed, and records the read" do

@@ -5,15 +5,19 @@ require "rails_helper"
 # Drives TwentyFiveLive::Client through the HTTP boundary. WebMock stubs the
 # 25Live web service, so the real fetch, retry, and sync code runs.
 RSpec.describe TwentyFiveLive::Client, type: :service do
+  include ActiveSupport::Testing::TimeHelpers
+
   fixtures :buildings, :rooms
 
   let(:base_url) { TwentyFiveLive::Client::BASE_URL }
 
-  ENDPOINTS = %w[
-    organizations evcat evatrb resources spaces
-    cabinets evcnrl evreq evtype orgcat orgcr orgat orgrtg orgtypes
-    rscat resat rmcat rmat rmfeat rmconf
-  ].freeze
+  let(:endpoints) do
+    %w[
+      organizations evcat evatrb resources spaces
+      cabinets evcnrl evreq evtype orgcat orgcr orgat orgrtg orgtypes
+      rscat resat rmcat rmat rmfeat rmconf
+    ]
+  end
 
   def stub_endpoint(name, body: "{}", status: 200)
     stub_request(:get, "#{base_url}#{name}.json").to_return(status: status, body: body)
@@ -25,7 +29,7 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
 
   # Stub every endpoint with an empty JSON object, then override per example.
   def stub_all_endpoints
-    ENDPOINTS.each { |name| stub_endpoint(name) }
+    endpoints.each { |name| stub_endpoint(name) }
   end
 
   describe "#call!" do
@@ -43,7 +47,7 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
 
       org = TwentyFiveLive::Organization.find_by!(twenty_five_live_id: 101)
       expect(org).to have_attributes(code: "FCTORG", name: "Factory Robotics Club", organization_type_name: "Student Club")
-      expect(TwentyFiveLive::Organization.find_by(twenty_five_live_id: 102)).to be_present
+      expect(TwentyFiveLive::Organization.find_by(twenty_five_live_id: 102)).to have_attributes(name: "Factory Chess Club")
       # Rows with a blank name or no id are skipped.
       expect(TwentyFiveLive::Organization.where(twenty_five_live_id: 103)).to be_empty
       expect(TwentyFiveLive::Organization.count).to eq(2)
@@ -105,7 +109,7 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
       expect { described_class.new.call! }
         .to have_enqueued_mail(TwentyFiveLiveMailer, :constant_drift_notification).once
 
-      ENDPOINTS.each do |name|
+      endpoints.each do |name|
         expect(WebMock).to have_requested(:get, "#{base_url}#{name}.json").once
       end
     end
@@ -272,6 +276,98 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
       error = TwentyFiveLive::Client::RequestError.new("boom", status: 502)
 
       expect(error).to have_attributes(message: "boom", status: 502)
+    end
+  end
+
+  describe "spaces" do
+    let(:wentworth_space) do
+      {
+        "space_id"      => 199,
+        "space_name"    => "WT 310",
+        "formal_name"   => "Wentworth Hall 310",
+        "building_id"   => 22,
+        "building_name" => "Wentworth Hall",
+        "max_capacity"  => 36
+      }
+    end
+
+    before { stub_all_endpoints }
+
+    def sync_spaces(spaces)
+      stub_endpoint("spaces", body: { "spaces" => { "space" => spaces } }.to_json)
+      described_class.new.call!
+    end
+
+    it "associates 25Live IDs and formal names to room and building" do
+      sync_spaces([ wentworth_space ])
+
+      expect(rooms(:wt_310).reload).to have_attributes(twenty_five_live_id: 199, formal_name: "Wentworth Hall 310", capacity: 36)
+      expect(buildings(:WT).reload).to have_attributes(twenty_five_live_id: 22, formal_name: "Wentworth Hall")
+    end
+
+    it "refreshes a capacity that changed, unlike the ID and the formal name" do
+      rooms(:wt_310).update!(capacity: 30)
+
+      sync_spaces([ wentworth_space ])
+
+      expect(rooms(:wt_310).reload.capacity).to eq(36)
+    end
+
+    it "leaves capacity unknown when 25Live reports 0" do
+      sync_spaces([ wentworth_space.merge("max_capacity" => 0) ])
+
+      expect(rooms(:wt_310).reload.capacity).to be_nil
+    end
+
+    it "keeps a known capacity when 25Live reports 0" do
+      rooms(:wt_310).update!(capacity: 30)
+
+      sync_spaces([ wentworth_space.merge("max_capacity" => 0) ])
+
+      expect(rooms(:wt_310).reload.capacity).to eq(30)
+    end
+
+    it "marks every building as checked, found in 25Live or not" do
+      freeze_time do
+        sync_spaces([ wentworth_space ])
+
+        expect(buildings(:WT).reload.twenty_five_live_checked_at).to eq(Time.current)
+        expect(buildings(:COMP).reload.twenty_five_live_checked_at).to eq(Time.current)
+      end
+    end
+
+    it "skips a space whose abbreviation matches no building" do
+      sync_spaces([ { "space_id" => 777, "space_name" => "NOPE 100", "building_id" => 99, "building_name" => "Unknown" } ])
+
+      expect(rooms(:comp_100).reload.twenty_five_live_id).to be_nil
+    end
+
+    it "skips a space whose room number does not match" do
+      sync_spaces([ { "space_id" => 888, "space_name" => "COMP 999", "building_id" => 55, "building_name" => "Computing Center" } ])
+
+      expect(rooms(:comp_100).reload.twenty_five_live_id).to be_nil
+    end
+
+    it "skips a space_name with no room portion" do
+      sync_spaces([ { "space_id" => 213, "space_name" => "AwayGame", "building_id" => 0, "building_name" => "" } ])
+
+      expect(rooms(:wt_310).reload.twenty_five_live_id).to be_nil
+    end
+
+    it "does not overwrite an existing twenty_five_live_id on a room" do
+      rooms(:wt_310).update!(twenty_five_live_id: 1, formal_name: "Original")
+
+      sync_spaces([ wentworth_space ])
+
+      expect(rooms(:wt_310).reload).to have_attributes(twenty_five_live_id: 1, formal_name: "Original")
+    end
+
+    it "skips TBD buildings" do
+      buildings(:WT).update!(name: "To Be Determined", abbreviation: "TBD")
+
+      sync_spaces([ { "space_id" => 999, "space_name" => "TBD 310", "building_id" => 22, "building_name" => "TBD" } ])
+
+      expect(rooms(:wt_310).reload.twenty_five_live_id).to be_nil
     end
   end
 end

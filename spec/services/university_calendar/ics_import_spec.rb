@@ -396,6 +396,8 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
 
       it "reports an entry that fails while it is read and keeps going" do
         stub_feed("feed.ics")
+        # No feed entry that the ICS parser accepts makes the read fail, so the
+        # spec forces one error in the read of the first entry.
         calls = 0
         allow_any_instance_of(described_class).to receive(:clean_description).and_wrap_original do |original, *args| # rubocop:disable RSpec/AnyInstance
           calls += 1

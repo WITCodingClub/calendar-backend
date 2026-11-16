@@ -72,9 +72,13 @@ RSpec.describe McpTools::Confirmation do
     end
 
     it "asks again when the state is for another user, another message, or not JSON" do
+      other = create(:user)
       real = JSON.parse(question.request_state)
-      other_user = JSON.generate(real.merge("u" => create(:user).id))
-      other_message = JSON.generate(real.merge("d" => OpenSSL::Digest::SHA256.hexdigest("Something else")))
+      expect(other.id).not_to eq(user.id)
+      other_user = JSON.generate(real.merge("u" => other.id))
+      # The digest in the same format as the real one, of another message, so
+      # only the message differs.
+      other_message = JSON.generate(real.merge("d" => OpenSSL::Digest::SHA256.hexdigest(JSON.generate([ "Something else", nil ]))))
 
       expect(answer(mcp_confirmation("accept"), state: JSON.generate(real))).to eq(:accept)
       [ other_user, other_message, "not json", "[]" ].each do |state|

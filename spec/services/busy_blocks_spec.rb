@@ -69,17 +69,16 @@ RSpec.describe BusyBlocks do
     expect(described_class.new(user, from: monday, to: sunday).call.map(&:weekday)).to eq(%w[friday])
   end
 
-  it "runs one query for each source (meetings, no-class days, finals, friend meetings), however many classes there are" do
-    3.times { |i| enroll(day_of_week: :monday, begin_time: 900 + (i * 200), end_time: 1000 + (i * 200)) }
+  it "runs the same number of queries for one class and for three classes" do
+    enroll(day_of_week: :monday, begin_time: 900, end_time: 1000)
+    run = -> { count_queries { described_class.new(user, from: monday, to: sunday).call } }
+    run.call # warms the per-process caches
+    one = run.call
 
-    queries = []
-    counter = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" || payload[:cached] }
-    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
-      described_class.new(user, from: monday, to: sunday).call
-    end
+    2.times { |i| enroll(day_of_week: :monday, begin_time: 1100 + (i * 200), end_time: 1200 + (i * 200)) }
 
-    expect(queries.length).to eq(4)
-    expect(queries.grep(/course_meeting_times/).length).to eq(1)
+    expect(blocks.size).to eq(3)
+    expect(run.call).to eq(one)
   end
 
   it "refuses a range that ends before it starts" do

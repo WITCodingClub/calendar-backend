@@ -4,6 +4,7 @@ require "rails_helper"
 
 # How GoogleCalendar::Provider writes one schedule event: the create, update
 # and delete steps of CourseCalendars::Provider with the Google remote calls.
+# The examples call update_specific_events and delete_events.
 RSpec.describe GoogleCalendar::Provider do
   subject(:provider) { described_class.new(user) }
 
@@ -26,20 +27,11 @@ RSpec.describe GoogleCalendar::Provider do
       .and_return(instance_double(GoogleCalendar::EventLabels, available?: false, label_id_for: nil))
   end
 
-  def insert(event)
-    provider.send(:create_event, calendar, event)
-  end
-
-  # The sync loop (CourseCalendars::Provider#upsert) skips an event whose data
-  # did not change, before update_event.
-  def write(row, data, force: false)
-    return :skipped_no_change unless force || row.data_changed?(data)
-
-    provider.send(:update_event, calendar, row, data, force: force)
-  end
-
-  def remove(row)
-    provider.send(:delete_rows, [ row ])
+  # Each example goes through the public sync entry points.
+  # update_specific_events makes or updates the given events and deletes
+  # nothing, so it shows the create and update steps one event at a time.
+  def sync(event, force: false)
+    provider.update_specific_events([ event ], force: force)
   end
 
   def google_error(status)
@@ -53,10 +45,10 @@ RSpec.describe GoogleCalendar::Provider do
                      body: hash_including("summary" => "Synthetic Lecture", "location" => "Synthetic Hall"))
                .to_return(json)
 
-      row = insert(event_data)
+      expect(sync(event_data)).to include(created: 1)
 
       expect(insert).to have_been_requested.once
-      expect(row).to have_attributes(external_event_id: "syntheticmeetingevent1", summary: "Synthetic Lecture",
+      expect(calendar.calendar_events.sole).to have_attributes(external_event_id: "syntheticmeetingevent1", summary: "Synthetic Lecture",
                                      university_calendar_event_id: university_event.id, meeting_time_id: nil,
                                      event_data_hash: event_data.data_hash)
     end
@@ -69,24 +61,50 @@ RSpec.describe GoogleCalendar::Provider do
 
       allow(GoogleCalendar::EventLabels).to receive(:new).and_return(labels)
 
-      insert(event_data.with(color_id: "#1a2b3c"))
+      sync(event_data.with(color_id: "#1a2b3c"))
 
       expect(insert).to have_been_requested.once
     end
 
-    it "deletes the new event when a concurrent sync already tracks it" do
-      allow(calendar.calendar_events).to receive(:create!).and_raise(ActiveRecord::RecordNotUnique)
+    it "deletes the new event when the unique index refuses its row" do
+      # A parallel sync saved the same source between this row's check and its insert.
+      allow(CalendarEvent).to receive(:new).and_wrap_original do |original, *args, **options, &block|
+        original.call(*args, **options, &block).tap do |record|
+          allow(record).to receive(:save!).and_raise(ActiveRecord::RecordNotUnique)
+        end
+      end
       stub_request(:post, events_url).to_return(json)
       delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
 
-      expect(insert(event_data)).to be_nil
+      sync(event_data)
+
       expect(delete).to have_been_requested.once
+    end
+
+    it "deletes the new event when a concurrent sync already tracks it" do
+      # create_event rescues only RecordNotUnique. When the other sync's row
+      # is there before the uniqueness validation runs, create! raises
+      # RecordInvalid, the sync fails, and the new event stays as a duplicate.
+      pending "create_event does not rescue RecordInvalid for a taken university_calendar_event"
+
+      # The other sync tracks the event while this one waits for Google.
+      stub_request(:post, events_url).to_return do
+        create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
+                                                       external_event_id: "synthetic-other-sync")
+        json
+      end
+      delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
+
+      sync(event_data)
+
+      expect(delete).to have_been_requested.once
+      expect(calendar.calendar_events.sole.external_event_id).to eq("synthetic-other-sync")
     end
   end
 
   describe "#update" do
     let(:event_url) { "#{events_url}/synthetic-event" }
-    let(:row) do
+    let!(:row) do
       create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
                                                      external_event_id: "synthetic-event", summary: "Old Lecture",
                                                      location: "Synthetic Hall", start_time: start, end_time: start + 1.hour)
@@ -101,7 +119,7 @@ RSpec.describe GoogleCalendar::Provider do
     it "marks an unchanged event as synced without a request" do
       row.update!(event_data_hash: event_data.data_hash)
 
-      expect(write(row, event_data)).to eq(:skipped_no_change)
+      expect(sync(event_data)).to include(skipped: 1, updated: 0)
       expect(a_request(:any, /googleapis/)).not_to have_been_made
     end
 
@@ -110,7 +128,7 @@ RSpec.describe GoogleCalendar::Provider do
       stub_request(:get, event_url).to_return(remote_body)
       put = stub_request(:put, event_url).with(body: hash_including("description" => "Prof. Other")).to_return(json)
 
-      expect(write(row, event_data.with(description: "Prof. Other"))).to eq(:updated)
+      expect(sync(event_data.with(description: "Prof. Other"))).to include(updated: 1)
       expect(put).to have_been_requested.once
     end
 
@@ -118,7 +136,7 @@ RSpec.describe GoogleCalendar::Provider do
       stub_request(:get, event_url).to_return(remote_body)
       put = stub_request(:put, event_url).with(body: hash_including("summary" => "Synthetic Lecture")).to_return(json)
 
-      expect(write(row, event_data)).to eq(:updated)
+      expect(sync(event_data)).to include(updated: 1)
       expect(put).to have_been_requested.once
       expect(row.reload).to have_attributes(summary: "Synthetic Lecture", user_edited_fields: nil)
     end
@@ -128,7 +146,7 @@ RSpec.describe GoogleCalendar::Provider do
       put = stub_request(:put, event_url).with(body: hash_including("summary" => "Synthetic Lecture", "location" => "My Own Room"))
                                          .to_return(json)
 
-      write(row, event_data)
+      sync(event_data)
 
       expect(put).to have_been_requested.once
       expect(row.reload).to have_attributes(location: "My Own Room", user_edited_fields: [ "location" ])
@@ -137,17 +155,17 @@ RSpec.describe GoogleCalendar::Provider do
     it "makes no request on the next sync of an event the person edited" do
       stub_request(:get, event_url).to_return(remote_body(location: "My Own Room"))
       stub_request(:put, event_url).to_return(json)
-      write(row, event_data)
+      sync(event_data)
       WebMock.reset_executed_requests!
 
-      expect(write(row.reload, event_data)).to eq(:skipped_no_change)
+      expect(sync(event_data)).to include(skipped: 1, updated: 0)
       expect(a_request(:any, /googleapis/)).not_to have_been_made
     end
 
     it "keeps the whole event when the person edited the recurrence" do
       stub_request(:get, event_url).to_return(remote_body(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TU" ]))
 
-      expect(write(row, event_data)).to eq(:skipped_user_edit)
+      expect(sync(event_data)).to include(skipped: 1, updated: 0)
       expect(a_request(:put, event_url)).not_to have_been_made
       expect(row.reload).to have_attributes(summary: "Old Lecture", recurrence: nil)
     end
@@ -157,8 +175,8 @@ RSpec.describe GoogleCalendar::Provider do
       data = event_data.with(recurrence: CourseCalendars::Recurrence.parse([ "RRULE:FREQ=WEEKLY;BYDAY=TU" ]))
       stub_request(:get, event_url).to_return(remote_body(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ]))
 
-      expect(write(row, data)).to eq(:skipped_user_edit)
-      expect(write(row.reload, data)).to eq(:skipped_user_edit)
+      expect(sync(data)).to include(skipped: 1, updated: 0)
+      expect(sync(data)).to include(skipped: 1, updated: 0)
       expect(a_request(:put, event_url)).not_to have_been_made
     end
 
@@ -167,7 +185,7 @@ RSpec.describe GoogleCalendar::Provider do
       stub_request(:get, event_url).to_return(remote_body(description: "CRN 10001"))
       put = stub_request(:put, event_url).with(body: hash_including("description" => "CRN 20002")).to_return(json)
 
-      write(row, event_data.with(description: "CRN 20002"))
+      sync(event_data.with(description: "CRN 20002"))
 
       expect(put).to have_been_requested.once
       expect(row.reload.user_edited_fields).to be_nil
@@ -175,7 +193,7 @@ RSpec.describe GoogleCalendar::Provider do
 
     context "with an all-day event" do
       let(:day) { zone.local(2026, 11, 26) }
-      let(:row) do
+      let!(:row) do
         create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
                                                        external_event_id: "synthetic-event", summary: "Old Holiday",
                                                        location: nil, start_time: day, end_time: day.end_of_day)
@@ -195,7 +213,7 @@ RSpec.describe GoogleCalendar::Provider do
                                                                       "end"   => { "date" => "2026-11-27" }))
                                            .to_return(json)
 
-        expect(write(row, holiday_data)).to eq(:updated)
+        expect(sync(holiday_data)).to include(updated: 1)
         expect(put).to have_been_requested.once
         expect(row.reload.user_edited_fields).to be_nil
       end
@@ -204,7 +222,7 @@ RSpec.describe GoogleCalendar::Provider do
         stub_request(:get, event_url).to_return(all_day_body("2026-11-26", "2026-11-28"))
         put = stub_request(:put, event_url).with(body: hash_including("end" => { "date" => "2026-11-28" })).to_return(json)
 
-        write(row, holiday_data)
+        sync(holiday_data)
 
         expect(put).to have_been_requested.once
         expect(row.reload.user_edited_fields).to eq([ "end_time" ])
@@ -215,7 +233,7 @@ RSpec.describe GoogleCalendar::Provider do
       stub_request(:get, event_url).to_return(google_error(404))
       insert = stub_request(:post, events_url).with(body: hash_including("summary" => "Synthetic Lecture")).to_return(json)
 
-      expect(write(row, event_data)).to eq(:recreated)
+      expect(sync(event_data)).to include(updated: 1)
       expect(insert).to have_been_requested.once
       expect(calendar.calendar_events.sole.external_event_id).to eq("syntheticmeetingevent1")
     end
@@ -225,7 +243,7 @@ RSpec.describe GoogleCalendar::Provider do
         stub_request(:put, event_url).to_return(google_error(status))
         insert = stub_request(:post, events_url).with(body: hash_including("summary" => "Synthetic Lecture")).to_return(json)
 
-        expect(write(row, event_data, force: true)).to eq(:recreated)
+        expect(sync(event_data, force: true)).to include(updated: 1)
         expect(insert).to have_been_requested.once
         expect(calendar.calendar_events.sole.external_event_id).to eq("syntheticmeetingevent1")
       end
@@ -235,7 +253,7 @@ RSpec.describe GoogleCalendar::Provider do
       row.update!(user_edited_fields: [ "location" ])
       put = stub_request(:put, event_url).with(body: hash_including("location" => "Synthetic Hall")).to_return(json)
 
-      expect(write(row, event_data, force: true)).to eq(:updated)
+      expect(sync(event_data, force: true)).to include(updated: 1)
       expect(put).to have_been_requested.once
       expect(row.reload.user_edited_fields).to be_nil
     end
@@ -247,7 +265,7 @@ RSpec.describe GoogleCalendar::Provider do
     it "deletes the event and the row" do
       delete = stub_request(:delete, "#{events_url}/synthetic-event").to_return(status: 204)
 
-      remove(row)
+      provider.delete_events([ row ])
 
       expect(delete).to have_been_requested.once
       expect(CalendarEvent.exists?(row.id)).to be(false)
@@ -256,7 +274,7 @@ RSpec.describe GoogleCalendar::Provider do
     it "deletes only the row of an event that Google already deleted" do
       stub_request(:delete, "#{events_url}/synthetic-event").to_return(google_error(410))
 
-      remove(row)
+      provider.delete_events([ row ])
 
       expect(CalendarEvent.exists?(row.id)).to be(false)
     end
@@ -264,7 +282,7 @@ RSpec.describe GoogleCalendar::Provider do
     it "raises any other error and keeps the row" do
       stub_request(:delete, "#{events_url}/synthetic-event").to_return(google_error(403))
 
-      expect { remove(row) }.to raise_error(Google::Apis::ClientError)
+      expect { provider.delete_events([ row ]) }.to raise_error(Google::Apis::ClientError)
       expect(CalendarEvent.exists?(row.id)).to be(true)
     end
   end

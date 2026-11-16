@@ -3,15 +3,16 @@
 require "rails_helper"
 
 RSpec.describe McpTools::ListTerms do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user) { create(:user) }
 
   it "lists the terms newest first with section counts and the current term" do
     older = create(:term, year: 2030)
     newer = create(:term, year: 2031)
     create(:course, term: newer)
-    allow(Term).to receive(:current).and_return(newer)
 
-    result = described_class.call(server_context: mcp_context(user))
+    result = travel_to(Time.zone.local(newer.year, 10, 1)) { described_class.call(server_context: mcp_context(user)) }
 
     expect(result.error?).to be(false)
     expect(result.structured_content[:current_term_uid]).to eq(newer.uid)
@@ -21,9 +22,13 @@ RSpec.describe McpTools::ListTerms do
   end
 
   it "lists only the active terms when asked" do
-    create(:term)
-    allow(Term).to receive(:active).and_return(Term.none)
+    active = create(:term, year: 2030, start_date: Date.new(2030, 9, 3), end_date: Date.new(2030, 12, 20))
+    create(:term, year: 2029, start_date: Date.new(2029, 9, 4), end_date: Date.new(2029, 12, 21))
 
-    expect(described_class.call(server_context: mcp_context(user), active: true).structured_content[:terms]).to be_empty
+    terms = travel_to(Time.zone.local(2030, 10, 1)) do
+      described_class.call(server_context: mcp_context(user), active: true).structured_content[:terms]
+    end
+
+    expect(terms.pluck(:uid)).to eq([ active.uid ])
   end
 end

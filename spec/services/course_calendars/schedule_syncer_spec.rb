@@ -20,6 +20,22 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
     end
   end
 
+  # Gives the Google provider a calendar with a synced university event the
+  # person does not want (only holidays are wanted by default) and a friend
+  # meeting whose one friend declined the invitation.
+  def seed_unwanted_event_and_declined_friend
+    calendar = create(:course_calendar)
+    allow(google).to receive_messages(course_calendar: calendar, delete_events: 1,
+                                      declined_attendee_emails: [ "declined.friend@wit.edu" ])
+    unwanted = create(:calendar_event, :for_university_event, course_calendar: calendar,
+                                                              university_calendar_event: create(:university_calendar_event, category: "campus_event"))
+    meeting = create(:friend_meeting, :invite_friends, user: user)
+    create(:friend_meeting_attendee, friend_meeting: meeting, user: create(:user, email: "declined.friend@wit.edu"))
+    create(:friend_meeting_publication, :invitations_sent, friend_meeting: meeting, provider: "google")
+    create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: calendar)
+    [ unwanted, meeting ]
+  end
+
   describe "#sync_schedule" do
     let!(:enrollment)   { create(:enrollment, user: user, course: course) }
     let!(:meeting_time) { create(:course_meeting_time, course: course) }
@@ -28,7 +44,7 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       create(:university_calendar_event, category: "holiday", start_time: 1.week.from_now, end_time: 1.week.from_now + 1.day)
     end
 
-    it "sends the course, final, and university events to each provider in order" do
+    it "sends the course, final, and university events to each provider" do
       syncer.sync_schedule(force: true)
 
       expect(google).to have_received(:update_calendar_events).with(
@@ -36,8 +52,8 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
           have_attributes(source: meeting_time), have_attributes(source: final_exam), have_attributes(source: holiday)
         ),
         force: true
-      ).ordered
-      expect(microsoft).to have_received(:update_calendar_events).with(an_instance_of(Array), force: true).ordered
+      )
+      expect(microsoft).to have_received(:update_calendar_events).with(an_instance_of(Array), force: true)
     end
 
     it "adds up the stats of the providers" do
@@ -73,17 +89,24 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       expect { syncer.sync_schedule(force: true) }.not_to have_enqueued_job(CourseCalendars::HistoricalSyncJob)
     end
 
-    it "prunes unwanted university events, publishes missing friend meetings, and removes declined friends" do
-      pruner    = instance_double(CourseCalendars::UniversityEventPruner, call: 0)
-      publisher = instance_double(FriendMeetings::Publisher, publish_missing: nil, remove_declined: nil)
-      allow(CourseCalendars::UniversityEventPruner).to receive(:new).with(user).and_return(pruner)
-      allow(FriendMeetings::Publisher).to receive(:new).with(user, services: services).and_return(publisher)
+    it "deletes the university events the person no longer wants and takes off friends who declined" do
+      unwanted, meeting = seed_unwanted_event_and_declined_friend
 
       syncer.sync_schedule
 
-      expect(pruner).to have_received(:call)
-      expect(publisher).to have_received(:publish_missing)
-      expect(publisher).to have_received(:remove_declined)
+      expect(google).to have_received(:delete_events).with([ unwanted ])
+      expect(meeting.attendees.reload).to be_empty
+    end
+
+    it "puts back a published friend meeting whose calendar event is missing" do
+      calendar = create(:course_calendar)
+      allow(google).to receive_messages(course_calendar: calendar, create_friend_meeting_event: nil)
+      meeting = create(:friend_meeting, user: user)
+      create(:friend_meeting_publication, friend_meeting: meeting, provider: "google", status: "published")
+
+      syncer.sync_schedule
+
+      expect(google).to have_received(:create_friend_meeting_event).with(meeting, invite: false)
     end
 
     context "when one provider fails" do
@@ -106,16 +129,13 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
           .with(error, handled: true, context: { user_id: user.id, provider: google.class.name })
       end
 
-      it "still prunes, publishes friend meetings, and records the sync" do
-        pruner    = instance_double(CourseCalendars::UniversityEventPruner, call: 0)
-        publisher = instance_double(FriendMeetings::Publisher, publish_missing: nil, remove_declined: nil)
-        allow(CourseCalendars::UniversityEventPruner).to receive(:new).with(user).and_return(pruner)
-        allow(FriendMeetings::Publisher).to receive(:new).with(user, services: services).and_return(publisher)
+      it "still prunes, takes off declined friends, and records the sync" do
+        unwanted, meeting = seed_unwanted_event_and_declined_friend
 
         syncer.sync_schedule
 
-        expect(pruner).to have_received(:call)
-        expect(publisher).to have_received(:publish_missing)
+        expect(google).to have_received(:delete_events).with([ unwanted ])
+        expect(meeting.attendees.reload).to be_empty
         expect(user.reload).to have_attributes(calendar_needs_sync: false, last_calendar_sync_at: be_present)
       end
     end

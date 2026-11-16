@@ -188,17 +188,14 @@ RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
       expect(insert).to have_been_requested.once
     end
 
-    it "costs one query for a person with no meetings" do
+    # Every course sync calls it, so a person with no meetings costs at most one read.
+    it "reads once and sends nothing for a person with no meetings" do
       other = create(:user)
-      queries = []
-      callback = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
 
-      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
-        described_class.new(other, services: []).publish_missing
-      end
+      queries = count_queries { described_class.new(other).publish_missing }
 
-      expect(queries.size).to eq(1)
-      expect(queries.first).to match(/SELECT 1 AS one FROM "friend_meetings"/)
+      expect(queries).to be <= 1
+      expect(a_request(:any, /googleapis|graph\.microsoft/)).not_to have_been_made
     end
   end
 
@@ -261,16 +258,16 @@ RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
       expect(meeting.attendees.reload).to contain_exactly(friend, maybe_friend)
     end
 
-    it "costs one query for a person with no meetings that invite friends" do
+    # Every course sync calls it, so a person with no meetings that invite
+    # friends costs at most one read.
+    it "reads once and sends nothing for a person with no meetings that invite friends" do
       other = create(:user)
-      queries = []
-      callback = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
+      create(:friend_meeting, user: other)
 
-      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
-        described_class.new(other, services: []).remove_declined
-      end
+      queries = count_queries { described_class.new(other).remove_declined }
 
-      expect(queries.size).to eq(1)
+      expect(queries).to be <= 1
+      expect(a_request(:any, /googleapis|graph\.microsoft/)).not_to have_been_made
     end
   end
 

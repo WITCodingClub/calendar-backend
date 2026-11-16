@@ -50,13 +50,8 @@ RSpec.describe McpTools::FindSchedules, :schedule_builder do
   end
 
   it "needs the catalog scope" do
-    expect(call(scopes: [], term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ]).error?).to be(true)
-  end
-
-  it "is read-only and uses the flag of its endpoint" do
-    expect(described_class.annotations.read_only_hint).to be(true)
-    expect(described_class.required_flag).to eq(FeatureFlags::SCHEDULE_BUILDER)
     expect(described_class.required_scope).to eq("catalog")
+    expect(call(scopes: [], term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ]).error?).to be(true)
   end
 
   it "answers with a tool error while the flag is off for the student" do

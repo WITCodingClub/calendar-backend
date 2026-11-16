@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe AcademicProfiles::NextTermRequest do
+  include ActiveSupport::Testing::TimeHelpers
+
   def request(term: nil, assume: nil)
     described_class.new(term: term, assume: assume, assume_plans: false, include_candidates: true)
   end
@@ -16,21 +18,28 @@ RSpec.describe AcademicProfiles::NextTermRequest do
     expect { request(assume: "not a code") }.to raise_error(AcademicProfiles::PlanningError, /course codes/)
   end
 
-  it "passes the parsed term and assumed courses to NextTermCourses" do
-    user = build(:user)
-    courses = instance_double(AcademicProfiles::NextTermCourses, call: { programs: [] })
-    allow(AcademicProfiles::NextTermCourses).to receive(:new).and_return(courses)
+  context "with a student in a program" do
+    let(:user) { create(:user) }
 
-    expect(request(term: "Spring 2027", assume: "COMP3350, math 2300").call(user)).to eq(programs: [])
-    expect(AcademicProfiles::NextTermCourses).to have_received(:new)
-      .with(user, term_uid: 202720, assume: [ [ "COMP", 3350 ], [ "MATH", 2300 ] ], assume_plans: false, include_candidates: true)
-  end
+    before do
+      catalog_year = create(:catalog_year, :imported, start_year: 2025)
+      major = create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.")
+      create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
+      create(:term, uid: 202710, year: 2026, season: :fall, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 20))
+    end
 
-  it "uses the default term for a blank term" do
-    allow(AcademicProfiles::NextTermCourses).to receive(:new).and_return(instance_double(AcademicProfiles::NextTermCourses, call: {}))
+    it "gives the courses of the parsed term, with the assumed courses" do
+      result = request(term: "Spring 2027", assume: "COMP3350, math 2300").call(user)
 
-    request(term: "").call(build(:user))
+      expect(result[:term]).to eq(uid: 202720, name: "Spring 2027")
+      expect(result[:assumed][:courses]).to eq([ "COMP 3350", "MATH 2300" ])
+    end
 
-    expect(AcademicProfiles::NextTermCourses).to have_received(:new).with(anything, hash_including(term_uid: nil))
+    it "uses the term after the current term for a blank term" do
+      travel_to Time.zone.local(2026, 11, 6) do
+        expect(request(term: "").call(user)[:term]).to eq(uid: 202720, name: "Spring 2027")
+      end
+    end
   end
 end

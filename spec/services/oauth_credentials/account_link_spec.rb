@@ -45,16 +45,18 @@ RSpec.describe OauthCredentials::AccountLink do
     end
   end
 
-  describe "#connect!" do
-    it "links the account, then makes the calendar and syncs through the provider" do
-      service = instance_double(MicrosoftGraph::CalendarProvider, ensure_course_calendar: "synthetic-calendar")
-      allow(MicrosoftGraph::CalendarProvider).to receive(:new).and_return(service)
+  describe "#connect!", :microsoft_graph do
+    it "links the account and makes the course calendar in the place the person chose" do
+      stub_request(:get, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendar").with(query: hash_including({}))
+        .to_return(graph_json_response("calendar_primary"))
 
-      calendar_id = described_class.new(user, "microsoft").connect!(**tokens, calendar: { placement: "primary" })
+      calendar_id = described_class.new(user, "microsoft").connect!(**tokens, expires_at: 1.hour.from_now,
+                                                                     calendar: { placement: "primary" })
 
-      expect(calendar_id).to eq("synthetic-calendar")
-      expect(MicrosoftGraph::CalendarProvider).to have_received(:new).with(user, credential: user.oauth_credentials.microsoft.sole)
-      expect(service).to have_received(:ensure_course_calendar).with(always_sync: true, placement: "primary")
+      expect(calendar_id).to eq("AAMkSyntheticPrimaryCalendar")
+      credential = user.oauth_credentials.microsoft.sole
+      expect(CourseCalendar.find_by!(oauth_credential: credential))
+        .to have_attributes(placement: "primary", external_calendar_id: "AAMkSyntheticPrimaryCalendar")
     end
   end
 end

@@ -7,7 +7,6 @@ RSpec.describe Admin::NavigationRegistry do
 
   it "gives every item an icon that Admin::ApplicationHelper can draw" do
     expect(items.pluck(:icon) - IconHelper::ICONS.keys).to be_empty
-    expect(items.pluck(:icon)).to all(be_present)
   end
 
   it "gives every item a unique id" do

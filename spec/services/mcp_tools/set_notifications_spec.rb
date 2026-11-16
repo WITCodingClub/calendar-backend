@@ -32,14 +32,14 @@ RSpec.describe McpTools::SetNotifications do
     expect(user.notifications_disabled_until).to be > 50.years.from_now
   end
 
-  it "limits a pause to one year" do
-    expect(described_class::MAX_HOURS).to eq(8760)
+  it "refuses a duration that is not positive or is longer than one year" do
+    expect(call(disabled: true, duration_hours: 0).error?).to be(true)
+    expect(call(disabled: true, duration_hours: 8761).error?).to be(true)
+    expect(user.reload.notifications_disabled?).to be(false)
   end
 
-  it "refuses a duration that is not positive or is too long" do
-    expect(call(disabled: true, duration_hours: 0).error?).to be(true)
-    expect(call(disabled: true, duration_hours: described_class::MAX_HOURS + 1).error?).to be(true)
-    expect(user.reload.notifications_disabled?).to be(false)
+  it "accepts a pause of exactly one year" do
+    expect(call(disabled: true, duration_hours: 8760).error?).to be(false)
   end
 
   it "turns reminders on again and queues a sync to put them back" do

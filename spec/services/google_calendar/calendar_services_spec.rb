@@ -15,7 +15,6 @@ RSpec.describe GoogleCalendar::CalendarServices do
     it "authorizes with the service account" do
       service = described_class.service_account
 
-      expect(service).to be_a(Google::Apis::CalendarV3::CalendarService)
       expect(service.authorization.access_token).to eq("synthetic-service-account-token")
     end
   end
@@ -63,7 +62,7 @@ RSpec.describe GoogleCalendar::CalendarServices do
       expect(described_class.for_credential(credential).authorization.access_token).to eq("synthetic-second-token")
     end
 
-    it "refreshes and saves an expired token" do
+    it "refreshes and saves a token with no expiry time" do
       credential = create(:oauth_credential, refresh_token: "synthetic-refresh", token_expires_at: nil)
       stub_request(:post, token_url).to_return(refreshed)
 

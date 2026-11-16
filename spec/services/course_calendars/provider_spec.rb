@@ -13,32 +13,36 @@ RSpec.describe CourseCalendars::Provider do
   describe "#ensure_course_calendar" do
     let(:user)    { create(:user) }
     let(:service) { GoogleCalendar::Provider.new(user) }
+    let(:google_calendar_json) do
+      { status: 200, headers: { "Content-Type" => "application/json" },
+        body: { id: "new-calendar", summary: "WIT Courses", timeZone: "America/New_York" }.to_json }
+    end
 
-    before { create(:oauth_credential, user: user) }
+    # The Google calendar, ACL, and calendar list calls all answer with the calendar.
+    before do
+      create(:oauth_credential, user: user, token_expires_at: 1.hour.from_now)
+      stub_google_service_account
+      stub_request(:any, /googleapis\.com/).to_return(google_calendar_json)
+    end
 
     it "starts one forced sync for a calendar it made" do
-      allow(service).to receive(:create_or_get_course_calendar) do
-        create(:course_calendar, oauth_credential: user.google_credential, external_calendar_id: "new-calendar")
-        "new-calendar"
-      end
-
       expect { expect(service.ensure_course_calendar).to eq("new-calendar") }
         .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
     end
 
     it "starts no sync for a calendar that was there" do
-      calendar = create(:course_calendar, oauth_credential: user.google_credential)
-      allow(service).to receive(:create_or_get_course_calendar).and_return(calendar.external_calendar_id)
+      create(:course_calendar, oauth_credential: user.google_credential)
 
       expect { service.ensure_course_calendar }.not_to have_enqueued_job(CourseCalendars::SyncJob)
     end
 
     it "forces the reconnect sync of a Microsoft calendar that was there", :microsoft_graph do
-      credential = create(:oauth_credential, :microsoft, user: user)
-      calendar   = create(:course_calendar, :microsoft, oauth_credential: credential)
+      credential = create(:oauth_credential, :microsoft, user: user, token_expires_at: 1.hour.from_now)
+      create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1")
+      stub_request(:get, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars/AAMkSyntheticCalendar1").with(query: hash_including({}))
+        .to_return(graph_json_response("calendar_found"))
       Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
       microsoft = MicrosoftGraph::CalendarProvider.new(user, credential: credential)
-      allow(microsoft).to receive(:create_or_get_course_calendar).and_return(calendar.external_calendar_id)
 
       expect { microsoft.ensure_course_calendar(always_sync: true) }
         .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
@@ -47,8 +51,7 @@ RSpec.describe CourseCalendars::Provider do
     end
 
     it "starts a sync without force for a Google calendar that was there, when asked to" do
-      calendar = create(:course_calendar, oauth_credential: user.google_credential)
-      allow(service).to receive(:create_or_get_course_calendar).and_return(calendar.external_calendar_id)
+      create(:course_calendar, oauth_credential: user.google_credential)
 
       expect { service.ensure_course_calendar(always_sync: true) }
         .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: false).exactly(:once)

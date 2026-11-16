@@ -141,11 +141,12 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
 
       builder.preload_final_exam_dates!([ course.id, other_course.id ])
-      allow(FinalExam).to receive(:where).and_call_original
+      queries = count_queries do
+        expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10))
+        expect(builder.final_exam_date_for_course(other_course.id)).to be_nil
+      end
 
-      expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10))
-      expect(builder.final_exam_date_for_course(other_course.id)).to be_nil
-      expect(FinalExam).not_to have_received(:where)
+      expect(queries).to eq(0)
     end
   end
 
@@ -195,11 +196,11 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
   describe "#final_exam_date_for_course" do
     it "sends the query only once for each course" do
       create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
-      allow(FinalExam).to receive(:where).and_call_original
+      expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10))
 
-      2.times { expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10)) }
+      queries = count_queries { expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10)) }
 
-      expect(FinalExam).to have_received(:where).once
+      expect(queries).to eq(0)
     end
   end
 
@@ -241,10 +242,11 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       holiday(Time.zone.local(2027, 3, 1, 0, 0))
 
       builder.preload_holidays_for_user!
-      allow(UniversityCalendarEvent).to receive(:no_class_spans_between).and_call_original
+      queries = count_queries do
+        expect(builder.holidays_for_meeting_time(meeting_time).map(&:start_time)).to eq([ day_off.start_time ])
+      end
 
-      expect(builder.holidays_for_meeting_time(meeting_time).map(&:start_time)).to eq([ day_off.start_time ])
-      expect(UniversityCalendarEvent).not_to have_received(:no_class_spans_between)
+      expect(queries).to eq(0)
     end
 
     # start_date is local midnight. A Date compared with it becomes midnight

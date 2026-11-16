@@ -76,18 +76,26 @@ RSpec.describe CourseCalendars::SyncMarker do
   end
 
   describe ".batch_with_enrollment_flags" do
-    it "sends no enrollment check for a flagged course" do
-      meeting_time = create(:course_meeting_time, course: course)
+    # Making the meeting time marks the user already, so each example starts unmarked.
+    let!(:meeting_time) { create(:course_meeting_time, course: course) }
+
+    before { user.update_column(:calendar_needs_sync, false) } # rubocop:disable Rails/SkipsModelValidations
+
+    it "marks the users of a course the flags say has an enrollment" do
       flags = described_class.enrollment_flags([ course.id ])
 
-      queries = []
-      counter = ->(*, payload) { queries << payload[:sql] }
-      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
-        described_class.batch_with_enrollment_flags(flags) { meeting_time.update!(begin_time: meeting_time.begin_time - 100) }
+      described_class.batch_with_enrollment_flags(flags) { meeting_time.update!(begin_time: meeting_time.begin_time - 100) }
+
+      expect(user.reload.calendar_needs_sync).to be(true)
+    end
+
+    # The flags answer the enrollment check, so the database is not asked.
+    it "trusts the flags over the enrollments in the database" do
+      described_class.batch_with_enrollment_flags(course.id => false) do
+        meeting_time.update!(begin_time: meeting_time.begin_time - 100)
       end
 
-      expect(queries.grep(/FROM "enrollments"/).grep_v(/JOIN/)).to be_empty
-      expect(user.reload.calendar_needs_sync).to be(true)
+      expect(user.reload.calendar_needs_sync).to be(false)
     end
   end
 end

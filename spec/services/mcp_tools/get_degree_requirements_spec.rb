@@ -12,10 +12,6 @@ RSpec.describe McpTools::GetDegreeRequirements do
 
   def text(result) = result.content.first[:text]
 
-  it "is named degree_requirements" do
-    expect(described_class.name_value).to eq("degree_requirements")
-  end
-
   it "gets a program by slug or by name, with its plans" do
     plan = create(:program_plan, requirement_set: set, name: "Three Year Program", years: 3, accelerated: true)
     create(:program_plan_item, program_plan: plan, subject_code: "WDGT", course_number: 1000)

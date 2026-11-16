@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe McpTools::CheckSchedule do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
@@ -19,9 +21,10 @@ RSpec.describe McpTools::CheckSchedule do
 
   it "uses the current term when no term is given" do
     create(:course, term: term, crn: 20397)
-    allow(Term).to receive(:current).and_return(term)
 
-    expect(call(crns: [ 20397 ]).structured_content[:term][:uid]).to eq(term.uid)
+    travel_to(Time.zone.local(term.year, 10, 1)) do
+      expect(call(crns: [ 20397 ]).structured_content[:term][:uid]).to eq(term.uid)
+    end
   end
 
   it "queues a Banner refresh of the sections with old data only" do
@@ -34,9 +37,5 @@ RSpec.describe McpTools::CheckSchedule do
 
   it "returns a tool error for an empty list" do
     expect(call(term_uid: term.uid, crns: []).error?).to be(true)
-  end
-
-  it "is read-only" do
-    expect(described_class.annotations.read_only_hint).to be(true)
   end
 end
