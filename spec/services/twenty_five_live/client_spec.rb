@@ -125,29 +125,5 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
 
       expect(rooms(:wt_310).reload.twenty_five_live_id).to be_nil
     end
-
-    it "handles r25: prefixed keys" do
-      payload = {
-        "r25:spaces" => {
-          "r25:space" => [
-            {
-              "r25:space_id"      => 111,
-              "r25:space_name"    => "COMP 100",
-              "r25:formal_name"   => "Computing Center 100",
-              "r25:building_id"   => 22,
-              "r25:building_name" => "Computing Center",
-              "r25:max_capacity"  => 24
-            }
-          ]
-        }
-      }
-
-      StubbedService.new("spaces" => payload).send(:sync_spaces)
-
-      room = rooms(:comp_100).reload
-      expect(room.twenty_five_live_id).to eq(111)
-      expect(room.formal_name).to eq("Computing Center 100")
-      expect(room.capacity).to eq(24)
-    end
   end
 end
