@@ -83,17 +83,17 @@ RSpec.describe FriendMeetings::Creator do
     end
 
     it "refuses repeat options on a one-time meeting" do
-      expect { create_meeting(repeat_interval: 2) }.to raise_error(described_class::Error, /need a repeating frequency/)
+      expect { create_meeting(repeat_interval: 2) }.to raise_error(FriendMeetings::Error, /need a repeating frequency/)
     end
 
     it "refuses an interval that is not a whole number" do
       expect { create_meeting(frequency: "daily", repeat_interval: "1.5") }
-        .to raise_error(described_class::Error, "repeat_interval must be a whole number")
+        .to raise_error(FriendMeetings::Error, "repeat_interval must be a whole number")
     end
 
     it "refuses a repeat_until that is not a date" do
       expect { create_meeting(frequency: "daily", repeat_until: "soon") }
-        .to raise_error(described_class::Error, "repeat_until must be an ISO 8601 date")
+        .to raise_error(FriendMeetings::Error, "repeat_until must be an ISO 8601 date")
     end
 
     it "refuses an interval out of range" do
@@ -121,7 +121,7 @@ RSpec.describe FriendMeetings::Creator do
       stranger = create(:user)
 
       expect { create_meeting(friend_ids: [ stranger.public_id ], guest: guest) }
-        .to raise_error(described_class::Error, /accepted friends/)
+        .to raise_error(FriendMeetings::Error, /accepted friends/)
     end
 
     it "starts the publish job only after the caller's transaction commits" do
@@ -163,11 +163,11 @@ RSpec.describe FriendMeetings::Creator do
 
     it "refuses a place that is not connected" do
       expect { create_meeting(destinations: [ "microsoft" ]) }
-        .to raise_error(described_class::Error, "destinations can list only ics; not microsoft")
+        .to raise_error(FriendMeetings::Error, "destinations can list only ics; not microsoft")
     end
 
     it "refuses an empty list" do
-      expect { create_meeting(destinations: []) }.to raise_error(described_class::Error, /at least one place/)
+      expect { create_meeting(destinations: []) }.to raise_error(FriendMeetings::Error, /at least one place/)
     end
   end
 
@@ -207,52 +207,52 @@ RSpec.describe FriendMeetings::Creator do
 
   describe "requests that cannot become a meeting" do
     it "refuses a weekly meeting when no term holds its first day" do
-      expect { create_meeting(frequency: "weekly") }.to raise_error(described_class::Error, /current term/)
+      expect { create_meeting(frequency: "weekly") }.to raise_error(FriendMeetings::Error, /current term/)
     end
 
     it "refuses a weekly meeting when the term has no end date yet" do
       term.update!(end_date: nil)
       allow(Term).to receive(:current).and_return(term)
 
-      expect { create_meeting(frequency: "weekly") }.to raise_error(described_class::Error, /current term/)
+      expect { create_meeting(frequency: "weekly") }.to raise_error(FriendMeetings::Error, /current term/)
     end
 
     it "refuses an unknown frequency" do
       expect { create_meeting(frequency: "yearly") }
-        .to raise_error(described_class::Error, "frequency must be one of one_time, daily, weekly, monthly")
+        .to raise_error(FriendMeetings::Error, "frequency must be one of one_time, daily, weekly, monthly")
     end
 
     it "refuses a person who is not a friend" do
       stranger = create(:user)
 
       expect { create_meeting(friend_ids: [ stranger.public_id ]) }
-        .to raise_error(described_class::Error, "#{stranger.public_id} is not one of your accepted friends")
+        .to raise_error(FriendMeetings::Error, "#{stranger.public_id} is not one of your accepted friends")
     end
 
     it "refuses a friend whose request is still pending" do
       pending_friend = create(:user)
       create(:friendship, requester: user, addressee: pending_friend)
 
-      expect { create_meeting(friend_ids: [ pending_friend.public_id ]) }.to raise_error(described_class::Error, /accepted friends/)
+      expect { create_meeting(friend_ids: [ pending_friend.public_id ]) }.to raise_error(FriendMeetings::Error, /accepted friends/)
     end
 
     it "needs at least one friend" do
-      expect { create_meeting(friend_ids: [ "" ]) }.to raise_error(described_class::Error, /at least one friend/)
+      expect { create_meeting(friend_ids: [ "" ]) }.to raise_error(FriendMeetings::Error, /at least one friend/)
     end
 
     it "refuses too many friends" do
       ids = Array.new(FriendMeeting::MAX_ATTENDEES + 1) { |n| "usr_synthetic#{n}" }
 
-      expect { create_meeting(friend_ids: ids) }.to raise_error(described_class::Error, /no more than/)
+      expect { create_meeting(friend_ids: ids) }.to raise_error(FriendMeetings::Error, /no more than/)
     end
 
     it "needs a time with a UTC offset" do
       expect { create_meeting(start_time: "2026-10-14T15:00:00") }
-        .to raise_error(described_class::Error, "start_time must be an ISO 8601 time with a UTC offset")
+        .to raise_error(FriendMeetings::Error, "start_time must be an ISO 8601 time with a UTC offset")
     end
 
     it "refuses a time that is not ISO 8601" do
-      expect { create_meeting(end_time: "next tuesday") }.to raise_error(described_class::Error, /end_time/)
+      expect { create_meeting(end_time: "next tuesday") }.to raise_error(FriendMeetings::Error, /end_time/)
     end
 
     it "raises RecordInvalid and saves nothing when the end is before the start" do

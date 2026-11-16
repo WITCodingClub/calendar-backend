@@ -10,7 +10,7 @@ module Api
 
     included do
       rescue_from Courses::InvalidPayloadError, with: :render_bad_request
-      rescue_from FriendMeetings::Creator::Error, with: :render_unprocessable
+      rescue_from FriendMeetings::Error, with: :render_unprocessable
       rescue_from AcademicProfiles::Error, with: :render_unprocessable
       rescue_from Catalog::BannerThrottle::CooldownError, with: :render_banner_unavailable
     end
