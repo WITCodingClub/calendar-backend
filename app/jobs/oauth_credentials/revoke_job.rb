@@ -9,7 +9,7 @@ module OauthCredentials
       return unless credential
 
       # The destroy callbacks remove the course calendar while the token still
-      # works. After the commit, OauthCredential enqueues GoogleSignIn::RevokeTokenJob.
+      # works. After the commit, the provider ends the grant (revoke_later).
       credential.destroy!
 
       Rails.logger.info "Revoked OAuth credential #{credential_id} for #{credential.email}"
