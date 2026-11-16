@@ -56,14 +56,14 @@ RSpec.describe "Admin RateMyProfessors linking", type: :request do
       expect(response.body).not_to include("Pastteach", "Cancelledteach")
     end
 
-    it "queues a search only for those professors" do
+    it "starts the refresh of only the missing ones" do
       current = create(:term, year: 2026, season: :fall)
-      listed = teaching("Currentteach", current)
+      teaching("Currentteach", current)
       teaching("Pastteach", create(:term, year: 2025, season: :spring))
 
       expect { post batch_auto_fill_admin_faculties_path }
-        .to have_enqueued_job(Faculties::UpdateRatingsJob).with(listed.id).exactly(:once)
-      expect(Faculties::UpdateRatingsJob).not_to have_been_enqueued.with(satisfy { |id| id != listed.id })
+        .to have_enqueued_job(Faculties::RefreshRatingsJob).with(missing_only: true)
+      expect(flash[:notice]).to eq("Auto-fill started for 1 faculty members")
     end
   end
 end

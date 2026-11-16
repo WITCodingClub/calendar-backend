@@ -70,6 +70,7 @@ class Faculty < ApplicationRecord
   # jobs and the Missing RMP IDs page use this scope, not every professor who
   # ever taught (#712).
   scope :teaching_current_or_future, -> { where(id: CourseFaculty.current_or_future.select(:faculty_id)) }
+  scope :missing_rmp_id, -> { teaching_current_or_future.where(rmp_id: nil) }
 
   def full_name
     display_name.presence || [ first_name, middle_name, last_name ].compact.join(" ").squish

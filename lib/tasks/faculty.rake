@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 namespace :faculty do
-  desc "List all faculty members missing RMP IDs"
+  desc "List the faculty members who teach now or later and have no RMP ID"
   task list_missing_rmp_ids: :environment do
-    missing = Faculty.where(rmp_id: nil).order(:last_name, :first_name)
+    missing = Faculty.missing_rmp_id.order(:last_name, :first_name)
 
     if missing.empty?
       puts "✓ All faculty members have RMP IDs assigned!"

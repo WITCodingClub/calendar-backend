@@ -41,6 +41,16 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     expect(run_and_collect_faculty_ids).to eq([ missing.id, linked.id ])
   end
 
+  it "enqueues only the faculty with no rmp_id when asked for the missing ones" do
+    missing = teaching(create(:faculty, rmp_id: nil))
+    teaching(create(:faculty, rmp_id: "already-has-one"))
+
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+    described_class.perform_now(missing_only: true)
+
+    expect(enqueued_faculty_ids).to eq([ missing.id ])
+  end
+
   it "does not search RateMyProfessor inside the job" do
     teaching(create(:faculty, rmp_id: nil))
     allow(Faculties::UpdateRatingsJob).to receive(:perform_now)
