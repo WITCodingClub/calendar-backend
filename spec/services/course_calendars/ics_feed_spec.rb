@@ -237,6 +237,16 @@ RSpec.describe CourseCalendars::IcsFeed do
       expect(parsed.events.map { |e| e.uid.to_s }).to include("university-holiday-2@calendar-util.wit.edu")
     end
 
+    it "moves LAST-MODIFIED when the event's term changes" do
+      create(:university_calendar_event, ics_uid: "holiday-3", term: term, category: "holiday", summary: "Columbus Day",
+                                         start_time: zone.local(2026, 10, 12), end_time: zone.local(2026, 10, 12, 23, 59))
+      term.update!(updated_at: zone.local(2026, 12, 1, 9))
+
+      event = parsed.events.find { |e| e.uid == "university-holiday-3@calendar-util.wit.edu" }
+
+      expect(event.last_modified.to_time).to eq(zone.local(2026, 12, 1, 9))
+    end
+
     it "adds the synced categories only when the user turned the sync on" do
       create(:university_calendar_event, ics_uid: "reg-1", category: "registration", summary: "Registration Opens",
                                          start_time: zone.local(2026, 10, 1, 9), end_time: zone.local(2026, 10, 1, 10))

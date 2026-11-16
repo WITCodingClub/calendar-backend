@@ -60,6 +60,34 @@ RSpec.describe CourseCalendars::EventBuilder do
       expect(events.pluck(:location)).to eq([ "#{building.name} - 101" ])
     end
 
+    it "keeps the meeting time with a room over one with no room" do
+      hall  = create(:building)
+      other = create(:course, term: term)
+      create(:enrollment, user: user, course: other)
+      create(:course_meeting_time, course: other, day_of_week: :tuesday)
+      create(:course_meeting_time_room, meeting_time: create(:course_meeting_time, course: other, day_of_week: :tuesday),
+                                        room: create(:room, building: hall, number: "101"))
+
+      events = builder.course_events(Enrollment.where(course: other), prefer_valid_locations: true)
+
+      expect(events.pluck(:location)).to eq([ "#{hall.name} - 101" ])
+    end
+
+    it "keeps the first row when it has a real room next to room 0" do
+      hall  = create(:building)
+      other = create(:course, term: term)
+      create(:enrollment, user: user, course: other)
+      mixed = create(:course_meeting_time, course: other, day_of_week: :tuesday)
+      %w[0 101].each { |n| create(:course_meeting_time_room, meeting_time: mixed, room: create(:room, building: hall, number: n)) }
+      create(:course_meeting_time_room, meeting_time: create(:course_meeting_time, course: other, day_of_week: :tuesday),
+                                        room: create(:room, building: hall, number: "102"))
+
+      events = builder.course_events(Enrollment.where(course: other), prefer_valid_locations: true)
+
+      # Room 0 next to 101 is not all TBD, so the first row stays.
+      expect(events.pluck(:location)).to eq([ "#{hall.name} - 101" ])
+    end
+
     it "keeps every meeting time when it does not filter" do
       events = builder.course_events(user.enrollments, prefer_valid_locations: false)
 

@@ -21,7 +21,7 @@ The feed differs from the sync in three places:
 - An all-day class has a `DATE` in its `UNTIL`, as RFC 5545 needs for a `DATE` start.
 - A class with no color preference gets the color of its schedule type (`MeetingTime#event_color`).
 
-`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows, including its preferences. A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `IcsFeed::EVENT_LOGIC_CHANGED_AT`. Move that time forward when you change how the feed builds an event.
+`LAST-MODIFIED` and `SEQUENCE` are the latest change to any row that the event shows, including its preferences and its term. A calendar app keeps its copy until they go up. A code change that alters an event body changes no row, so the event also takes `IcsFeed::EVENT_LOGIC_CHANGED_AT`. Move that time forward when you change how the feed builds an event.
 
 ## Caching
 
@@ -44,7 +44,7 @@ flowchart TD
 
 - The user row, the date, and the deploy revision.
 - The id and `updated_at` of each row of the user's own data: enrollments, courses, terms, meeting times, faculty, preferences, the extension config, and friend meetings with their publications and attendees. An insert, an update, or a delete changes the key.
-- The count and latest `updated_at` of the finals in the user's terms, of all university events, and of all rooms and buildings. A final's location names any room that its text matches.
+- The count and latest `updated_at` of the finals in the user's terms, of all university events and their terms, and of all rooms and buildings. A final's location names any room that its text matches, and a university event's template can show its term.
 - The cached no-class days (`UniversityCalendarEvent.no_class_spans_between`), so a feed built from an old copy of them is not kept after that copy is refreshed.
 - The friend meetings that have not ended, because a meeting leaves the feed when it ends.
 

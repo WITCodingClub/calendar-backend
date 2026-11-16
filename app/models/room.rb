@@ -34,8 +34,9 @@ class Room < ApplicationRecord
 
   before_save :set_floor
 
-  # The catalog ingest stores a meeting with no room as room "0".
-  # Courses::Processor writes "TBD" when LeopardWeb sends no room.
+  # The catalog ingest stores a meeting with no room as room "0". Older rows
+  # have "00" or "000". Courses::Processor writes "TBD" when LeopardWeb sends
+  # no room.
   TBD_NUMBER = "0"
 
   # Joins the rooms of one location: "112 / 7B", "WENTW 212 / WENTW 214".
@@ -65,7 +66,7 @@ class Room < ApplicationRecord
   end
 
   def tbd?
-    number.to_s == TBD_NUMBER || number.to_s.casecmp?(Building::TBD_ABBREVIATION)
+    self.class.number_key(number) == TBD_NUMBER || number.to_s.strip.casecmp?(Building::TBD_ABBREVIATION)
   end
 
   private

@@ -119,6 +119,7 @@ module CourseCalendars
       course = final_exam.course
       set_changed_at(e, [
         final_exam.updated_at,
+        final_exam.term&.updated_at,
         course&.updated_at,
         *course&.faculties&.map(&:updated_at),
         @preference_resolver.last_changed_at_for(final_exam),
@@ -134,6 +135,7 @@ module CourseCalendars
       set_color(e, event[:color_id])
       set_changed_at(e, [
         event_record.updated_at,
+        event_record.term&.updated_at,
         @preference_resolver.last_changed_at_for(event_record),
         EVENT_LOGIC_CHANGED_AT
       ].compact.max)

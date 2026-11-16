@@ -49,6 +49,13 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
     expect(queries).to eq(1)
   end
 
+  it "changes when the term of a university event changes" do
+    other_term = create(:term)
+    create(:university_calendar_event, term: other_term)
+
+    expect_new_key { other_term.touch }
+  end
+
   it "does not change when another user's course changes" do
     other_course = create(:course, term: term)
     create(:enrollment, user: create(:user), course: other_course, term: term)

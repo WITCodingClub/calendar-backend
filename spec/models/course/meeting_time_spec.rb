@@ -75,6 +75,17 @@ RSpec.describe Course::MeetingTime, type: :model do
       expect(meeting_time).to be_tbd_location
     end
 
+    it "shows TBD for a TBD room in a real building" do
+      meeting_time = meeting_time_in(create(:room, building: hall, number: "TBD"))
+
+      expect(meeting_time.location_text).to eq("TBD")
+    end
+
+    it "shows a room that starts with a letter and hides room 000 in the short location" do
+      expect(meeting_time_in(create(:room, building: hall, number: "A12")).building_room).to eq("FSH A12")
+      expect(meeting_time_in(create(:room, building: hall, number: "000")).building_room).to eq("FSH")
+    end
+
     it "shows only the room when the building is a placeholder" do
       meeting_time = meeting_time_in(create(:room, building: tbd_building, number: "204"))
 

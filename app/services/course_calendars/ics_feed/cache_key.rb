@@ -87,6 +87,8 @@ module CourseCalendars
           final_exams: summary(FinalExam.where(term_id: term_ids).or(FinalExam.where(course_id: course_ids))),
           # Holidays, finals periods, and the categories the user syncs.
           university_events: summary(UniversityCalendarEvent.all),
+          # A university event's template can show its term name.
+          university_event_terms: summary(Term.where(id: UniversityCalendarEvent.select(:term_id))),
           extension_config: rows(UserExtensionConfig.where(user_id: @user.id)),
           event_preferences: rows(EventPreference.where(user_id: @user.id)),
           calendar_preferences: rows(CalendarPreference.where(user_id: @user.id)),
