@@ -586,6 +586,15 @@ RSpec.describe Rack::Attack do
 
       expect(described_class.throttles.fetch("catalog/semantic").block.call(request)).to be_nil
     end
+
+    it "counts a REST search only when semantic is true and q has words" do
+      throttle = described_class.throttles.fetch("catalog/semantic")
+      key = ->(query) { throttle.block.call(Rack::Attack::Request.new(env_for("/api/v1/catalog/sections?#{query}"))) }
+
+      expect(key.call("q=x&semantic=true")).not_to be_nil
+      expect(key.call("q=x&semantic=false")).to be_nil
+      expect(key.call("q=&semantic=true")).to be_nil
+    end
   end
 
   describe "schedule builder throttles" do

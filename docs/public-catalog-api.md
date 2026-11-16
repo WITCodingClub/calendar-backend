@@ -68,8 +68,9 @@ office locations.
   request that filled the cache.
 - The schedule builder has its own limits too: 30 searches and 90 counts
   per minute per IP address. A request with a token counts against the user. See [Schedule builder](#schedule-builder).
-- REST page size: 50 by default, 200 maximum.
-- GraphQL page size: 50 by default, 200 maximum.
+- Page size of sections and instructors: 50 by default, 200 maximum. Courses
+  and reviews: 25 by default in REST, 100 maximum. REST and GraphQL use the
+  same maximum for each list. A GraphQL page is 50 by default.
 - GraphQL query depth: 12 maximum. Query cost: 500 maximum. See
   [Cost and limits](#cost-and-limits).
 - GraphQL has no mutations.
@@ -588,9 +589,10 @@ Points to know:
 - Results come back ranked, nearest first, not sorted by subject and number.
 - Every other filter still applies. The ranking covers what the filters left.
 - A section stays out until it has been embedded, which happens nightly.
-- Semantic requests are limited to 30 per minute per IP. The keyword search
-  keeps the standard 300 per minute. A GraphQL query that runs a semantic
-  search uses the same 30 per minute.
+- Semantic requests are limited to 30 per minute per IP. A request counts
+  when `semantic` is true and `q` has words. The keyword search keeps the
+  standard 300 per minute. A GraphQL query that runs a semantic search uses
+  the same 30 per minute.
 - A GraphQL query can run one semantic search. A query that asks for more gets
   the error code `TOO_MANY_SEMANTIC_SEARCHES` and runs nothing.
 - The server falls back to the keyword search when semantic search is off. The
@@ -685,6 +687,7 @@ it sends it.
 | --- | --- | --- |
 | `@cost(weight: "1")` | Every field | The field adds 1 to the cost of a query. |
 | `@listSize(slicingArguments: ["first", "last"], sizedFields: ["edges", "nodes"], assumedSize: 200, requireOneSlicingArgument: false)` | `sections`, `instructors` | `first` or `last` sets the length of `edges` and `nodes`. A page never has more than 200 items. |
+| `@listSize(slicingArguments: ["first", "last"], sizedFields: ["edges", "nodes"], assumedSize: 100, requireOneSlicingArgument: false)` | `courses`, `reviews` | The same, with pages of at most 100 items. |
 | `@queryLimits(maxCost: 500, maxDepth: 12, defaultPageSize: 50, maxPageSize: 200)` | The schema | The server rejects a query that costs more than `maxCost` or nests deeper than `maxDepth`. |
 | `@rateLimit(max: 300, window: 60)` | The schema | One IP address can send at most 300 requests in 60 seconds. REST and GraphQL share this limit. |
 
@@ -705,8 +708,8 @@ The directives do not describe the cost of an introspection query (`__schema`
 or `__type`).
 
 A cost analysis that reads `@cost` and `@listSize` gets the server's cost or a
-higher one. Without `first` or `last`, the analysis must assume a page of 200
-items. Give `first` to get a closer estimate.
+higher one. Without `first` or `last`, the analysis must assume the largest
+page of the list: 200 items, or 100 for `courses` and `reviews`. Give `first` to get a closer estimate.
 
 The `filter` argument takes the same filters as REST, in camelCase. Days and
 schedule types are enums, for example `FRIDAY` and `LECTURE`, so a wrong value
