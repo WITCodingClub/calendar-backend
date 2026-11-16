@@ -11,6 +11,7 @@ module Admin
       @sets = RequirementSet.where(needs_review: true).includes(:degree_program, :catalog_year)
                             .joins(:catalog_year).order("catalog_years.start_year", :name)
       @aliases = CourseCodeAlias.where(reviewed_at: nil).order(:from_subject_code, :from_course_number)
+      # The whole queue is on one page: a person works down each list.
       @counts = { sets: @sets.size, aliases: @aliases.size,
                   reviewed_sets: RequirementSet.source_pdf.where.not(reviewed_at: nil).count,
                   reviewed_aliases: CourseCodeAlias.reviewed.count }

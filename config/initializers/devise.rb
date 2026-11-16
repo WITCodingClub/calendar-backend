@@ -14,6 +14,7 @@ Devise.setup do |config|
 
   config.skip_session_storage = [ :http_auth ]
 
+  # Use at least 10 stretches outside test. One stretch only speeds up the test suite.
   config.stretches = Rails.env.test? ? 1 : 12
 
   config.reconfirmable = true
@@ -24,6 +25,7 @@ Devise.setup do |config|
 
   config.expire_all_remember_me_on_sign_out = true
 
+  # Someone who keeps using the dashboard is not asked to sign in every month.
   config.extend_remember_period = true
 
   config.password_length = 6..128
@@ -36,6 +38,7 @@ Devise.setup do |config|
 
   config.router_name = :main_app
 
+  # Hotwire/Turbo needs these statuses to render a failed form and follow a redirect.
   config.responder.error_status = :unprocessable_content
   config.responder.redirect_status = :see_other
 end

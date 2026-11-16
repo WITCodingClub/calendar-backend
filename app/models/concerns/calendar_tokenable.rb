@@ -23,6 +23,7 @@ module CalendarTokenable
     return if calendar_token.present?
 
     self.calendar_token = SecureRandom.urlsafe_base64(32)
+    # Save only a persisted record: a record that is being created is saved by its own create.
     # The unique index on calendar_token catches a collision.
     save! if persisted?
   end

@@ -111,6 +111,7 @@ module CspReports
       nil
     end
 
+    # Keeps the log line on one line and short, so a report cannot inject log lines.
     def clean(value)
       value = value.to_s.gsub(/[^[:graph:]]/, "")
       value = "unknown" if value.empty?

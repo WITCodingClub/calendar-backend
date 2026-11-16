@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module McpTools
+  # GET /api/user/programs (#868).
   class MyPrograms < BaseTool
     NO_PROGRAMS_MESSAGE = "WIT Calendar has no programs for this student. The WIT Calendar browser extension reads " \
                           "them from the Student Profile page in LeopardWeb when the student processes a term. " \
