@@ -39,7 +39,7 @@ RSpec.describe "ICS calendar feed university events", type: :request do
     end
 
     it "gives a university event Graphite while the user has not picked a color" do
-      expect(color_lines).to contain_exactly("COLOR:#{GoogleCalendar::Colors::GRAPHITE}", "X-APPLE-CALENDAR-COLOR:#{GoogleCalendar::Colors::GRAPHITE}")
+      expect(color_lines).to contain_exactly("COLOR:#{Preferences::Colors::GRAPHITE}", "X-APPLE-CALENDAR-COLOR:#{Preferences::Colors::GRAPHITE}")
     end
 
     it "gives a university event the university wide color the user picked" do

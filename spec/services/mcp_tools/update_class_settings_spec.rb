@@ -29,7 +29,7 @@ RSpec.describe McpTools::UpdateClassSettings do
 
     data = result.structured_content
     expect(data).to include(meeting_time_id: meeting_time.public_id, course: "Data Structures", result: :saved)
-    expect(data[:class_settings]).to include(title_template: "{{title}} class", color_id: GoogleCalendar::Colors::TOMATO)
+    expect(data[:class_settings]).to include(title_template: "{{title}} class", color_id: Preferences::Colors::TOMATO)
     expect(data[:class_settings][:reminder_settings]).to eq([ { "time" => "10", "type" => "minutes", "method" => "notification" } ])
     expect(data[:preview][:title]).to eq("Data Structures class")
     expect(data[:sources][:title_template]).to eq("individual")
@@ -48,12 +48,12 @@ RSpec.describe McpTools::UpdateClassSettings do
 
     call(color: "3")
 
-    expect(EventPreference.sole).to have_attributes(title_template: "Keep me", color_id: GoogleCalendar::Colors::GRAPE)
+    expect(EventPreference.sole).to have_attributes(title_template: "Keep me", color_id: Preferences::Colors::GRAPE)
   end
 
   it "takes a color by name, id, or hex, and refuses anything else" do
-    expect(call(color: "Peacock").structured_content.dig(:class_settings, :color_id)).to eq(GoogleCalendar::Colors::PEACOCK)
-    expect(call(color: "11").structured_content.dig(:class_settings, :color_id)).to eq(GoogleCalendar::Colors::TOMATO)
+    expect(call(color: "Peacock").structured_content.dig(:class_settings, :color_id)).to eq(Preferences::Colors::PEACOCK)
+    expect(call(color: "11").structured_content.dig(:class_settings, :color_id)).to eq(Preferences::Colors::TOMATO)
     expect(call(color: "#ABCDEF").structured_content.dig(:class_settings, :color_id)).to eq("#abcdef")
 
     result = call(color: "sparkle")
@@ -107,7 +107,7 @@ RSpec.describe McpTools::UpdateClassSettings do
     let(:arguments) { { meeting_time_id: meeting_time.public_id, color: "sage", reminders: [], reset: [ "title_template" ] } }
 
     before do
-      create(:event_preference, user: user, preferenceable: meeting_time, title_template: "Old {{title}}", color_id: GoogleCalendar::Colors::PEACOCK)
+      create(:event_preference, user: user, preferenceable: meeting_time, title_template: "Old {{title}}", color_id: Preferences::Colors::PEACOCK)
     end
 
     def confirmed_call(**context)
@@ -126,7 +126,7 @@ RSpec.describe McpTools::UpdateClassSettings do
         "- Color: from Peacock to Sage.",
         '- Event title: from "Old {{title}}" to not set.'
       ])
-      expect(EventPreference.sole).to have_attributes(title_template: "Old {{title}}", color_id: GoogleCalendar::Colors::PEACOCK)
+      expect(EventPreference.sole).to have_attributes(title_template: "Old {{title}}", color_id: Preferences::Colors::PEACOCK)
     end
 
     it "makes the change when the student accepts" do
@@ -134,7 +134,7 @@ RSpec.describe McpTools::UpdateClassSettings do
 
       expect(result.structured_content).to include(result: :saved)
       expect(result.structured_content).not_to have_key(:not_changed)
-      expect(EventPreference.sole).to have_attributes(title_template: nil, color_id: GoogleCalendar::Colors::SAGE, reminder_settings: [])
+      expect(EventPreference.sole).to have_attributes(title_template: nil, color_id: Preferences::Colors::SAGE, reminder_settings: [])
     end
 
     it "changes nothing and gives the current settings when the student declines" do
@@ -143,7 +143,7 @@ RSpec.describe McpTools::UpdateClassSettings do
       expect(result.error?).to be(false)
       expect(result.structured_content).to include(result: :unchanged, not_changed: { reason: "declined", message: McpTools::BaseWriteTool::NOT_CHANGED_MESSAGE })
       expect(result.structured_content[:class_settings]).to include(title_template: "Old {{title}}")
-      expect(EventPreference.sole.color_id).to eq(GoogleCalendar::Colors::PEACOCK)
+      expect(EventPreference.sole.color_id).to eq(Preferences::Colors::PEACOCK)
     end
 
     it "gives null class settings on a decline when the class has none" do
@@ -209,7 +209,7 @@ RSpec.describe McpTools::UpdateClassSettings do
       travel(1.second) { call(color: "peacock", title_template: "Old {{title}}", reminders: []) }
 
       expect(answer.call).to be_a(MCP::Server::InputRequiredResult)
-      expect(EventPreference.sole).to have_attributes(color_id: GoogleCalendar::Colors::PEACOCK, title_template: "Old {{title}}")
+      expect(EventPreference.sole).to have_attributes(color_id: Preferences::Colors::PEACOCK, title_template: "Old {{title}}")
     end
   end
 end

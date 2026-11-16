@@ -80,7 +80,7 @@ module CalendarEventPreparation
     event_data[:reminder_settings] = prefs[:reminder_settings] unless prefs[:reminder_settings].nil?
     # A lowercase "#rrggbb" hex, or nil. Each provider turns it into its own
     # kind of color: a Google event label, or an Outlook category.
-    event_data[:color_id]           = GoogleCalendar::Colors.normalize(prefs[:color_id])
+    event_data[:color_id]           = Preferences::Colors.normalize(prefs[:color_id])
     event_data[:visibility]         = prefs[:visibility] if prefs[:visibility].present?
 
     event_data

@@ -78,7 +78,7 @@ RSpec.describe "POST /api/friends/processed_events", type: :request do
         config = entry["classes"].find { |c| c["crn"] == shared.course.crn }["meeting_times"].sole["calendar_config"]
         [ entry["friend_id"], config ]
       end
-      ada_color = GoogleCalendar::Colors.normalize("11")
+      ada_color = Preferences::Colors.normalize("11")
       expect(configs[ada.public_id]).to include("color_id" => ada_color, "title" => start_with("Ada: "))
       expect(configs[grace.public_id]["color_id"]).not_to eq(ada_color)
       expect(configs[grace.public_id]["title"]).to start_with("Grace: ")

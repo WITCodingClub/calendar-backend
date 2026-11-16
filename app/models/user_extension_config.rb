@@ -36,8 +36,8 @@ class UserExtensionConfig < ApplicationRecord
   # One config per user (the app treats this as a has_one).
   validates :user_id, uniqueness: true
 
-  normalizes :default_color_lecture, :default_color_lab, with: GoogleCalendar::Colors.method(:normalize_attribute)
-  validates :default_color_lecture, :default_color_lab, format: { with: GoogleCalendar::Colors::HEX_FORMAT }
+  normalizes :default_color_lecture, :default_color_lab, with: Preferences::Colors.method(:normalize_attribute)
+  validates :default_color_lecture, :default_color_lab, format: { with: Preferences::Colors::HEX_FORMAT }
 
   after_update_commit :sync_calendar_if_settings_changed
 

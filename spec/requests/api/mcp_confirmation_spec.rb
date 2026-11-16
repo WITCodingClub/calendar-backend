@@ -224,7 +224,7 @@ RSpec.describe "Api::Mcp confirmation of a write tool", type: :request do
       saved = answer("accept", state: result["requestState"], tool: "update_class_settings", args: args)["result"]
 
       expect(saved.dig("structuredContent", "result")).to eq("saved")
-      expect(EventPreference.sole.color_id).to eq(GoogleCalendar::Colors::SAGE)
+      expect(EventPreference.sole.color_id).to eq(Preferences::Colors::SAGE)
     end
 
     it "asks, then keeps the calendar settings on decline" do
@@ -246,7 +246,7 @@ RSpec.describe "Api::Mcp confirmation of a write tool", type: :request do
                        headers: headers_for(token, modern: false)
 
       expect(response.parsed_body.dig("result", "structuredContent", "result")).to eq("saved")
-      expect(CalendarPreference.sole.color_id).to eq(GoogleCalendar::Colors::BASIL)
+      expect(CalendarPreference.sole.color_id).to eq(Preferences::Colors::BASIL)
     end
   end
 end

@@ -65,7 +65,7 @@ module GoogleCalendar
         # An empty id removes the label, so the event takes the calendar color.
         google_event.event_label_id = label_id.to_s
       elsif hex
-        google_event.color_id = GoogleCalendar::Colors.nearest_color_id(hex).to_s
+        google_event.color_id = Preferences::Colors.nearest_color_id(hex).to_s
       end
     end
 

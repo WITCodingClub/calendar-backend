@@ -86,9 +86,9 @@ class Course::MeetingTime < ApplicationRecord
 
   def event_color
     case meeting_schedule_type
-    when "lecture"    then GoogleCalendar::Colors::BANANA
-    when "laboratory" then GoogleCalendar::Colors::TOMATO
-    else                   GoogleCalendar::Colors::GRAPHITE
+    when "lecture"    then Preferences::Colors::BANANA
+    when "laboratory" then Preferences::Colors::TOMATO
+    else                   Preferences::Colors::GRAPHITE
     end
   end
 

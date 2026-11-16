@@ -29,7 +29,7 @@ module Preferences
         { "time" => "1", "type" => "hours", "method" => "popup" },
         { "time" => "15", "type" => "minutes", "method" => "popup" }
       ],
-      color_id: GoogleCalendar::Colors::TOMATO,
+      color_id: Preferences::Colors::TOMATO,
       visibility: "default"
     }.freeze
 
@@ -43,7 +43,7 @@ module Preferences
       description_template: "{{description}}",
       location_template: "{{location}}",
       reminder_settings: UNI_CAL_ALL_DAY_REMINDERS,
-      color_id: GoogleCalendar::Colors::GRAPHITE,
+      color_id: Preferences::Colors::GRAPHITE,
       visibility: "default"
     }.freeze
 

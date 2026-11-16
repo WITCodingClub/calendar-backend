@@ -149,7 +149,7 @@ module CourseCalendars
 
       e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-      color_hex = GoogleCalendar::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
+      color_hex = Preferences::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
       e.color = color_hex
       e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
 

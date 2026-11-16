@@ -3,7 +3,7 @@
   <label class="flex items-center gap-2 text-xs text-on-surface-variant">
     Color
     <%= f.color_field :color,
-        value: group&.color || GoogleCalendar::Colors::PEACOCK,
+        value: group&.color || Preferences::Colors::PEACOCK,
         id: "#{id_prefix}_color",
         class: "h-7 w-10 cursor-pointer rounded border border-outline-variant bg-transparent" %>
   </label>

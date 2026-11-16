@@ -21,7 +21,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
     result = call(level: "all_classes", color: "sage", visibility: "private", reminders: [])
 
     expect(result.structured_content).to include(level: "all_classes", result: :saved)
-    expect(CalendarPreference.sole).to have_attributes(scope: "global", event_type: nil, color_id: GoogleCalendar::Colors::SAGE,
+    expect(CalendarPreference.sole).to have_attributes(scope: "global", event_type: nil, color_id: Preferences::Colors::SAGE,
                                                        visibility: "private", reminder_settings: [])
   end
 
@@ -31,10 +31,10 @@ RSpec.describe McpTools::UpdateCalendarSettings do
     call(level: "university", color: "graphite")
     call(level: "university:holiday", color: "tomato")
 
-    expect(CalendarPreference.find_by(scope: :event_type, event_type: "laboratory").color_id).to eq(GoogleCalendar::Colors::BANANA)
+    expect(CalendarPreference.find_by(scope: :event_type, event_type: "laboratory").color_id).to eq(Preferences::Colors::BANANA)
     expect(CalendarPreference.find_by(scope: :event_type, event_type: "final_exam").title_template).to eq("Final: {{title}}")
-    expect(CalendarPreference.find_by(scope: :uni_cal_global).color_id).to eq(GoogleCalendar::Colors::GRAPHITE)
-    expect(CalendarPreference.find_by(scope: :uni_cal_category, event_type: "holiday").color_id).to eq(GoogleCalendar::Colors::TOMATO)
+    expect(CalendarPreference.find_by(scope: :uni_cal_global).color_id).to eq(Preferences::Colors::GRAPHITE)
+    expect(CalendarPreference.find_by(scope: :uni_cal_category, event_type: "holiday").color_id).to eq(Preferences::Colors::TOMATO)
   end
 
   it "refuses an unknown level" do
@@ -104,7 +104,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
       expect(retry_call.call("decline")).to include(result: :unchanged, settings: nil, not_changed: include(reason: "declined"))
       expect(CalendarPreference.count).to eq(0)
 
-      expect(retry_call.call("accept")).to include(result: :saved, settings: include(color_id: GoogleCalendar::Colors::SAGE))
+      expect(retry_call.call("accept")).to include(result: :saved, settings: include(color_id: Preferences::Colors::SAGE))
     end
 
     it "ends with what keeps its own settings at each level" do
@@ -115,7 +115,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
     end
 
     describe "the university color" do
-      let!(:university) { create(:calendar_preference, :uni_cal_global, user: user, color_id: GoogleCalendar::Colors::SAGE) }
+      let!(:university) { create(:calendar_preference, :uni_cal_global, user: user, color_id: Preferences::Colors::SAGE) }
 
       before do
         # The create above ends category colors, so add them after it.
@@ -157,7 +157,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
     end
 
     it "does not take the same answer again after the change" do
-      create(:calendar_preference, user: user, scope: :global, color_id: GoogleCalendar::Colors::TOMATO)
+      create(:calendar_preference, user: user, scope: :global, color_id: Preferences::Colors::TOMATO)
       question = described_class.call(server_context: mcp_modern_context(user), level: "all_classes", color: "sage")
       answer = lambda do
         context = mcp_modern_context(user, input_responses: mcp_confirmation("accept"), request_state: question.request_state)
@@ -168,7 +168,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
       travel(1.second) { call(level: "all_classes", color: "tomato") }
 
       expect(answer.call).to be_a(MCP::Server::InputRequiredResult)
-      expect(CalendarPreference.sole.color_id).to eq(GoogleCalendar::Colors::TOMATO)
+      expect(CalendarPreference.sole.color_id).to eq(Preferences::Colors::TOMATO)
     end
   end
 end

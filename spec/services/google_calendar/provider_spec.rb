@@ -78,7 +78,7 @@ RSpec.describe GoogleCalendar::Provider do
 
       prepared = service.send(:apply_preferences_to_event, university_event, event_data)
 
-      expect(prepared[:color_id]).to eq(GoogleCalendar::Colors::GRAPE)
+      expect(prepared[:color_id]).to eq(Preferences::Colors::GRAPE)
     end
   end
 

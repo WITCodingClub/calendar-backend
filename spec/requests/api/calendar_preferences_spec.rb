@@ -73,7 +73,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
             as: :json
 
       expect(response).to have_http_status(:ok)
-      expect(json["color_id"]).to eq(GoogleCalendar::Colors::GRAPHITE)
+      expect(json["color_id"]).to eq(Preferences::Colors::GRAPHITE)
     end
 
     it "sets one reminder for every university event" do

@@ -40,7 +40,7 @@ module McpTools
         levels:                       levels,
         classes:                      classes,
         notifications_disabled_until: user.notifications_disabled? ? user.notifications_disabled_until : nil,
-        colors:                       GoogleCalendar::Colors::NAMES,
+        colors:                       Preferences::Colors::NAMES,
         template_variables:           Preferences::TemplateRenderer::ALLOWED_VARIABLES
       }
     end

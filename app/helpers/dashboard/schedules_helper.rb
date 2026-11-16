@@ -53,7 +53,7 @@ module Dashboard
     # contrast does not depend on the course color.
     def schedule_entry_style(entry, border_width: 3)
       color = entry[:meeting_time].dig(:calendar_config, :color_id)
-      color = GoogleCalendar::Colors::BLUEBERRY unless color.to_s.match?(GoogleCalendar::Colors::HEX_FORMAT)
+      color = Preferences::Colors::BLUEBERRY unless color.to_s.match?(Preferences::Colors::HEX_FORMAT)
 
       "background-color: #{color}26; border-left: #{border_width}px solid #{color}"
     end

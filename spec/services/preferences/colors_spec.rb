@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleCalendar::Colors do
+RSpec.describe Preferences::Colors do
   describe ".normalize" do
     it "keeps a custom hex color, in lowercase" do
       expect(described_class.normalize(" #1A2B3C ")).to eq("#1a2b3c")
@@ -41,6 +41,16 @@ RSpec.describe GoogleCalendar::Colors do
     it "gives the id of the nearest palette color for a custom color" do
       expect(described_class.nearest_color_id("#ff0000")).to eq(11)
       expect(described_class.nearest_color_id("#000080")).to eq(9)
+    end
+  end
+
+  describe "PALETTE" do
+    it "gives every palette color a distinct legacy id and a distinct Outlook preset" do
+      presets = described_class::PALETTE.map(&:outlook_preset)
+
+      expect(described_class::PALETTE.map(&:legacy_id)).to eq((1..11).to_a)
+      expect(presets.uniq.size).to eq(11)
+      expect(presets).to all(match(/\Apreset([0-9]|1[0-9]|2[0-4])\z/))
     end
   end
 end

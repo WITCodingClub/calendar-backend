@@ -398,7 +398,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
   describe "event colors" do
     let(:categories_url) { "#{graph}/me/outlook/masterCategories" }
 
-    before { user.user_extension_config.update!(default_color_lecture: GoogleCalendar::Colors::BANANA) }
+    before { user.user_extension_config.update!(default_color_lecture: Preferences::Colors::BANANA) }
 
     it "creates the category for a lecture color once and sets it on each new event" do
       calendar

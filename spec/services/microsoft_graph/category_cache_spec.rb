@@ -18,7 +18,7 @@ RSpec.describe MicrosoftGraph::CategoryCache, :microsoft_graph do
     stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories")
       .to_return(graph_json_response("master_category_created", status: 201))
 
-    expect(cache.name_for(GoogleCalendar::Colors::TOMATO)).to eq("WIT Tomato")
+    expect(cache.name_for(Preferences::Colors::TOMATO)).to eq("WIT Tomato")
   end
 
   it "gives a custom color the category of the nearest palette color" do
@@ -79,13 +79,5 @@ RSpec.describe MicrosoftGraph::CategoryCache, :microsoft_graph do
     expect(reports.size).to eq(1)
     expect(reports.first.handled).to be(true)
     expect(reports.first.context).to eq(action: "list", status: 403)
-  end
-
-  it "maps every Google color to a distinct Outlook preset" do
-    presets = described_class::COLORS.values.map(&:last)
-
-    expect(described_class::COLORS.keys).to eq((1..11).to_a)
-    expect(presets.uniq.size).to eq(11)
-    expect(presets).to all(match(/\Apreset([0-9]|1[0-9]|2[0-4])\z/))
   end
 end

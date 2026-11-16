@@ -48,8 +48,8 @@ class CalendarPreference < ApplicationRecord
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
   validates :location_template, length: { maximum: 500 }, allow_blank: true
-  normalizes :color_id, with: GoogleCalendar::Colors.method(:normalize_attribute)
-  validates :color_id, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
+  normalizes :color_id, with: Preferences::Colors.method(:normalize_attribute)
+  validates :color_id, format: { with: Preferences::Colors::HEX_FORMAT }, allow_nil: true
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
 
