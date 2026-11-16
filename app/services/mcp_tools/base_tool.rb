@@ -81,6 +81,22 @@ module McpTools
 
       attr_reader :required_scope, :required_flag, :links_block
 
+      # The annotations carry the tool's title as well. Directories, such as
+      # the Claude connector directory, read annotations.title, not the
+      # top-level title.
+      def annotations_value
+        value = super
+        return value if value.nil? || value.title || title_value.nil?
+
+        MCP::Tool::Annotations.new(
+          read_only_hint:   value.read_only_hint,
+          destructive_hint: value.destructive_hint,
+          idempotent_hint:  value.idempotent_hint,
+          open_world_hint:  value.open_world_hint,
+          title:            title_value
+        )
+      end
+
       # The pages of a result: links { |result| [ page_link(...) ] }. The
       # block runs on the tool instance, so it can read user.
       def links(&block)

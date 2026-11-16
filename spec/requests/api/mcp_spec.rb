@@ -192,6 +192,14 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "destructiveHint") }).to all(be(false))
   end
 
+  it "gives each tool a title in its annotations, the same as its top-level title" do
+    rpc "tools/list"
+
+    tools = response.parsed_body.dig("result", "tools")
+    expect(tools.map { |tool| tool["title"] }).to all(be_present)
+    expect(tools.map { |tool| tool.dig("annotations", "title") }).to eq(tools.map { |tool| tool["title"] })
+  end
+
   it "gives each tool an outputSchema, with the advisory for an academic planning tool" do
     rpc "tools/list"
 
