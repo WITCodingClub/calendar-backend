@@ -36,7 +36,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Notifications` | Turning the reminders of every calendar event off and on |
 | `Passkeys` | The passkey sign-in and registration ceremonies, and their `Passkeys::Failed` messages |
 | `Faculties` | The faculty directory and RateMyProfessor |
-| `FinalsSchedules` | Finals schedule PDFs and their parsers |
+| `FinalsSchedules` | Finals schedule PDFs, their parsers, and the rooms that an exam location names (`ExamRooms`) |
 | `UniversityCalendar` | The university event calendar import: the category of a feed event (`Category`) and the match of a repeated event (`DuplicateMatcher`) |
 | `Embeddings` | Vector embeddings |
 | `Preferences` | Calendar preferences: resolution, versions, templates, colors, reminders. `PreferenceFields` lists the fields |

@@ -1,4 +1,5 @@
 <%# The final exams of a term. A row with no matching course yet is marked. %>
+<% rooms_by_exam = FinalsSchedules::ExamRooms.part_rooms_for(exams.to_a) %>
 <%= admin_table(exams, card: false, paginate: false, empty: "No final exams found for this term.") do |t| %>
   <% t.row_class { |exam| "bg-secondary-container/30" if exam.orphan? } %>
   <% t.column("CRN") do |exam| %>
@@ -16,8 +17,8 @@
   <% t.column("Date") { |exam| exam.exam_date.strftime("%a, %b %-d, %Y") } %>
   <% t.column("Time") { |exam| "#{exam.formatted_start_time} – #{exam.formatted_end_time}" } %>
   <% t.column("Location") do |exam| %>
-    <% if exam.respond_to?(:rooms_matched?) && exam.rooms_matched? %>
-      <span title="<%= exam.location %>"><%= exam.location_with_names %></span>
+    <% if rooms_by_exam[exam].any? %>
+      <span title="<%= exam.location %>"><%= exam.location_with_names(rooms_by_exam[exam]) %></span>
     <% else %>
       <%= exam.location.presence %>
     <% end %>

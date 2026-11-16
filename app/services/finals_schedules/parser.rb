@@ -64,7 +64,7 @@ module FinalsSchedules
         # A savepoint for each entry: in a dry run, one database error rolls
         # back only this entry, not the transaction that the others share.
         ActiveRecord::Base.transaction(requires_new: true) do
-          rooms_created += ensure_rooms_exist(entry[:location])
+          rooms_created += ExamRooms.create_missing_rooms!(entry[:location])
 
           final_exam = FinalExam.find_or_initialize_by(crn: entry[:crn], term: term)
           was_new    = final_exam.new_record?
@@ -104,28 +104,6 @@ module FinalsSchedules
 
       { created: created, updated: updated, unchanged: unchanged, linked: linked, orphan: orphan,
         rooms_created: rooms_created, changes: changes, errors: errors }
-    end
-
-    def ensure_rooms_exist(location)
-      return 0 if location.blank?
-
-      rooms_created = 0
-
-      location.split(Room::LIST_SEPARATOR).each do |loc|
-        next unless loc =~ FinalExam::ROOM_PATTERN
-
-        abbrev = $1
-        number = $2.upcase
-        building = Building.find_by(abbreviation: abbrev)
-        next unless building
-        next if building.rooms.any? { |room| Room.number_key(room.number) == Room.number_key(number) }
-
-        building.rooms.create!(number: number)
-        rooms_created += 1
-        Rails.logger.info("Created room #{number} in #{building.name}")
-      end
-
-      rooms_created
     end
   end
 end

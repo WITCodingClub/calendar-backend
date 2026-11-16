@@ -33,11 +33,6 @@ class FinalExam < ApplicationRecord
 
   set_public_id_prefix :fex
 
-  # "WENT 210" or "WENT 2A": a building abbreviation, then a room number that
-  # can end in letters.
-  # A building code can start with digits ("525HA 114").
-  ROOM_PATTERN = /\b([A-Z0-9]*[A-Z])\s+(\d+[A-Z]*)/i
-
   belongs_to :term
   belongs_to :course, optional: true
   # Nullify, never destroy: see Course::MeetingTime — destroying tracking rows
@@ -152,61 +147,11 @@ class FinalExam < ApplicationRecord
     Time.zone.local(exam_date.year, exam_date.month, exam_date.day, end_time / 100, end_time % 100)
   end
 
-  # The rooms that each exam's location names, with the same queries for one
-  # exam or many.
-  # @return [Hash{FinalExam => Array<Room>}]
-  def self.matched_rooms_for(exams)
-    part_rooms_for(exams).transform_values(&:compact)
-  end
-
-  # The room of each " / " part of each exam's location, or nil for a part
-  # with no known room.
-  # @return [Hash{FinalExam => Array<Room, nil>}]
-  def self.part_rooms_for(exams)
-    parts_by_exam = exams.index_with(&:location_parts)
-    parts = parts_by_exam.values.flatten.compact
-    return parts_by_exam if parts.empty?
-
-    buildings_by_abbrev = Building.where(abbreviation: parts.pluck(:abbrev).uniq).index_by(&:abbreviation)
-    rooms_by_key = Room.where(building_id: buildings_by_abbrev.values.map(&:id))
-                       .includes(:building)
-                       .index_by { |r| [ r.building_id, Room.number_key(r.number) ] }
-
-    parts_by_exam.transform_values do |exam_parts|
-      exam_parts.map do |p|
-        building = p && buildings_by_abbrev[p[:abbrev]]
-        next unless building
-
-        rooms_by_key[[ building.id, p[:room_key] ]]
-      end
-    end
-  end
-
-  # Each " / " part of the location as a building abbreviation and a
-  # Room.number_key, or nil for a part that is not "ABBR 123".
-  def location_parts
-    return [] if location.blank?
-
-    location.split(Room::LIST_SEPARATOR).map do |loc|
-      next unless loc =~ ROOM_PATTERN
-
-      { abbrev: $1, room_key: Room.number_key($2) }
-    end
-  end
-
-  def matched_rooms = self.class.matched_rooms_for([ self ])[self]
-
-  def rooms_matched? = matched_rooms.any?
-
-  # Names each part of the location that matches a room, and keeps the text of
-  # the other parts. Pass the rooms from part_rooms_for to skip the queries.
-  def location_with_names(part_rooms = self.class.part_rooms_for([ self ])[self])
-    return location if location.blank?
-
-    location.split(Room::LIST_SEPARATOR).each_with_index.map do |part, i|
-      room = part_rooms[i]
-      room ? "#{room.building.name} #{room.formatted_number}" : part
-    end.join(Room::LIST_SEPARATOR)
+  # The location with building names in place of abbreviations. Pass the
+  # exam's rooms from FinalsSchedules::ExamRooms.part_rooms_for to skip the
+  # queries.
+  def location_with_names(part_rooms = FinalsSchedules::ExamRooms.part_rooms_for([ self ])[self])
+    FinalsSchedules::ExamRooms.named_location(location, part_rooms)
   end
 
   private
