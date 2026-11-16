@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require Rails.root.join("app/lib/request_paths")
+require Rails.root.join("app/lib/bearer_token")
+
 class Rack::Attack
   # Rack::Attack reads the cache on every request and rescues only Redis and
   # Dalli errors. Solid Cache rescues only timeouts and lost connections, so a
@@ -20,44 +23,39 @@ class Rack::Attack
   # Use Rails.cache (Solid Cache in production, null store in test)
   Rack::Attack.cache.store = FailOpenStore.new(Rails.cache)
 
+  # The names of the throttles that other code reads: the GraphQL schema and
+  # controller, the MCP tools, and the discovery docs.
+  API_USER_THROTTLE        = "api/user"
+  API_IP_THROTTLE          = "api/ip"
+  CATALOG_IP_THROTTLE      = "catalog/ip"
+  CATALOG_SEMANTIC_THROTTLE = "catalog/semantic"
+
   # Public, unauthenticated catalog API. Kept as one predicate so the throttle
   # and blocklist rules below cannot drift apart.
   # /api/graphql only redirects to /api/v1/graphql, but it counts too, so a
   # client cannot use the redirect to skip the limit.
-  GRAPHQL_PATHS = [ "/api/v1/graphql", "/api/graphql" ].freeze
-
   PUBLIC_CATALOG_PATH = lambda do |req|
-    req.path.start_with?("/api/v1/catalog") || GRAPHQL_PATHS.include?(req.path)
+    req.path.start_with?(RequestPaths::PUBLIC_CATALOG_PREFIX) || RequestPaths::GRAPHQL.include?(req.path)
   end
 
   # Files and docs written for search engines and AI agents. robots.txt tells
   # every agent it may read them, so the agent blocklist must not refuse them.
   AGENT_READABLE_PATHS = [ "/robots.txt", "/sitemap.xml", "/llms.txt" ].freeze
 
-  # Anonymous usage events from the extension. Many students share one campus
-  # IP address, so these get their own budget and do not use up the anonymous
-  # API limit that sign-in needs.
-  EXTENSION_EVENTS_PATH = "/api/extension_events"
-
-  # Content Security Policy reports. One page view can send several, and a
-  # browser sends them without a token, so they get their own budget too.
-  CSP_REPORTS_PATH = "/api/csp_reports"
-
-  # The ICS feed. Calendar apps fetch it from their own servers, and their
-  # User-Agents often say "bot" or nothing at all.
-  CALENDAR_FEED_PATH = "/calendar/"
+  # Anonymous usage events from the extension, and Content Security Policy
+  # reports. Many students share one campus IP address, and one page view can
+  # send several reports without a token, so each gets its own budget and does
+  # not use up the anonymous API limit that sign-in needs.
+  OWN_BUDGET_PATHS = [ RequestPaths::EXTENSION_EVENTS, RequestPaths::CSP_REPORTS ].freeze
 
   # The endpoints that MCP clients call from their own servers (docs/mcp.md).
   # The clients' User-Agents are not browsers, so the agent blocklist skips
   # these paths. /api/oauth/authorize is a browser page and keeps the normal
   # rules. For the shared addresses of claude.ai and ChatGPT, see ip_key.
-  MCP_PATH = "/api/mcp"
-  OAUTH_CLIENT_PATHS = [ "/api/oauth/token", "/api/oauth/revoke", "/api/oauth/register" ].freeze
-
   MCP_CLIENT_PATH = lambda do |req|
-    req.path == MCP_PATH ||
-      OAUTH_CLIENT_PATHS.include?(req.path) ||
-      req.path.start_with?("/.well-known/oauth-")
+    req.path == RequestPaths::MCP ||
+      RequestPaths::OAUTH_CLIENT.include?(req.path) ||
+      req.path.start_with?(RequestPaths::OAUTH_METADATA_PREFIX)
   end
 
   # OkComputer, which uptime monitors call. UptimeRobot's User-Agent says
@@ -134,7 +132,7 @@ class Rack::Attack
   # more than catalog/ip and api/ip together (spec/initializers/rack_attack_spec.rb).
   throttle("req/ip", limit: 3000, period: 5.minutes) do |req|
     next if req.path.start_with?("/assets", "/packs", "/rails/active_storage", "/auth/", "/oauth/")
-    next if [ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path)
+    next if OWN_BUDGET_PATHS.include?(req.path)
 
     ip_key(req) unless extract_user_id(req)
   end
@@ -167,29 +165,29 @@ class Rack::Attack
   # API THROTTLES
   # ===========================================================================
 
-  throttle("api/user", limit: 100, period: 1.minute) do |req|
+  throttle(API_USER_THROTTLE, limit: 100, period: 1.minute) do |req|
     extract_user_id(req) if req.path.start_with?("/api/")
   end
 
   # Sized for a campus address that many students share.
-  throttle("api/ip", limit: 120, period: 1.minute) do |req|
+  throttle(API_IP_THROTTLE, limit: 120, period: 1.minute) do |req|
     if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
-       ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id(req)
+       !OWN_BUDGET_PATHS.include?(req.path) && !extract_user_id(req)
       ip_key(req)
     end
   end
 
   throttle("api/extension-events", limit: 120, period: 1.minute) do |req|
-    req.ip if req.path == EXTENSION_EVENTS_PATH
+    req.ip if req.path == RequestPaths::EXTENSION_EVENTS
   end
 
   throttle("api/csp-reports", limit: 60, period: 1.minute) do |req|
-    req.ip if req.path == CSP_REPORTS_PATH
+    req.ip if req.path == RequestPaths::CSP_REPORTS
   end
 
   # The public catalog API is meant to be consumed anonymously, so it gets its
   # own, more generous budget instead of the anonymous API limit (api/ip).
-  throttle("catalog/ip", limit: 300, period: 1.minute) do |req|
+  throttle(CATALOG_IP_THROTTLE, limit: 300, period: 1.minute) do |req|
     ip_key(req) if PUBLIC_CATALOG_PATH.call(req)
   end
 
@@ -203,9 +201,9 @@ class Rack::Attack
   # against that user, not the address.
   GRAPHQL_SEMANTIC_SEARCH_ENV_KEY = "calendar.graphql_semantic_search"
 
-  throttle("catalog/semantic", limit: 30, period: 1.minute) do |req|
+  throttle(CATALOG_SEMANTIC_THROTTLE, limit: 30, period: 1.minute) do |req|
     if req.env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] ||
-       (req.path.start_with?("/api/v1/catalog") && Catalog::SemanticSearch.requested?(req.GET["semantic"], req.GET["q"]))
+       (req.path.start_with?(RequestPaths::PUBLIC_CATALOG_PREFIX) && Catalog::SemanticSearch.requested?(req.GET["semantic"], req.GET["q"]))
       user_id = extract_user_id(req)
       user_id ? "user:#{user_id}" : ip_key(req)
     end
@@ -222,8 +220,8 @@ class Rack::Attack
   # than the thread count at once, and answers 503 when every slot is in use.
   # A request with a token counts against the user. A hosted MCP
   # client's address skips both, the same as the other per-IP rules (ip_key).
-  SCHEDULE_OPTIONS_PATH       = "/api/v1/catalog/schedule_options"
-  SCHEDULE_OPTIONS_COUNT_PATH = "/api/v1/catalog/schedule_options/count"
+  SCHEDULE_OPTIONS_PATH       = "#{RequestPaths::PUBLIC_CATALOG_PREFIX}/schedule_options".freeze
+  SCHEDULE_OPTIONS_COUNT_PATH = "#{SCHEDULE_OPTIONS_PATH}/count".freeze
 
   throttle("catalog/schedule-options", limit: 30, period: 1.minute) do |req|
     schedule_options_key(req) if req.post? && route_path(req) == SCHEDULE_OPTIONS_PATH
@@ -277,8 +275,8 @@ class Rack::Attack
   # The format suffix is dropped, so "/calendar/<token>.ics" uses the same
   # budget as "/calendar/<token>".
   throttle("calendar/token", limit: 60, period: 1.hour) do |req|
-    if req.path.start_with?(CALENDAR_FEED_PATH)
-      token = route_path(req).delete_prefix(CALENDAR_FEED_PATH)
+    if req.path.start_with?(RequestPaths::CALENDAR_FEED_PREFIX)
+      token = route_path(req).delete_prefix(RequestPaths::CALENDAR_FEED_PREFIX)
       "calendar:#{OpenSSL::Digest::SHA256.hexdigest(token)}" if token.present?
     end
   end
@@ -290,7 +288,7 @@ class Rack::Attack
   # The public one-time meeting link page (/meet/:token). A guest needs a few
   # page views. A tight budget keeps anyone from guessing tokens, and a booking
   # sends an email and makes a calendar event, so picks get less.
-  MEETING_LINK_PATH = %r{\A/meet/[^/]+(?:/sign_in)?\z}
+  MEETING_LINK_PATH = %r{\A#{RequestPaths::MEETING_LINK_PREFIX}[^/]+(?:/sign_in)?\z}
 
   throttle("meet/ip", limit: 30, period: 1.minute) do |req|
     req.ip if MEETING_LINK_PATH.match?(req.path)
@@ -372,7 +370,7 @@ class Rack::Attack
   def self.suspicious_agent?(req)
     return false if AGENT_READABLE_PATH.call(req)
     return false if MCP_CLIENT_PATH.call(req)
-    return false if req.path.start_with?(CALENDAR_FEED_PATH)
+    return false if req.path.start_with?(RequestPaths::CALENDAR_FEED_PREFIX)
     return false if OKCOMPUTER_PATH.match?(req.path)
 
     ua = req.user_agent.to_s.downcase
@@ -445,7 +443,7 @@ class Rack::Attack
     return false if !enabled || configuration.safelisted?(req)
 
     env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] = true
-    throttles.fetch("catalog/semantic").matched_by?(req)
+    throttles.fetch(CATALOG_SEMANTIC_THROTTLE).matched_by?(req)
   end
 
   # The user of the request's bearer token: an extension JWT, or an OAuth
@@ -458,10 +456,9 @@ class Rack::Attack
   end
 
   def self.decode_user_id(req)
-    auth_header = req.env["HTTP_AUTHORIZATION"]
-    return nil unless auth_header&.start_with?("Bearer ")
+    token = BearerToken.from(req.env["HTTP_AUTHORIZATION"])
+    return nil unless token
 
-    token = auth_header.split.last
     # Verify signature and expiration. A forged/unsigned token must not be able
     # to grant the admin throttle safelist or a controlled throttle-bucket key.
     payload = JsonWebTokenService.decode(token)
