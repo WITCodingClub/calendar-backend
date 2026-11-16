@@ -9,7 +9,6 @@ module Discovery
   class Discovery::ApiCatalogSerializer
     include Rails.application.routes.url_helpers
 
-    # @param url_options [Hash] the controller's url_options, for the host.
     def initialize(url_options)
       @url_options = url_options
     end

@@ -4,10 +4,8 @@ module CalendarTokenable
   extend ActiveSupport::Concern
 
   def cal_url
-    # Ensure token exists before generating URL
     generate_calendar_token if calendar_token.blank?
 
-    # Get default URL options from the environment config
     url_options = Rails.application.config.action_controller.default_url_options || {}
 
     Rails.application.routes.url_helpers.calendar_url(
@@ -25,8 +23,7 @@ module CalendarTokenable
     return if calendar_token.present?
 
     self.calendar_token = SecureRandom.urlsafe_base64(32)
-    # Only save if the record is already persisted (not being created)
-    # The DB unique index handles the astronomically unlikely collision case
+    # The unique index on calendar_token catches a collision.
     save! if persisted?
   end
 end

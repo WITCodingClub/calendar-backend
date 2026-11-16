@@ -30,8 +30,6 @@ class CourseFaculty < ApplicationRecord
   # with the same instructors always render in the same order.
   scope :in_banner_order, -> { order(primary_indicator: :desc, id: :asc) }
 
-  # Assignments to a course that is not cancelled, in the current term or a
-  # later term.
   scope :current_or_future, -> {
     joins(:course).merge(Course.active).where(courses: { term_id: Term.current_and_future.reorder(nil).select(:id) })
   }
