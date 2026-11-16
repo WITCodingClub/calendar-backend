@@ -29,7 +29,7 @@
 require "rails_helper"
 
 RSpec.describe UserExtensionConfig, type: :model do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
 
   # The user model creates a UserExtensionConfig on create; reuse it.
   let(:config) { user.user_extension_config }

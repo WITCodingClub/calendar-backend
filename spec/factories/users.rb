@@ -74,5 +74,13 @@ FactoryBot.define do
     trait :with_processed_courses do
       after(:create) { |user| create(:enrollment, user: user) }
     end
+
+    # A connected Google account with a course calendar, so a change to the
+    # user's settings queues a sync (CourseCalendars.resync).
+    trait :with_calendar do
+      after(:create) do |user|
+        create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
+      end
+    end
   end
 end

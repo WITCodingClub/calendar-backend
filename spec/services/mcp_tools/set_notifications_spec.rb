@@ -6,7 +6,7 @@ RSpec.describe McpTools::SetNotifications do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
 
   def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 

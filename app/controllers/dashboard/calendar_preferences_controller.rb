@@ -23,7 +23,6 @@ module Dashboard
       authorize @calendar_preference
 
       if @calendar_preference.update(calendar_preference_params)
-        CourseCalendars::SyncJob.perform_later(current_user, force: true)
         redirect_to dashboard_calendar_preferences_path, notice: "Preferences saved."
       else
         redirect_to dashboard_calendar_preferences_path,
@@ -33,7 +32,6 @@ module Dashboard
 
     # Turns university event sync on or off and sets the categories to sync.
     # The categories stay stored while sync is off, so turning it on again restores them.
-    # UserExtensionConfig queues the calendar sync when either setting changes.
     def university_events
       config = UserExtensionConfig.find_or_create_by!(user: current_user)
       authorize config, :update?

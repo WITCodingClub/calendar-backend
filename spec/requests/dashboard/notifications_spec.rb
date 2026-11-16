@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard::Notifications", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
 
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)
 

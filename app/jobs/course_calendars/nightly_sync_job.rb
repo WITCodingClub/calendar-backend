@@ -5,7 +5,7 @@ module CourseCalendars
     queue_as :low
 
     def perform
-      base = User.joins(:course_calendars).distinct
+      base = User.with_course_calendar
 
       first_time   = base.where(last_calendar_sync_at: nil)
       needs_update = base.where(calendar_needs_sync: true).where.not(last_calendar_sync_at: nil)

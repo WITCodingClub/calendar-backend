@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 module CourseCalendars
-  # Marks the calendars of the users enrolled in a course as needing a sync.
-  # It picks users by the course_calendars association, as
-  # CourseCalendars::NightlySyncJob does.
+  # Marks the calendars of the users enrolled in a course as needing a sync,
+  # for CourseCalendars::NightlySyncJob. Only users with a course calendar.
   module SyncMarker
     BATCH_KEY = :calendar_sync_marker_batch
 
@@ -49,14 +48,9 @@ module CourseCalendars
     end
 
     def self.mark_now(course_ids)
-      # First get distinct user IDs, then update them (Rails 8.2 compatibility).
-      user_ids = User.joins(:enrollments)
-                     .joins(:course_calendars)
-                     .where(enrollments: { course_id: Array(course_ids) })
-                     .distinct
-                     .pluck(:id)
-
-      User.where(id: user_ids).update_all(calendar_needs_sync: true) if user_ids.any? # rubocop:disable Rails/SkipsModelValidations
+      User.with_course_calendar
+          .where(id: Enrollment.where(course_id: Array(course_ids)).select(:user_id))
+          .update_all(calendar_needs_sync: true) # rubocop:disable Rails/SkipsModelValidations
     end
   end
 end

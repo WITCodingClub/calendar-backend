@@ -29,6 +29,7 @@
 class CalendarPreference < ApplicationRecord
   include PreferenceFields
   include EncodedIds::HashidIdentifiable
+  include ResyncsCalendar
 
   set_public_id_prefix :cpf, min_hash_length: 12
 
@@ -46,7 +47,6 @@ class CalendarPreference < ApplicationRecord
   validates :event_type, absence: true, if: -> { scope_global? || scope_uni_cal_global? }
   validates :event_type, inclusion: { in: UNI_CAL_CATEGORIES }, if: :scope_uni_cal_category?
 
-  after_update_commit :sync_calendar_if_preferences_changed
   # A category row sits above the university wide row in Preferences::Resolver, so
   # a category color from an old extension build hides the color the person
   # picks now. A save that picks a university wide color ends those overrides,
@@ -76,15 +76,15 @@ class CalendarPreference < ApplicationRecord
   end
 
   def clear_category_colors
-    # No sync is queued here: every controller that saves a preference queues
-    # a forced sync after the save, also when no field changed.
-    user.calendar_preferences.for_uni_cal_category_scope.where.not(color_id: nil)
-        .update_all(color_id: nil, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+    @category_colors_cleared = user.calendar_preferences.for_uni_cal_category_scope.where.not(color_id: nil)
+                                   .update_all(color_id: nil, updated_at: Time.current).positive? # rubocop:disable Rails/SkipsModelValidations
   end
 
-  def sync_calendar_if_preferences_changed
-    return unless preference_fields_changed?
-
-    CourseCalendars::SyncJob.perform_later(user, force: true)
+  # A save that clears category colors changes events also when this row
+  # keeps its values.
+  def calendar_changed?
+    cleared = @category_colors_cleared
+    @category_colors_cleared = false
+    previously_new_record? || preference_fields_changed? || cleared
   end
 end

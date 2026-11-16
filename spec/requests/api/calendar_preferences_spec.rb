@@ -3,15 +3,11 @@
 require "rails_helper"
 
 RSpec.describe "Api::CalendarPreferences", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_calendar) }
   let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
 
   def json = JSON.parse(response.body)
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)
-
-  before do
-    allow(CourseCalendars::SyncJob).to receive(:perform_later)
-  end
 
   describe "PATCH /api/calendar_preferences/uni_cal" do
     it "sets a custom color for every university event" do
@@ -42,14 +38,15 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
     it "ends category colors from old extension builds that would hide the new color" do
       category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
 
-      patch "/api/calendar_preferences/uni_cal",
-            params: { calendar_preference: { color_id: "#1a2b3c" } },
-            headers: headers,
-            as: :json
+      expect do
+        patch "/api/calendar_preferences/uni_cal",
+              params: { calendar_preference: { color_id: "#1a2b3c" } },
+              headers: headers,
+              as: :json
+      end.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
 
       expect(category.reload.color_id).to be_nil
       expect(json["color_id"]).to eq("#1a2b3c")
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "ends category colors and syncs when the user picks the color again" do
@@ -57,13 +54,14 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       # An old extension build wrote this after the color was picked.
       category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
 
-      patch "/api/calendar_preferences/uni_cal",
-            params: { calendar_preference: { color_id: "#1a2b3c" } },
-            headers: headers,
-            as: :json
+      expect do
+        patch "/api/calendar_preferences/uni_cal",
+              params: { calendar_preference: { color_id: "#1a2b3c" } },
+              headers: headers,
+              as: :json
+      end.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
 
       expect(category.reload.color_id).to be_nil
-      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
     end
 
     it "takes the legacy color id that old extension versions send" do

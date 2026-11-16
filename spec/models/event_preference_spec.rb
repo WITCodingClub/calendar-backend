@@ -46,4 +46,19 @@ RSpec.describe EventPreference, type: :model do
   # description, location, reminder_settings, color_id, and visibility can
   # satisfy each other), so there's no single attribute for
   # validate_presence_of to point at.
+
+  describe "syncing after a change" do
+    let(:user)        { create(:user, :with_calendar) }
+    let!(:preference) { create(:event_preference, user: user, color_id: "#1a2b3c") }
+
+    it "enqueues one forced sync when a field changes, and when the row goes" do
+      expect { preference.update!(color_id: "#d50000") }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+      expect { preference.destroy! }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).exactly(:once)
+    end
+
+    it "enqueues nothing for a save that changes no field" do
+      expect { preference.update!(color_id: "#1a2b3c") }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+    end
+  end
 end

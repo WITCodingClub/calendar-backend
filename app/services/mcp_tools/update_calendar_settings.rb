@@ -51,7 +51,6 @@ module McpTools
 
       with_confirmation(message, unchanged: unchanged, version: record_version(preference)) do
         result = apply_settings!(preference, attributes)
-        sync_calendar
         settings_result(level, result == :saved ? preference : nil, result)
       end
     end

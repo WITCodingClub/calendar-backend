@@ -15,7 +15,7 @@ RSpec.describe MicrosoftGraph::CalendarPlacementJob, :microsoft_graph do
 
     # A job spec that only calls a service may stub the service class.
     it "changes the placement and then starts a forced sync" do
-      credential
+      create(:course_calendar, :microsoft, oauth_credential: credential)
       service = instance_double(MicrosoftGraph::CalendarProvider, credential: credential, change_placement: "AAMkSyntheticPrimaryCalendar")
       allow(MicrosoftGraph::CalendarProvider).to receive(:new).with(user).and_return(service)
 

@@ -13,7 +13,7 @@ module Notifications
       end
 
       user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
-      CourseCalendars::SyncJob.perform_later(user, force: true)
+      CourseCalendars.resync(user, force: true)
     end
   end
 end

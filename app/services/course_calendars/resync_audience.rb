@@ -2,16 +2,15 @@
 
 module CourseCalendars
   # The users whose calendars need a sync when data that many users share
-  # changes: finals, holidays, or other university events. Only a user with a
-  # course calendar, on any provider, has events to change.
+  # changes: finals, holidays, or other university events.
   module ResyncAudience
     def self.all
-      User.joins(oauth_credentials: :course_calendar).distinct
+      User.with_course_calendar
     end
 
     # The users with a course in the term, for a change to its finals.
     def self.enrolled_in(term_id)
-      all.joins(enrollments: :course).where(courses: { term_id: term_id })
+      all.where(id: Enrollment.joins(:course).where(courses: { term_id: term_id }).select(:user_id))
     end
 
     # The users who show university events in their calendars.
