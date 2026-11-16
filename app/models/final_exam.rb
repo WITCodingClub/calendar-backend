@@ -187,7 +187,7 @@ class FinalExam < ApplicationRecord
   def location_parts
     return [] if location.blank?
 
-    location.split(" / ").map do |loc|
+    location.split(Room::LIST_SEPARATOR).map do |loc|
       next unless loc =~ ROOM_PATTERN
 
       { abbrev: $1, room_key: Room.number_key($2) }
@@ -203,10 +203,10 @@ class FinalExam < ApplicationRecord
   def location_with_names(part_rooms = self.class.part_rooms_for([ self ])[self])
     return location if location.blank?
 
-    location.split(" / ").each_with_index.map do |part, i|
+    location.split(Room::LIST_SEPARATOR).each_with_index.map do |part, i|
       room = part_rooms[i]
       room ? "#{room.building.name} #{room.formatted_number}" : part
-    end.join(" / ")
+    end.join(Room::LIST_SEPARATOR)
   end
 
   private

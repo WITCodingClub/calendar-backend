@@ -111,7 +111,7 @@ module FinalsSchedules
 
       rooms_created = 0
 
-      location.split(" / ").each do |loc|
+      location.split(Room::LIST_SEPARATOR).each do |loc|
         next unless loc =~ FinalExam::ROOM_PATTERN
 
         abbrev = $1

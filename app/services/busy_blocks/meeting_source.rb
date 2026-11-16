@@ -9,10 +9,6 @@ class BusyBlocks
       def covers?(date) = date.between?(start_date, end_date)
     end
 
-    # The begin and end times that mark an async or all-day section. See Course::MeetingTime#all_day?.
-    ALL_DAY_BEGIN = 1201
-    ALL_DAY_END   = 2359
-
     def self.call(user, from, to) = call_many([ user ], from, to).fetch(user.id, [])
 
     # { user id => [Interval] }, in two queries for any number of users.
@@ -51,7 +47,7 @@ class BusyBlocks
         .joins(course: :enrollments)
         .where(enrollments: { user_id: @user_ids })
         .where(courses: { status: "active" })
-        .where.not(begin_time: ALL_DAY_BEGIN, end_time: ALL_DAY_END)
+        .where.not(begin_time: Course::MeetingTime::ALL_DAY_BEGIN, end_time: Course::MeetingTime::ALL_DAY_END)
         .where(start_date: ..@to.in_time_zone.end_of_day)
         .where(end_date: @from.in_time_zone.beginning_of_day..)
         .distinct
