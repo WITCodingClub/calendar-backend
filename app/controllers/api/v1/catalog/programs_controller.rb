@@ -11,8 +11,7 @@ module Api
 
         def index
           catalog_year = query.catalog_year!(params[:catalog_year])
-          programs = query.call(catalog_year: catalog_year, kind: array_param(:kind), level: array_param(:level), q: params[:q],
-                                parent: params[:parent_program]).to_a
+          programs = query.call(catalog_year: catalog_year, **filter_params(::Catalog::ProgramQuery)).to_a
 
           render_collection(
             programs.map { |set| ::Catalog::ProgramSerializer.summary(set) },

@@ -14,15 +14,7 @@ module McpTools
                 "list has none; the student asks the dean or associate dean of that school."
     requires_scope "catalog"
     academic_planning :term_electives
-    input_schema(
-      properties: {
-        term_uid: TERM_SCHEMA,
-        school:   { type: "string", description: "Only the lists of this school: #{TermElectives::SCHOOLS.join(', ')}." },
-        course:   { type: "string", description: "Only this course, for example COMP2000, to see which lists " \
-                                                 "name it." },
-        q:        { type: "string", description: "Words in the heading, for example computer science." }
-      }
-    )
+    input_schema(properties: { term_uid: TERM_SCHEMA }.merge(CatalogFilters.properties(Catalog::TermElectiveQuery)))
     output_schema(
       Schemas.object(
         term:  Schemas::TERM_REF,
@@ -30,9 +22,9 @@ module McpTools
       )
     )
 
-    def perform(term_uid: nil, school: nil, course: nil, q: nil)
+    def perform(term_uid: nil, **arguments)
       term = find_term(term_uid)
-      matches = Catalog::TermElectiveQuery.new.call(term: term, school: school, course: course, q: q)
+      matches = Catalog::TermElectiveQuery.new.call(term: term, **CatalogFilters.filters(Catalog::TermElectiveQuery, arguments))
 
       { term:  { uid: term.uid, name: term.name },
         lists: matches.map { |match| Catalog::TermElectiveListSerializer.new(match.list, courses: match.courses).as_json } }

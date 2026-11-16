@@ -9,25 +9,12 @@ module Api
         def index
           term = Term.find_by_uid!(params[:uid])
 
-          matches = ::Catalog::TermElectiveQuery.new.call(
-            term: term, school: array_param(:school), course: string_param(:course), q: string_param(:q)
-          )
+          matches = ::Catalog::TermElectiveQuery.new.call(term: term, **filter_params(::Catalog::TermElectiveQuery))
 
           render_collection(
             matches.map { |match| ::Catalog::TermElectiveListSerializer.new(match.list, courses: match.courses).as_json },
             meta: { count: matches.size, term_uid: term.uid, term: term.name }
           )
-        end
-
-        private
-
-        # ?q[]=x would give the words of the array's text, and the edge cache
-        # would keep the wrong answer for an hour.
-        def string_param(key)
-          value = params[key]
-          return value if value.nil? || value.is_a?(String)
-
-          raise ::Catalog::FilterError, "#{key} must be one value"
         end
       end
     end

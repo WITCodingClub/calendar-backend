@@ -29,8 +29,16 @@ RSpec.describe McpTools::ListPrograms do
 
   it "takes a catalog year, a kind, and words" do
     expect(call(catalog_year: "2023").structured_content[:programs].pluck(:name)).to eq([ "Widget Design Bachelor of Science" ])
-    expect(call(kind: "minor").structured_content[:programs].pluck(:slug)).to eq(%w[gear-minor])
+    expect(call(kind: [ "minor" ]).structured_content[:programs].pluck(:slug)).to eq(%w[gear-minor])
     expect(call(q: "widget").structured_content[:programs].pluck(:slug)).to eq(%w[widget-design-bs])
+  end
+
+  it "takes the filters that Catalog::ProgramQuery declares, with a list for kind and level, as the REST API does" do
+    properties = described_class.input_schema.to_h[:properties]
+
+    expect(properties.keys).to contain_exactly(:catalog_year, :kind, :level, :q, :parent_program)
+    expect(properties[:kind]).to include(type: "array", items: { type: "string", enum: DegreeProgram::KINDS.values })
+    expect(call(kind: %w[minor bachelor]).structured_content[:programs].pluck(:slug)).to eq(%w[gear-minor widget-design-bs])
   end
 
   it "lists the concentrations of a major" do
@@ -46,7 +54,7 @@ RSpec.describe McpTools::ListPrograms do
     expect(text(call(catalog_year: "2015-2016"))).to include("No 2015-2016 catalog", "2024-2025, 2023-2024")
     expect(text(call(catalog_year: "2015-2016"))).not_to include("not imported yet")
     expect(text(call(catalog_year: "soon"))).to include("catalog_year must be a catalog year")
-    expect(text(call(kind: "doctorate"))).to include("kind must be one of")
+    expect(text(call(kind: [ "doctorate" ]))).to include("kind must be one of")
   end
 
   it "says when no catalog year is imported" do

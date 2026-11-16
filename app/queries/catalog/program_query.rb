@@ -40,6 +40,13 @@ module Catalog
       def code = "unknown_program"
     end
 
+    extend Filters
+    filter :kind, :strings, "Only programs of these kinds.", values: DegreeProgram::KINDS.values
+    filter :level, :strings, "Only programs of these levels.", values: DegreeProgram::LEVELS.values
+    filter :q, :string, "Words in the program name, for example computer science."
+    filter :parent, :string, "Only the concentrations of this major: its slug, for example construction-management-bs, " \
+                             "from my_programs or this list.", param: :parent_program, mcp: :parent_program
+
     YEAR_SPAN = /\A(\d{4})(?:\s*[-\u2013\u2014]\s*(\d{2}|\d{4}))?\z/
 
     # The first year of a catalog year, from "2024", "2024-2025", "2024-25",
@@ -96,9 +103,9 @@ module Catalog
     # the catalog keeps its stored set, so the list leaves it out.
     #
     # @return [ActiveRecord::Relation<RequirementSet>]
-    #
-    # parent is the slug of a major, for its concentrations.
-    def call(catalog_year:, kind: nil, level: nil, q: nil, parent: nil)
+    def call(catalog_year:, **filters)
+      self.class.check_filters!(filters)
+      kind, level, q, parent = filters.values_at(:kind, :level, :q, :parent)
       relation = catalog_year.requirement_sets.joins(:degree_program).includes(:catalog_year, degree_program: :parent_program)
       relation = relation.merge(RequirementSet.listed_in(catalog_year))
       relation = relation.where(degree_programs: { kind: validated(kind, DegreeProgram::KINDS, "kind") }) if kind.present?

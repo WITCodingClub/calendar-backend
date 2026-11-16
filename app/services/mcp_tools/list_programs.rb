@@ -19,17 +19,7 @@ module McpTools
                 "the catalog years WIT Calendar has."
     requires_scope "catalog"
     academic_planning :degree_requirements
-    input_schema(
-      properties: {
-        catalog_year: CATALOG_YEAR_SCHEMA,
-        kind:         { type: "string", enum: DegreeProgram::KINDS.values, description: "Only programs of this kind." },
-        level:        { type: "string", enum: DegreeProgram::LEVELS.values, description: "Only programs of this level." },
-        q:            { type: "string", description: "Words in the program name, for example computer science." },
-        parent_program: { type: "string",
-                          description: "Only the concentrations of this major: its slug, for example " \
-                                       "construction-management-bs, from my_programs or this list." }
-      }
-    )
+    input_schema(properties: { catalog_year: CATALOG_YEAR_SCHEMA }.merge(CatalogFilters.properties(Catalog::ProgramQuery)))
     output_schema(
       Schemas.object(
         catalog_year:  Schemas::STRING,
@@ -38,10 +28,10 @@ module McpTools
       )
     )
 
-    def perform(catalog_year: nil, kind: nil, level: nil, q: nil, parent_program: nil)
+    def perform(catalog_year: nil, **arguments)
       query = Catalog::ProgramQuery.new
       year = query.catalog_year!(catalog_year)
-      programs = query.call(catalog_year: year, kind: kind, level: level, q: q, parent: parent_program)
+      programs = query.call(catalog_year: year, **CatalogFilters.filters(Catalog::ProgramQuery, arguments))
 
       { catalog_year: year.name, catalog_years: query.catalog_years.map(&:name),
         programs: programs.map { |set| Catalog::ProgramSerializer.summary(set) } }
