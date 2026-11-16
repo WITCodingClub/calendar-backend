@@ -15,13 +15,6 @@ module Dashboard
       prerequisite_tree_html(node) { |course| catalog_requisite_course(course) }
     end
 
-    # The current URL with a different page number. The filters stay.
-    def dashboard_page_url(page)
-      query = request.query_parameters.except("page")
-      query["page"] = page if page > 1
-      query.empty? ? request.path : "#{request.path}?#{query.to_query}"
-    end
-
     # "4.2 / 5 from 31 ratings", or nil when Rate My Professors has no ratings.
     def rmp_summary(rmp)
       return nil if rmp.nil? || rmp[:avg_rating].nil?
@@ -45,18 +38,11 @@ module Dashboard
       value.nil? ? "–" : format("%.1f", value)
     end
 
-    # "Lab fee (Undergraduate): $150.00", from one entry of CatalogCourse#fees.
-    def catalog_fee(fee)
-      label = fee["description"] || "Fee"
-      label = "#{label} (#{fee['level']})" if fee["level"]
-      "#{label}: #{number_to_currency(fee['amount_cents'].to_i / 100.0)}"
-    end
-
     # "12 of 30 open", or nil when Banner gave no seat counts.
     def seats_line(seats)
-      return nil if seats.nil? || seats[:capacity].nil?
+      return nil if seats.nil?
 
-      "#{seats[:available].to_i} of #{seats[:capacity]} open"
+      open_seats_text(seats[:available].to_i, seats[:capacity])
     end
 
     # The display name of a university event category.

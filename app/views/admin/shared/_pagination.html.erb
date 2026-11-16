@@ -12,7 +12,7 @@
         <% if collection.first_page? %>
           <span class="flex items-center p-2 rounded-full opacity-40"><%= admin_icon(:chevron_left, css_class: "w-4 h-4") %><span class="sr-only">Previous page</span></span>
         <% else %>
-          <%= link_to admin_page_url(current - 1), rel: "prev", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
+          <%= link_to page_url(current - 1), rel: "prev", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
             <%= admin_icon(:chevron_left, css_class: "w-4 h-4") %><span class="sr-only">Previous page</span>
           <% end %>
         <% end %>
@@ -24,7 +24,7 @@
           <% elsif page == current %>
             <span aria-current="page" class="flex items-center justify-center min-w-8 h-8 px-2 rounded-full bg-primary-container text-on-primary-container font-semibold"><%= page %></span>
           <% else %>
-            <%= link_to page, admin_page_url(page), class: "flex items-center justify-center min-w-8 h-8 px-2 rounded-full hover:bg-surface-container-high" %>
+            <%= link_to page, page_url(page), class: "flex items-center justify-center min-w-8 h-8 px-2 rounded-full hover:bg-surface-container-high" %>
           <% end %>
         </li>
       <% end %>
@@ -32,7 +32,7 @@
         <% if collection.last_page? %>
           <span class="flex items-center p-2 rounded-full opacity-40"><%= admin_icon(:chevron_right, css_class: "w-4 h-4") %><span class="sr-only">Next page</span></span>
         <% else %>
-          <%= link_to admin_page_url(current + 1), rel: "next", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
+          <%= link_to page_url(current + 1), rel: "next", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
             <%= admin_icon(:chevron_right, css_class: "w-4 h-4") %><span class="sr-only">Next page</span>
           <% end %>
         <% end %>

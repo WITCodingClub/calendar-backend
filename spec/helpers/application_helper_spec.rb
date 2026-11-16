@@ -84,4 +84,62 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(helper.flash_style("other")).to include(role: "status", icon: :information)
     end
   end
+
+  describe "#page_url" do
+    def page_url_for(query, page)
+      helper.request.path_parameters = { controller: "admin/users", action: "index" }
+      helper.request.env["PATH_INFO"] = "/admin/users"
+      helper.request.env["QUERY_STRING"] = query
+      helper.page_url(page)
+    end
+
+    it "keeps the filters and sets the page" do
+      expect(page_url_for("search=ada&access_level=admin&page=2", 3)).to eq("/admin/users?access_level=admin&page=3&search=ada")
+    end
+
+    it "drops the page number for the first page" do
+      expect(page_url_for("search=ada&page=4", 1)).to eq("/admin/users?search=ada")
+    end
+
+    it "keeps nested filter values" do
+      expect(page_url_for("filter%5Bterm%5D=5", 2)).to eq("/admin/users?filter%5Bterm%5D=5&page=2")
+    end
+
+    # url_for reads these keys as link options, not as query values.
+    %w[script_name host protocol port only_path domain subdomain anchor params].each do |key|
+      it "stays on this host and path when the query has #{key}" do
+        url = page_url_for("#{key}=%2F%2Fevil.example&only_path=false", 2)
+
+        expect(url).to start_with("/admin/users?")
+        expect(url).not_to include("//evil.example")
+        expect(URI.parse(url).host).to be_nil
+      end
+    end
+  end
+
+  describe "#open_seats_text" do
+    it "gives the open seats and the capacity" do
+      expect(helper.open_seats_text(4, 24)).to eq("4 of 24 open")
+    end
+
+    it "keeps a negative count for an over-enrolled section" do
+      expect(helper.open_seats_text(-2, 24)).to eq("-2 of 24 open")
+    end
+
+    it "gives nil when Banner gave no counts" do
+      expect([ helper.open_seats_text(nil, 24), helper.open_seats_text(4, nil) ]).to eq([ nil, nil ])
+    end
+  end
+
+  describe "#fee_text" do
+    it "gives the description, the level, and the amount in dollars" do
+      fee = { "description" => "Follett Access", "level" => "Undergraduate", "amount_cents" => 9500 }
+
+      expect(helper.fee_text(fee)).to eq("Follett Access (Undergraduate): $95.00")
+    end
+
+    it "names a fee with no description or level" do
+      expect(helper.fee_text({ "amount_cents" => 1250 })).to eq("Fee: $12.50")
+    end
+  end
 end

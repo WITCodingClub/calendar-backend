@@ -3,6 +3,7 @@
 module Admin
   # View helpers for the admin layout and the shared admin partials.
   module ApplicationHelper
+    include ::ApplicationHelper
     include ::IconHelper
 
     # An icon from IconHelper::ICONS. It is decorative, so screen readers skip it.
@@ -87,26 +88,12 @@ module Admin
       end
     end
 
-    # The URL of the current page with a different page number. Filters and
-    # search stay in the query string.
-    #
-    # The query goes into the query string only. Do not pass it to url_for:
-    # url_for reads keys such as script_name, host, and anchor as link options,
-    # so a crafted query could point the page links to a different host.
-    def admin_page_url(page)
-      query = request.query_parameters.except("page")
-      query["page"] = page if page > 1
-      query.empty? ? request.path : "#{request.path}?#{query.to_query}"
-    end
+    ADMIN_FLASH_ICONS = { danger: :exclamation, warning: :exclamation, success: :check_circle, info: :information }.freeze
 
-    # Flash keys map to a tone and an icon. An error stays until it is closed.
+    # How admin/shared/flash shows one flash type: the kind is the tone.
     def admin_flash_style(type)
-      case type.to_s
-      when "alert", "error", "danger" then { tone: :danger, icon: :exclamation, timeout: 0, role: "alert" }
-      when "warning" then { tone: :warning, icon: :exclamation, timeout: 0, role: "alert" }
-      when "notice", "success" then { tone: :success, icon: :check_circle, timeout: 8000, role: "status" }
-      else { tone: :info, icon: :information, timeout: 8000, role: "status" }
-      end
+      kind = flash_kind(type)
+      ApplicationHelper::FLASH_BEHAVIOR.fetch(kind).merge(tone: kind, icon: ADMIN_FLASH_ICONS.fetch(kind))
     end
 
     # Collects the columns of an admin_table.
