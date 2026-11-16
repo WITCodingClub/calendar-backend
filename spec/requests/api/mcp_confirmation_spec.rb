@@ -85,7 +85,10 @@ RSpec.describe "Api::Mcp confirmation of a write tool", type: :request do
       expect(result.dig("inputRequests", "confirm", "method")).to eq("elicitation/create")
       expect(result.dig("inputRequests", "confirm", "params", "message")).to start_with("Turn off the reminders")
       expect(result["requestState"]).to start_with("v1.")
-      expect(result["requestState"]).not_to include(user.id.to_s)
+      # The sealed bytes must not show the audience in plain text. A check on
+      # the base64 text for the bare id matched digits by chance.
+      sealed = result["requestState"].split(".").drop(1).map { |part| Base64.urlsafe_decode64(part) }.join
+      expect(sealed).not_to include("user:#{user.id}")
       expect(user.reload.notifications_disabled?).to be(false)
     end
 

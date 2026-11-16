@@ -252,13 +252,14 @@ RSpec.describe "Api::Friends", type: :request do
 
       it "applies a sooner date at once and clears an open proposal" do
         friendship.change_expiry!(to: nil, by: friend)
+        new_date = 3.days.from_now.to_date
 
         patch "/api/friends/#{friend.public_id}/expiry",
-              params: { expires_at: 3.days.from_now.to_date.iso8601 }, headers: headers, as: :json
+              params: { expires_at: new_date.iso8601 }, headers: headers, as: :json
 
         expect(body["expiry_change"]).to eq("shortened")
         expect(body["expiry_proposal"]).to be_nil
-        expect(friendship.reload.expires_at).to eq(3.days.from_now.to_date.in_time_zone("America/New_York").end_of_day.change(usec: 0))
+        expect(friendship.reload.expires_at).to eq(new_date.in_time_zone("America/New_York").end_of_day.change(usec: 0))
       end
 
       it "answers unchanged for the same date" do

@@ -44,6 +44,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
       expect(json["classes"].first["crn"]).to eq(98_765)
     end
 
+    # The flag is off here, so this also shows that a saved level stays in force.
     it "answers 403 with no course data when the friend shares only availability" do
       friendship.update_visibility_for!(friend, :availability_only)
 
@@ -53,14 +54,6 @@ RSpec.describe "Friends availability-only sharing", type: :request do
       expect(json).to eq(
         "error" => "This friend shares only availability", "code" => "AVAILABILITY_ONLY", "visibility" => "availability_only"
       )
-    end
-
-    it "answers 403 while the flag is off, so a saved level stays in force" do
-      friendship.update_visibility_for!(friend, :availability_only)
-
-      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
-
-      expect(response).to have_http_status(:forbidden)
     end
 
     it "uses the friend's level, not the viewer's own level" do
@@ -225,21 +218,21 @@ RSpec.describe "Friends availability-only sharing", type: :request do
         expect(response).to have_http_status(:bad_request)
       end
 
-      it "reads the course meeting times in one query, however many classes there are" do
-        2.times do
+      it "sends the same number of queries for one class and three classes" do
+        request_headers = headers
+        get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: request_headers
+        small = count_queries { get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: request_headers }
+
+        %i[tuesday wednesday].each do |day|
           other = create(:course, term: term)
-          create(:course_meeting_time, course: other, day_of_week: :tuesday)
+          create(:course_meeting_time, course: other, day_of_week: day)
           create(:enrollment, user: friend, course: other)
         end
-
-        count = 0
-        counter = ->(*, payload) { count += 1 if payload[:sql].include?("course_meeting_times") && !payload[:cached] }
-        ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
-          get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: headers
-        end
+        large = count_queries { get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: request_headers }
 
         expect(response).to have_http_status(:ok)
-        expect(count).to eq(1)
+        expect(json["busy"].length).to eq(3)
+        expect(large).to eq(small)
       end
     end
   end

@@ -147,12 +147,19 @@ RSpec.describe "Query budget for hot paths", type: :request do
   end
 
   describe "GET /api/user/feature_flags" do
-    it "answers in a fixed number of queries" do
+    it "answers with the same number of queries for one flag on and every flag on" do
+      Flipper.enable_actor(FeatureFlags::DEBUG_MODE, user)
       get "/api/user/feature_flags", headers: headers
-      queries = count_queries { get "/api/user/feature_flags", headers: headers }
+      small = count_queries { get "/api/user/feature_flags", headers: headers }
+
+      FeatureFlags::MAP.each_value { |flag| Flipper.enable_actor(flag, user) }
+      large = count_queries { get "/api/user/feature_flags", headers: headers }
 
       expect(response).to have_http_status(:ok)
-      expect(queries).to be <= 6
+      expect(large).to eq(small)
+      # A ceiling as well: a read for each flag sends the same count with one
+      # flag on or all of them, so only this catches a per-flag N+1.
+      expect(small).to be <= 6
     end
   end
 

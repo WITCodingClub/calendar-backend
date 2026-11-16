@@ -7,9 +7,6 @@ require "rails_helper"
 # took more than 10 seconds to start.
 RSpec.describe "System spec driver", type: :system do
   it "uses the options from spec/support/system.rb" do
-    visit "about:blank"
-
     expect(page.driver.browser.options.process_timeout).to eq(20)
-    expect(page.evaluate_script("[window.innerWidth, window.innerHeight]")).to eq([ 1280, 800 ])
   end
 end

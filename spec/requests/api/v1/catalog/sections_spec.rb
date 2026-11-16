@@ -307,10 +307,11 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       expect(json["meta"]).to include("page" => 2, "per_page" => 2, "total_pages" => 2)
     end
 
+    # 200 is the public page limit in docs/public-catalog-api.md.
     it "caps per_page so one request cannot pull the whole catalog" do
       get "/api/v1/catalog/sections", params: { per_page: 5000 }
 
-      expect(json["meta"]["per_page"]).to eq(Catalog::Page.max_size(:sections))
+      expect(json["meta"]["per_page"]).to eq(200)
     end
 
     it "treats a zero or negative page as the first page" do

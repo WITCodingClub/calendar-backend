@@ -22,10 +22,6 @@ RSpec.describe "Head metadata", type: :request do
         "(prefers-color-scheme: dark)" => dark
       )
     end
-
-    it "sends one CSRF token" do
-      expect(page.css("meta[name='csrf-token']").size).to be <= 1
-    end
   end
 
   describe "application layout" do

@@ -58,32 +58,35 @@ RSpec.describe "/api/user/registration_plans", type: :request do
       expect(plan.preferences).to eq({})
     end
 
-    it "updates the plan when a parallel PUT saved it first" do
-      # The first save runs as if another request inserted the plan after
-      # this one looked: the unique index raises, and the retry updates.
-      first = true
-      allow_any_instance_of(RegistrationPlan).to receive(:save).and_wrap_original do |original, *args|
-        next original.call(*args) unless first
+    # A parallel PUT saves its plan just after this request looked for one.
+    # The competing row goes in after the first read of registration_plans,
+    # so the spec does not depend on which methods the controller calls.
+    it "updates the plan when a parallel PUT saved it after the lookup" do
+      saved = false
+      competitor = lambda do |*, payload|
+        next if saved || !payload[:sql].start_with?("SELECT") || !payload[:sql].include?('FROM "registration_plans"')
 
-        first = false
+        saved = true
         create(:registration_plan, user: user, term: term)
-        original.call(validate: false)
       end
-
-      put_plan
+      ActiveSupport::Notifications.subscribed(competitor, "sql.active_record") { put_plan }
 
       expect(response).to have_http_status(:ok)
       expect(user.registration_plans.sole.crns).to eq(%w[20410 20411 20520 20610])
     end
 
-    it "updates the plan when a parallel PUT saved it before the validation ran" do
-      first = true
-      allow_any_instance_of(RegistrationPlan).to receive(:save).and_wrap_original do |original, *args|
-        if first
-          first = false
-          create(:registration_plan, user: user, term: term)
-        end
-        original.call(*args)
+    # The unique index is the last guard: the other PUT saved its plan after
+    # this one's validation ran, so the INSERT raises. On one database
+    # connection the competing row cannot appear inside that savepoint, so
+    # the first save inserts it and then raises as Postgres would.
+    it "updates the plan when a parallel PUT saved it after the validation" do
+      raised = false
+      allow_any_instance_of(RegistrationPlan).to receive(:save).and_wrap_original do |original, *args, **kwargs| # rubocop:disable RSpec/AnyInstance
+        next original.call(*args, **kwargs) if raised
+
+        raised = true
+        create(:registration_plan, user: user, term: term)
+        raise ActiveRecord::RecordNotUnique, "duplicate key value violates unique constraint"
       end
 
       put_plan

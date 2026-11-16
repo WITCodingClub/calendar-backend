@@ -364,10 +364,14 @@ RSpec.describe "Api::Graphql", type: :request do
     end
 
     context "when the IP address has used up the semantic search budget" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      # The throttle counts in fixed windows. Frozen time keeps every request
+      # of an example in one window, so the budget cannot reset in the middle.
       around do |example|
         original = Rack::Attack.cache.store
         Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
-        example.run
+        freeze_time { example.run }
       ensure
         Rack::Attack.cache.store = original
       end
@@ -390,9 +394,11 @@ RSpec.describe "Api::Graphql", type: :request do
         limit = Rack::Attack.throttles.fetch("catalog/semantic").limit
         limit.times { get "/api/v1/catalog/instructors", params: { q: "teaches computing", semantic: "true" } }
 
-        gql('{ instructors(q: "byron", first: 1) { nodes { name } } }')
+        result = gql('{ instructors(q: "byron", first: 1) { nodes { name } } }')
 
         expect(response).to have_http_status(:ok)
+        expect(result["errors"]).to be_nil
+        expect(result.dig("data", "instructors", "nodes")).to be_an(Array)
       end
     end
   end
@@ -424,18 +430,30 @@ RSpec.describe "Api::Graphql", type: :request do
       expect(json["errors"].first["message"]).to match(/Invalid variables JSON/)
     end
 
+    # docs/public-catalog-api.md publishes maxDepth 12 and maxCost 500, so
+    # these queries go past the real limits, not stubbed ones.
     it "rejects a query that nests deeper than the depth limit" do
-      deep = "{ sections { nodes { instructors { rmp { avgRating } } } } }"
-      allow(CatalogSchema).to receive(:max_depth).and_return(2)
+      deep = "{ courses(first: 1) { nodes { #{'unlocks { ' * 10}code#{' }' * 10} } } }"
 
-      expect(gql(deep)["errors"]).to be_present
+      result = gql(deep)
+
+      expect(result["data"]).to be_nil
+      expect(result["errors"].pluck("message").join).to include("depth")
+    end
+
+    it "serves a query at the depth limit" do
+      deep = "{ courses(first: 1) { nodes { #{'unlocks { ' * 9}code#{' }' * 9} } } }"
+
+      expect(gql(deep)["errors"]).to be_nil
     end
 
     it "rejects a query that costs more than the cost limit" do
-      costly = "{ sections(first: 200) { nodes { crn title } } }"
-      allow(CatalogSchema).to receive(:max_complexity).and_return(10)
+      costly = "{ sections(first: 200) { nodes { crn title meetingTimes { day } } } }"
 
-      expect(gql(costly)["errors"].pluck("message").join).to include("complexity")
+      result = gql(costly)
+
+      expect(result["data"]).to be_nil
+      expect(result["errors"].pluck("message").join).to include("complexity")
     end
   end
 
@@ -450,6 +468,7 @@ RSpec.describe "Api::Graphql", type: :request do
       expect(fields).not_to include("email", "phone", "officeLocation")
     end
 
+    # 200 is the public page limit in docs/public-catalog-api.md.
     it "caps page size so one query cannot pull the whole catalog" do
       expect(CatalogSchema.default_max_page_size).to eq(200)
     end

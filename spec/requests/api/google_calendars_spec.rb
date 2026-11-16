@@ -113,7 +113,7 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
 
     it "removes the email when the user has a course calendar" do
       primary = create(:oauth_credential, user: user, email: "first@example.com")
-      create(:course_calendar, oauth_credential: primary)
+      calendar = create(:course_calendar, oauth_credential: primary)
       extra = create(:oauth_credential, user: user, email: "second@example.com")
 
       delete "/api/user/google_calendar/emails", params: { email: extra.email }, headers: headers, as: :json
@@ -121,7 +121,7 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json["message"]).to eq("email removed from Google Calendar association")
       expect(OauthCredential.exists?(extra.id)).to be(false)
-      expect(manager).to have_received(:unshare_with_email).with(CourseCalendar.last.external_calendar_id, "second@example.com")
+      expect(manager).to have_received(:unshare_with_email).with(calendar.external_calendar_id, "second@example.com")
     end
 
     it "finds a course calendar that a later linked account owns" do
@@ -152,13 +152,15 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       primary = create(:oauth_credential, user: user, email: "first@example.com")
       create(:course_calendar, oauth_credential: primary)
       create(:oauth_credential, user: user, email: "second@example.com")
-      allow_any_instance_of(OauthCredential).to receive(:destroy!).and_raise(StandardError, "boom") # rubocop:disable RSpec/AnyInstance
+      allow(manager).to receive(:unshare_with_email).and_raise(StandardError, "boom")
       allow(Rails.error).to receive(:report)
 
       delete "/api/user/google_calendar/emails", params: { email: primary.email }, headers: headers, as: :json
 
       expect(response).to have_http_status(:internal_server_error)
       expect(json).to eq("error" => "Internal server error", "code" => "INTERNAL_ERROR")
+      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError))
+      expect(OauthCredential.exists?(primary.id)).to be(true)
     end
   end
 end

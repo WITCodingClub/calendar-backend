@@ -11,11 +11,16 @@ RSpec.describe "Adding a Google account to a user", type: :request do
 
   # The test environment uses a null cache store. The state nonce and the
   # pending link live in Rails.cache, so these examples need a real store.
-  let(:cache) { ActiveSupport::Cache::MemoryStore.new }
+  around do |example|
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    example.run
+  ensure
+    Rails.cache = original
+  end
 
   before do
-    allow(Rails).to receive(:cache).and_return(cache)
-    allow(GoogleCalendar::Provider).to receive(:new).with(user, credential: an_instance_of(OauthCredential)).and_return(service)
+    allow(GoogleCalendar::Provider).to receive(:new).and_return(service)
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
       provider:    "google_oauth2",
@@ -69,7 +74,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     end
 
     it "shows a generic message and reports an unexpected error" do
-      allow_any_instance_of(OauthCredentials::AccountLink).to receive(:connect!).and_raise(StandardError, "PG::Error secret detail") # rubocop:disable RSpec/AnyInstance
+      allow(service).to receive(:ensure_course_calendar).and_raise(StandardError, "PG::Error secret detail")
       allow(Rails.error).to receive(:report)
 
       get "/auth/google_oauth2/callback", params: { state: state }

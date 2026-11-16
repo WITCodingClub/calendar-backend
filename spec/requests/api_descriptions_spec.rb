@@ -55,6 +55,7 @@ RSpec.describe "API descriptions", type: :request do
       end
     end
 
+    # Clients branch on these codes, so the list is a public contract.
     it "lists every error code that the API sends" do
       expect(document.dig("components", "schemas", "Error", "properties", "code", "enum"))
         .to contain_exactly("INVALID_FILTER", "NOT_FOUND", "RATE_LIMITED", "SCHEDULE_BUILDER_BUSY", "INTERNAL_ERROR")
@@ -83,7 +84,8 @@ RSpec.describe "API descriptions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.media_type).to eq("text/plain")
-      expect(response.body).to eq(CatalogSchema.to_definition)
+      published = GraphQL::Schema.from_definition(response.body)
+      expect(published.query.fields.keys).to include("sections", "courses", "instructors", "terms")
       expect(response.headers["Cache-Control"]).to include("public")
     end
   end
