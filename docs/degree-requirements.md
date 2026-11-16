@@ -478,7 +478,7 @@ flowchart TD
 - A course code matches through a checked `CourseCodeAlias`, as in the rest of the service.
 - The existing `requirements` rows of a minor do not change.
 
-`overlap: { shared, extra }` is only on a planned program. It says how many of the program's needed courses an active program already has, and how many courses the program adds. The My programs page uses the same class (`ProgramOverlap#added_rows`) to mark the rows of a planned program that an active program also has.
+`overlap: { shared, extra }` is only on a planned program. It says how many of the program's needed courses an active program already has, and how many courses the program adds. The My programs page uses the same class (`ActiveRows#added_rows`) to mark the rows of a planned program that an active program also has.
 
 - **A program with a plan of study:** each row is one needed course. A row is shared when an active row has its code (for a choice, one option is enough). It is extra when it is open and not shared. A row that the student took and that no active program has is neither. Course rows match before choice rows, so a choice does not use an active row that a course row needs.
 - **A list with `min_courses`:** it needs `min_courses` courses. A "Required ..." list with no minimum needs every course.

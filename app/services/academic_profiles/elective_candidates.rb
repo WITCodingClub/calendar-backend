@@ -183,7 +183,7 @@ module AcademicProfiles
       {
         code:         course.code,
         title:        catalog&.title || course.title,
-        credits:      CourseCredits.known(course.credit_hours, catalog&.credit_hours),
+        credits:      catalog&.credit_hours || course.credit_hours,
         hss_category: hss_category(entry, row, course),
         **@prerequisites.call(catalog),
         open_seats:   course.open_seats

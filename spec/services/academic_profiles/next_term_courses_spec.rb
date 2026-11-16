@@ -474,6 +474,20 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       expect(course_row).not_to have_key(:candidates)
     end
 
+    it "gives a candidate the credits of its catalog row before the credits of its sections" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives")
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3100)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3300)
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      create(:catalog_course, subject_code: "WDGT", course_number: 3100, credit_hours: 4)
+      offer("WDGT", 3100, credit_hours: 3)
+      offer("WDGT", 3300, credit_hours: 2)
+
+      candidates = with_candidates[:programs].first[:planned].first[:candidates]
+
+      expect(candidates.pluck(:code, :credits)).to contain_exactly([ "WDGT 3100", 4 ], [ "WDGT 3300", 2 ])
+    end
+
     it "takes the courses and subjects of the elective list, with the catalog details, prerequisites, and seats" do
       group = create(:elective_group, requirement_set: set, name: "Widget Electives", subject_codes: %w[GIZM])
       create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3100)
