@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe OauthCredentials::Http do
   describe ".post_form" do
-    it "posts the params as a form" do
+    it "posts the params as a form with both timeouts set" do
       request = stub_request(:post, "https://oauth.example.com/token")
                 .with(body: { "grant_type" => "refresh_token" },
                       headers: { "Content-Type" => "application/x-www-form-urlencoded" })
@@ -12,6 +12,8 @@ RSpec.describe OauthCredentials::Http do
       described_class.post_form("https://oauth.example.com/token", { grant_type: "refresh_token" })
 
       expect(request).to have_been_requested
+      # A slow OAuth server must not hold a request or a job for long.
+      expect(described_class.connection.options).to have_attributes(open_timeout: 5, timeout: 10)
     end
   end
 

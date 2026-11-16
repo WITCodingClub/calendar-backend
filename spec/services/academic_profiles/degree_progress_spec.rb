@@ -14,6 +14,14 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
   def progress(**arguments) = described_class.new(user, today: today, **arguments).call
 
+  # The queries of the block that read the catalog_courses table.
+  def catalog_course_queries(&)
+    count = 0
+    counter = ->(*, payload) { count += 1 if !payload[:cached] && payload[:sql].match?(/\bcatalog_courses\b/) }
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record", &)
+    count
+  end
+
   def take(term, subject, number, outcome: nil, credits: 4)
     course = create(:course, term: term, subject: subject, course_number: number, credit_hours: credits)
     create(:enrollment, user: user, course: course)
@@ -746,8 +754,8 @@ RSpec.describe AcademicProfiles::DegreeProgress do
         take(past_term, "WDGT", 1000, credits: nil)
         take(past_term, "WDGT", 2000, credits: 4)
 
-        result = progress(course_details: false)
-
+        result = nil
+        expect(catalog_course_queries { result = progress(course_details: false) }).to eq(0)
         expect(credits(result[:programs].first)).to eq(earned: 0, in_progress: 0, registered: 0,
                                                        not_counted: { earned: 4, in_progress: 0, registered: 0, courses: [ "WDGT 2000" ] })
       end
@@ -757,8 +765,8 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000)
       item(subject_code: "WDGT", course_number: 1000)
 
-      result = progress(course_details: false)
-
+      result = nil
+      expect(catalog_course_queries { result = progress(course_details: false) }).to eq(0)
       expect(result[:programs].first[:requirements].first).to include(description: nil, list: nil)
     end
 

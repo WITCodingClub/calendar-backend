@@ -98,6 +98,17 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       expect(meeting.attendees.reload).to be_empty
     end
 
+    it "puts back a published friend meeting whose calendar event is missing" do
+      calendar = create(:course_calendar)
+      allow(google).to receive_messages(course_calendar: calendar, create_friend_meeting_event: nil)
+      meeting = create(:friend_meeting, user: user)
+      create(:friend_meeting_publication, friend_meeting: meeting, provider: "google", status: "published")
+
+      syncer.sync_schedule
+
+      expect(google).to have_received(:create_friend_meeting_event).with(meeting, invite: false)
+    end
+
     context "when one provider fails" do
       let(:error) { Signet::AuthorizationError.new("token revoked") }
 

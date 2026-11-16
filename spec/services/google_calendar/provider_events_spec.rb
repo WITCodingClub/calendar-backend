@@ -66,6 +66,21 @@ RSpec.describe GoogleCalendar::Provider do
       expect(insert).to have_been_requested.once
     end
 
+    it "deletes the new event when the unique index refuses its row" do
+      # A parallel sync saved the same source between this row's check and its insert.
+      allow(CalendarEvent).to receive(:new).and_wrap_original do |original, *args, **options, &block|
+        original.call(*args, **options, &block).tap do |record|
+          allow(record).to receive(:save!).and_raise(ActiveRecord::RecordNotUnique)
+        end
+      end
+      stub_request(:post, events_url).to_return(json)
+      delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
+
+      sync(event_data)
+
+      expect(delete).to have_been_requested.once
+    end
+
     it "deletes the new event when a concurrent sync already tracks it" do
       # create_event rescues only RecordNotUnique. When the other sync's row
       # is there before the uniqueness validation runs, create! raises

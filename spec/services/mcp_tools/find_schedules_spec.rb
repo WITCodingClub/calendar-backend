@@ -50,6 +50,7 @@ RSpec.describe McpTools::FindSchedules, :schedule_builder do
   end
 
   it "needs the catalog scope" do
+    expect(described_class.required_scope).to eq("catalog")
     expect(call(scopes: [], term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ]).error?).to be(true)
   end
 
