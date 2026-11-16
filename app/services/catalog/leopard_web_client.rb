@@ -5,7 +5,8 @@ module Catalog
     require "faraday"
     require "nokogiri"
 
-    BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
+    SSB_URL  = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/"
+    BASE_URL = "#{SSB_URL}searchResults/".freeze
 
     class RequestError < StandardError
       attr_reader :status
@@ -351,13 +352,7 @@ module Catalog
     end
 
     def connection
-      @connection ||= Faraday.new(url: BASE_URL) do |faraday|
-        faraday.request :url_encoded
-        # Pacing, retries, timeouts, and the cooldown for every Banner request.
-        faraday.use Catalog::BannerThrottle
-        faraday.response :json, content_type: /\bjson$/
-        faraday.adapter Faraday.default_adapter
-      end
+      @connection ||= banner_connection(BASE_URL)
     end
 
     def handle_response(response, format = :json)
@@ -426,7 +421,7 @@ module Catalog
     end
 
     # Banner reports a negative count when a section holds more students than its
-    # cap, for example -8 of 15. Keep it, as Catalog::Importer does, so both write
+    # cap, for example -8 of 15. Keep it, as Catalog::BannerSection does, so both write
     # paths store the same number. The courses table allows a negative count.
     def seat_count(raw)
       raw&.to_i
@@ -499,23 +494,11 @@ module Catalog
     end
 
     def terms_connection
-      @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-        faraday.request :url_encoded
-        # Pacing, retries, timeouts, and the cooldown for every Banner request.
-        faraday.use Catalog::BannerThrottle
-        faraday.response :json, content_type: /\bjson$/
-        faraday.adapter Faraday.default_adapter
-      end
+      @terms_connection ||= banner_connection(SSB_URL)
     end
 
     def session_connection
-      @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-        faraday.request :url_encoded
-        # Pacing, retries, timeouts, and the cooldown for every Banner request.
-        faraday.use Catalog::BannerThrottle
-        faraday.response :json, content_type: /\bjson$/
-        faraday.adapter Faraday.default_adapter
-      end
+      @session_connection ||= banner_connection(SSB_URL)
     end
 
     def catalog_connection
@@ -524,15 +507,21 @@ module Catalog
       return @catalog_connection if @catalog_connection_cookie == @session_cookie
 
       @catalog_connection_cookie = @session_cookie
-      @catalog_connection = Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-        faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
-        faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
-        faraday.headers["X-Requested-With"] = "XMLHttpRequest"
-        faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
-        faraday.headers["Cookie"] = "JSESSIONID=#{@session_cookie}"
+      @catalog_connection = banner_connection(
+        SSB_URL,
+        "Accept"           => "application/json, text/javascript, */*; q=0.01",
+        "Accept-Language"  => "en-US,en;q=0.9",
+        "X-Requested-With" => "XMLHttpRequest",
+        "Referer"          => "#{SSB_URL}courseSearch/courseSearch",
+        "Cookie"           => "JSESSIONID=#{@session_cookie}"
+      )
+    end
 
+    # Catalog::BannerThrottle paces every Banner request, retries it, sets its
+    # timeouts, and holds it during a cooldown.
+    def banner_connection(url, headers = {})
+      Faraday.new(url: url, headers: headers) do |faraday|
         faraday.request :url_encoded
-        # Pacing, retries, timeouts, and the cooldown for every Banner request.
         faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
