@@ -10,7 +10,6 @@ module GoogleCalendar
   # eventLabelId only when the request asks for label version 1, so pass
   # request_options(event) to insert_event and update_event.
   class EventPayload
-
     def self.build(event_data, labels = nil)
       new(event_data, labels).to_event
     end
