@@ -19,6 +19,8 @@ module McpTools
                 "yet, and removing removes only those planned programs. A Double Leopard pathway needs a " \
                 "bachelor's program in my programs. An unknown pathway gives the list of pathway slugs."
     requires_scope "programs:write"
+    # action remove deletes planned programs.
+    write_hints destructive: true
     requires_flag FeatureFlags::DEGREE_PLANNING
     academic_planning :degree_requirements
     input_schema(

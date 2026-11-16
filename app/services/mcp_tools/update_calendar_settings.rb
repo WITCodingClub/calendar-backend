@@ -15,6 +15,9 @@ module McpTools
                 "fields you pass change. Use reset to remove a field, so the level below applies again. " \
                 "A class's own settings from update_class_settings still come first."
     requires_scope "settings:write"
+    # It replaces settings with no undo, reset deletes them, and the sync
+    # rewrites the events in the student's Google or Outlook calendar.
+    write_hints destructive: true, open_world: true
     input_schema(
       properties: {
         level: { type: "string", enum: CalendarLevels::NAMES, description: "Which events the settings apply to." },

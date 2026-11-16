@@ -458,7 +458,7 @@ Each tool sends an `outputSchema` in `tools/list`. The MCP spec says that the st
 - `spec/services/mcp_tools/output_schemas_spec.rb` calls each tool and checks the result against its schema. The spec is stricter than the schema: it fails on a key that the schema does not name. When a serializer gets a new key, add the key to the schema in the same PR.
 - The `mcp` gem does not check results at run time, because `validate_tool_call_results` is off. Do not turn it on. The gem checks the Ruby Hash before it becomes JSON, so a `Date` or `Time` value fails a `string` type. A failed check gives the client an internal error in place of the result.
 
-A write tool changes only the signed-in student's own data, through the same models and policies as its API endpoint. A tool that reaches other people, such as a friend request, needs a scope of its own. `McpTools::BaseTool` marks a read tool read-only for the client, and `McpTools::BaseWriteTool` marks a write tool as not destructive.
+A write tool changes only the signed-in student's own data, through the same models and policies as its API endpoint. A tool that reaches other people, such as a friend request, needs a scope of its own. `McpTools::BaseTool` marks a read tool read-only for the client. `McpTools::BaseWriteTool` marks a write tool as not read-only, not destructive, and not open world. A write tool that can delete or replace data, or that changes the student's Google or Outlook calendar through a sync, calls `write_hints destructive: true` or `write_hints open_world: true`. Clients and app directories, such as the ChatGPT app review, check that the hints match what the tool does. `spec/requests/api/mcp_spec.rb` lists the expected hints of each write tool.
 
 ### Add a prompt
 
