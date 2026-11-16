@@ -57,8 +57,7 @@ module AcademicProfiles
 
     def plan_names = plans.map(&:name)
 
-    # The plan with this name, case ignored, or nil.
-    def plan_named(name) = plans.find { |plan| plan.name.casecmp?(name.to_s.strip) }
+    def plan_named(name) = requirement_set&.plan_named(name)
 
     # The plan the student picked, or the standard plan.
     def plan = picked_plan || standard_plan
@@ -112,10 +111,6 @@ module AcademicProfiles
       plan_named(program.plan_name)
     end
 
-    # The first plan that is not accelerated, as RequirementSet#standard_plan,
-    # read from the loaded plans.
-    def standard_plan
-      plans.find { |candidate| !candidate.accelerated } || plans.first
-    end
+    def standard_plan = requirement_set&.standard_plan
   end
 end

@@ -55,10 +55,15 @@ class RequirementSet < ApplicationRecord
   validates :degree_program_id, uniqueness: { scope: :catalog_year_id }
 
   # The plan to use when a student has not said which plan they follow: the
-  # first plan that is not accelerated, such as the four-year plan.
+  # first plan that is not accelerated, such as the four-year plan. It reads
+  # the loaded plans, so a caller that preloads them sends no query.
   def standard_plan
-    program_plans.where(accelerated: false).first || program_plans.first
+    plans = program_plans.to_a
+    plans.find { |plan| !plan.accelerated } || plans.first
   end
+
+  # The plan with this name, case ignored, or nil.
+  def plan_named(name) = program_plans.to_a.find { |plan| plan.name.casecmp?(name.to_s.strip) }
 
   # The last import of a catalog year saw every set whose last_seen_at is
   # after this time. A set seen before it is of a program that left the

@@ -225,20 +225,18 @@ module AcademicProfiles
     end
 
     # The plan the student follows: the plan argument, or the plan the
-    # student picked for the program (#867). Without one, the standard plan,
-    # the same rule as RequirementSet#standard_plan, read from the loaded
-    # plans. A picked plan that a later import renamed falls back to the
-    # standard plan. An unknown plan argument raises FilterError.
+    # student picked for the program (#867). Without one, the standard plan.
+    # A picked plan that a later import renamed falls back to the standard
+    # plan. An unknown plan argument raises FilterError.
     def pick_plan(set, plan_name)
-      plans = set.program_plans.to_a
-      picked = plan_name && plans.find { |plan| plan.name.casecmp?(plan_name) }
+      picked = plan_name && set.plan_named(plan_name)
       return picked if picked
 
       if @plan_name
-        raise Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{plans.map(&:name).join(', ')}"
+        raise Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{set.program_plans.map(&:name).join(', ')}"
       end
 
-      plans.find { |plan| !plan.accelerated } || plans.first
+      set.standard_plan
     end
 
     # Rows of a plan of study. Course rows take a course first, then choice
