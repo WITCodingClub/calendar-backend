@@ -664,13 +664,4 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       expect(count.call).to eq(one)
     end
   end
-
-  describe ".default_term_uid" do
-    it "is the spring after a fall term, and the fall after a spring or summer term" do
-      expect(described_class.default_term_uid(202710)).to eq(202720)
-      expect(described_class.default_term_uid(202720)).to eq(202810)
-      expect(described_class.default_term_uid(202730)).to eq(202810)
-      expect(described_class.default_term_uid(nil)).to be_nil
-    end
-  end
 end

@@ -318,18 +318,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
   end
 
-  describe ".generated_term_uid" do
-    it "builds a uid for each season" do
-      expect(described_class.generated_term_uid(2026, :fall)).to eq(202710)
-      expect(described_class.generated_term_uid(2026, :spring)).to eq(202620)
-      expect(described_class.generated_term_uid(2026, "summer")).to eq(202630)
-    end
-
-    it "returns nil for an unknown season" do
-      expect(described_class.generated_term_uid(2026, :winter)).to be_nil
-    end
-  end
-
   describe ".term_detection_date_window" do
     it "gives a window for each season" do
       expect(described_class.term_detection_date_window(2026, :spring)).to eq(Date.new(2025, 8, 1)..Date.new(2026, 6, 30))

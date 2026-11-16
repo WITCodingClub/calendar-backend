@@ -57,12 +57,12 @@ module AcademicProfiles
     def timeline(rows)
       rows.select { |row| row[:expected_term_uid] }.group_by { |row| row[:expected_term_uid] }.sort.map do |uid, term_rows|
         basis = basis_of(uid, term_rows, rows)
-        year = year_of(uid)
+        year = TermCode.plan_year(@start, uid)
         {
           term:      TermCode.label(uid),
           uid:       uid,
           year:      year,
-          season:    Rules.season(uid),
+          season:    TermCode.season(uid),
           when:      PlanTerms.time_of(uid, @current),
           estimated: estimated?(basis, year),
           co_op:     term_rows.all? { |row| CoOpRows.co_op?(row) },
@@ -88,16 +88,6 @@ module AcademicProfiles
       return true if basis == ESTIMATE || year.nil?
 
       year > PlanTerms::EXACT_YEARS
-    end
-
-    # The plan year of a term, the inverse of ProgramTimeline.term_uid, so a
-    # summer term after year 1 is in year 1. nil for a term before year 1,
-    # such as a course taken before the program started.
-    def year_of(uid)
-      first_year = @start / 100
-      first_year += 1 if Rules.summer?(@start)
-      year = (uid / 100) - first_year + 1
-      year.positive? ? year : nil
     end
   end
 end

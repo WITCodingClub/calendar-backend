@@ -39,15 +39,5 @@ class CatalogYear < ApplicationRecord
   validates :start_year, presence: true, uniqueness: true,
                          numericality: { only_integer: true, greater_than_or_equal_to: 2010 }
 
-  # A catalog year starts in the fall: Fall 2026, Spring 2027, and Summer
-  # 2027 are all in 2026-2027.
-  def self.start_year_for(term)
-    term.fall? ? term.year : term.year - 1
-  end
-
-  def self.for_term(term)
-    find_by(start_year: start_year_for(term))
-  end
-
   def name = "#{start_year}-#{start_year + 1}"
 end

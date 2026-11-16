@@ -96,16 +96,7 @@ module AcademicProfiles
     end
 
     def term_uid
-      @term_uid ||= self.class.default_term_uid(current_term_uid)
-    end
-
-    # The next fall or spring term after the current term, as a Banner code,
-    # or nil with no current term.
-    def self.default_term_uid(current_uid = Term.current_uid)
-      return nil if current_uid.nil?
-
-      year = current_uid / 100
-      current_uid % 100 == TermCode::SEASON_SUFFIXES.fetch("fall") ? (year * 100) + 20 : ((year + 1) * 100) + 10
+      @term_uid ||= current_term_uid && TermCode.next_regular_term(current_term_uid)
     end
 
     private
@@ -151,7 +142,7 @@ module AcademicProfiles
       return [ planned, behind ] unless start && term_uid
 
       plan_rows(entry).each do |row|
-        uid = ProgramTimeline.term_uid(start, row[:year], row[:season])
+        uid = TermCode.plan_term(start, row[:year], row[:season])
         if uid == term_uid && COUNTED.exclude?(row[:status])
           planned << row
         elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
@@ -221,7 +212,7 @@ module AcademicProfiles
     end
 
     def semester_of(rows, start)
-      row = rows.find { |candidate| ProgramTimeline.term_uid(start, candidate[:year], candidate[:season]) == term_uid }
+      row = rows.find { |candidate| TermCode.plan_term(start, candidate[:year], candidate[:season]) == term_uid }
       row && { year: row[:year], season: row[:season] }
     end
 

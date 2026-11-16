@@ -35,9 +35,9 @@ module Dashboard
     # The plan rows of a program, by semester in plan order, each semester
     # with its real term: [[year, season, term label or nil], rows].
     def plan_semesters(program, progress_entry)
-      start = AcademicProfiles::TermCode.parse(program[:start_term])
+      start = TermCode.parse(program[:start_term])
       AcademicProfiles::ProgramTimeline.semesters(start, progress_entry[:requirements]).map do |semester|
-        [ [ semester.year, semester.season, AcademicProfiles::TermCode.label(semester.uid) ], semester.rows ]
+        [ [ semester.year, semester.season, TermCode.label(semester.uid) ], semester.rows ]
       end
     end
 

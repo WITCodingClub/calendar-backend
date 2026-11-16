@@ -54,25 +54,25 @@ RSpec.describe AcademicProfiles::ProgramTimeline do
   it "maps a plan semester to a real term from the start term" do
     fall_start = timeline(program(catalog_term_uid: 202610)) # Fall 2025
 
-    expect(AcademicProfiles::TermCode.label(fall_start.term_uid(1, "fall"))).to eq("Fall 2025")
-    expect(AcademicProfiles::TermCode.label(fall_start.term_uid(3, "fall"))).to eq("Fall 2027")
-    expect(AcademicProfiles::TermCode.label(fall_start.term_uid(3, "spring"))).to eq("Spring 2028")
-    expect(AcademicProfiles::TermCode.label(fall_start.term_uid(2, "summer"))).to eq("Summer 2027")
+    expect(TermCode.label(fall_start.term_uid(1, "fall"))).to eq("Fall 2025")
+    expect(TermCode.label(fall_start.term_uid(3, "fall"))).to eq("Fall 2027")
+    expect(TermCode.label(fall_start.term_uid(3, "spring"))).to eq("Spring 2028")
+    expect(TermCode.label(fall_start.term_uid(2, "summer"))).to eq("Summer 2027")
     expect(fall_start.term_uid(1, "winter")).to be_nil
   end
 
   it "puts year 1 in the academic year of a spring start term" do
     spring_start = timeline(program(catalog_term_uid: 202620)) # Spring 2026
 
-    expect(AcademicProfiles::TermCode.label(spring_start.term_uid(1, "fall"))).to eq("Fall 2025")
-    expect(AcademicProfiles::TermCode.label(spring_start.term_uid(1, "spring"))).to eq("Spring 2026")
+    expect(TermCode.label(spring_start.term_uid(1, "fall"))).to eq("Fall 2025")
+    expect(TermCode.label(spring_start.term_uid(1, "spring"))).to eq("Spring 2026")
   end
 
   it "puts year 1 in the academic year after a summer start term" do
     summer_start = timeline(program(catalog_term_uid: 202630)) # Summer 2026
 
-    expect(AcademicProfiles::TermCode.label(summer_start.term_uid(1, "fall"))).to eq("Fall 2026")
-    expect(AcademicProfiles::TermCode.label(summer_start.term_uid(3, "fall"))).to eq("Fall 2028")
+    expect(TermCode.label(summer_start.term_uid(1, "fall"))).to eq("Fall 2026")
+    expect(TermCode.label(summer_start.term_uid(3, "fall"))).to eq("Fall 2028")
   end
 
   it "loads the plans of many programs with a fixed number of queries" do

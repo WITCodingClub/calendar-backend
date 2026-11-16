@@ -53,26 +53,17 @@ module AcademicProfiles
         seasons = Array(row[:typically_offered])
         return true if (seasons & FALL_AND_SPRING).size != 1
 
-        seasons.include?(season(uid))
-      end
-
-      def season(uid) = TermCode::SEASON_SUFFIXES.key(uid % 100)
-
-      def summer?(uid) = season(uid) == "summer"
-
-      # The Banner code of the next term: fall, spring, summer, fall.
-      def next_term(uid)
-        uid % 100 == TermCode::SEASON_SUFFIXES.fetch("summer") ? ((uid / 100) + 1) * 100 + 10 : uid + 10
+        seasons.include?(TermCode.season(uid))
       end
 
       # The number of terms after from, up to and including to, for which
       # usable is true.
       def steps(from, to, usable)
         count = 0
-        uid = next_term(from)
+        uid = TermCode.next_term(from)
         while uid <= to
           count += 1 if usable.call(uid)
-          uid = next_term(uid)
+          uid = TermCode.next_term(uid)
         end
         count
       end
@@ -81,8 +72,8 @@ module AcademicProfiles
       def advance(from, count, usable)
         uid = from
         count.times do
-          uid = next_term(uid)
-          uid = next_term(uid) until usable.call(uid)
+          uid = TermCode.next_term(uid)
+          uid = TermCode.next_term(uid) until usable.call(uid)
         end
         uid
       end

@@ -81,7 +81,7 @@ class StudentProgramSerializer
       plan:              @timeline.plan&.name,
       plan_source:       @timeline.plan_source,
       plans:             @timeline.plan_names,
-      start_term:        AcademicProfiles::TermCode.label(@timeline.start_term_uid),
+      start_term:        TermCode.label(@timeline.start_term_uid),
       start_term_source: @timeline.start_term_source
     }
   end

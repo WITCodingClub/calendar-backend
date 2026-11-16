@@ -211,7 +211,7 @@ class UniversityCalendarEvent < ApplicationRecord
     result = Catalog::LeopardWebClient.get_active_terms
     return nil unless result[:success]
 
-    target_uid = term&.uid || generated_term_uid(year, season)
+    target_uid = term&.uid || TermCode.for(year, season)
     return nil unless target_uid
 
     active_term_found = Array(result[:terms]).any? do |active_term|
@@ -226,17 +226,6 @@ class UniversityCalendarEvent < ApplicationRecord
   rescue => e
     Rails.error.report(e, handled: true, context: { year: year, season: season.to_s })
     nil
-  end
-
-  def self.generated_term_uid(year, season)
-    case season.to_sym
-    when :fall
-      ((year + 1) * 100) + 10
-    when :spring
-      (year * 100) + 20
-    when :summer
-      (year * 100) + 30
-    end
   end
 
   def self.event_matches_term_for_date_detection?(event, year, season, term)

@@ -5,45 +5,29 @@ module Catalog
     queue_as :default
 
     def perform(terms_ahead: 6)
-      today          = Time.zone.today
-      current_year   = today.year
-      current_season = if today.month >= 8
-                         :fall
-      elsif today.month >= 6
-                         :summer
-      else
-                         :spring
+      uids = [ current_uid ]
+      terms_ahead.times { uids << TermCode.next_term(uids.last) }
+      existing = Term.where(uid: uids).pluck(:uid).to_set
+
+      uids.each do |uid|
+        next if existing.include?(uid)
+
+        term = Term.create!(uid: uid, **TermCode.year_and_season(uid))
+        Rails.logger.info "[Catalog::EnsureFutureTermsJob] Created term: #{term.season.capitalize} #{term.year} (uid: #{uid})"
       end
+    end
 
-      terms_to_ensure = []
-      year   = current_year
-      season = current_season
+    private
 
-      (terms_ahead + 1).times do
-        terms_to_ensure << { year: year, season: season }
-
-        season, year = case season
-        when :spring then [ :summer, year ]
-        when :summer then [ :fall,   year ]
-        when :fall   then [ :spring, year + 1 ]
-        end
+    # The season of today by month: fall from August, summer from June,
+    # spring before that.
+    def current_uid
+      today = Time.zone.today
+      season = if today.month >= 8 then :fall
+      elsif today.month >= 6 then :summer
+      else :spring
       end
-
-      existing_terms = Term.where(year: terms_to_ensure.map { |t| t[:year] })
-                           .each_with_object({}) { |t, h| h[[ t.year, t.season.to_sym ]] = true }
-
-      terms_to_ensure.each do |attrs|
-        next if existing_terms[[ attrs[:year], attrs[:season].to_sym ]]
-
-        uid = case attrs[:season].to_sym
-        when :fall   then ((attrs[:year] + 1) * 100) + 10
-        when :spring then (attrs[:year] * 100) + 20
-        when :summer then (attrs[:year] * 100) + 30
-        end
-
-        Term.create!(year: attrs[:year], season: attrs[:season], uid: uid)
-        Rails.logger.info "[Catalog::EnsureFutureTermsJob] Created term: #{attrs[:season].capitalize} #{attrs[:year]} (uid: #{uid})"
-      end
+      TermCode.for(today.year, season)
     end
   end
 end

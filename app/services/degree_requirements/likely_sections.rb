@@ -70,15 +70,12 @@ module DegreeRequirements
 
     private
 
-    # The fall, spring, and summer terms of the recent academic years, the
-    # catalog year included (CatalogYear.start_year_for).
+    # The terms of the recent catalog years, the catalog year included.
     def term_ids
       @term_ids ||= begin
         last = @catalog_year.start_year
-        first = last - RECENT_YEARS + 1
-        Term.where(season: :fall, year: first..last)
-            .or(Term.where(season: %i[spring summer], year: (first + 1)..(last + 1)))
-            .ids
+        codes = ((last - RECENT_YEARS + 1)..last).flat_map { |year| TermCode.catalog_year_codes(year) }
+        codes.map { |code| Term.where(TermCode.year_and_season(code)) }.reduce(:or).ids
       end
     end
 

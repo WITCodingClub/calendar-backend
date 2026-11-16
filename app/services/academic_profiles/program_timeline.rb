@@ -86,23 +86,7 @@ module AcademicProfiles
       "admit_term"
     end
 
-    # The Banner code of the term of one plan semester, or nil without a
-    # start term. A Banner code names the academic year that ends in its
-    # year (Fall 2025 is 202610), so the year of the code moves by one for
-    # each plan year.
-    def term_uid(year_index, season) = self.class.term_uid(start_term_uid, year_index, season)
-
-    # A summer start is the end of a Banner academic year, so year 1 is the
-    # academic year that starts after it: Summer 2026 puts "Year 1, fall" in
-    # Fall 2026.
-    def self.term_uid(start_term_uid, year_index, season)
-      suffix = TermCode::SEASON_SUFFIXES[season.to_s]
-      return nil if start_term_uid.nil? || suffix.nil? || year_index.nil?
-
-      first_year = start_term_uid / 100
-      first_year += 1 if start_term_uid % 100 == TermCode::SEASON_SUFFIXES.fetch("summer")
-      ((first_year + year_index - 1) * 100) + suffix
-    end
+    def term_uid(year_index, season) = TermCode.plan_term(start_term_uid, year_index, season)
 
     # One plan semester of the rows of DegreeProgress: its plan year and
     # season, its term (nil without a start term), and its rows.
@@ -116,7 +100,7 @@ module AcademicProfiles
           .group_by { |row| [ row[:year], row[:season] ] }
           .sort_by { |(year, season), _| [ year, TermCode::SEASON_SUFFIXES.fetch(season, 99) ] }
           .map do |(year, season), semester_rows|
-            Semester.new(year: year, season: season, uid: term_uid(start_term_uid, year, season), rows: semester_rows)
+            Semester.new(year: year, season: season, uid: TermCode.plan_term(start_term_uid, year, season), rows: semester_rows)
           end
     end
 

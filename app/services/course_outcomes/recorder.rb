@@ -47,7 +47,7 @@ module CourseOutcomes
         raise invalid("terms[#{index}] must be an object") unless entry.is_a?(Hash)
 
         entry = entry.with_indifferent_access
-        uid = AcademicProfiles::TermCode.parse(entry[:term])
+        uid = TermCode.parse(entry[:term])
         unless uid
           raise invalid("terms[#{index}].term must be a term code or a term such as \"Fall 2025\"", code: "invalid_term")
         end

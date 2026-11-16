@@ -20,7 +20,7 @@ module Api
 
       term_uid = nil
       if params[:term].present?
-        term_uid = AcademicProfiles::TermCode.parse(params[:term].to_s)
+        term_uid = TermCode.parse(params[:term].to_s)
         return render_error("term must be a Banner term code or a label such as Spring 2027", status: :unprocessable_content) if term_uid.nil?
       end
 

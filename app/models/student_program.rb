@@ -76,11 +76,11 @@ class StudentProgram < ApplicationRecord
   validates :name, presence: true
   validates :degree_program, :catalog_year, presence: true, if: :planned?
 
-  def catalog_term = AcademicProfiles::TermCode.label(catalog_term_uid)
+  def catalog_term = TermCode.label(catalog_term_uid)
 
   # "2025-2026". A LeopardWeb row does not need a CatalogYear row. A planned
   # row has no catalog term, so its name comes from its CatalogYear.
-  def catalog_year_name = AcademicProfiles::TermCode.catalog_year(catalog_term_uid) || catalog_year&.name
+  def catalog_year_name = TermCode.catalog_year(catalog_term_uid) || catalog_year&.name
 
   # true when the program links to the degree catalog. false when its catalog
   # year is imported and has no such program. nil when the catalog year is

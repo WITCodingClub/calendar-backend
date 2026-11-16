@@ -95,12 +95,11 @@ module DegreeRequirements
     end
 
     # The codes of the Banner sections in the fall, spring, and summer terms
-    # of the catalog year (CatalogYear.start_year_for). A section stores its
+    # of the catalog year. A section stores its
     # subject as Banner labels it, "Computer Science (COMP)", so the code is
     # read from the label the same way CatalogCourse rows get it.
     def codes_offered_in_year
-      start_year = catalog_year.start_year
-      terms = Term.where(year: start_year, season: :fall).or(Term.where(year: start_year + 1, season: %i[spring summer]))
+      terms = TermCode.catalog_year_codes(catalog_year.start_year).map { |code| Term.where(TermCode.year_and_season(code)) }.reduce(:or)
       Course.where(term_id: terms.select(:id)).distinct.pluck(:subject, :course_number)
             .to_set { |subject, number| [ Catalog::CourseDetailsSync.prefix_of(subject), number ] }
     end

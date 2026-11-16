@@ -52,7 +52,7 @@ module McpTools
 
       term_uid = nil
       if term.present?
-        term_uid = AcademicProfiles::TermCode.parse(term)
+        term_uid = TermCode.parse(term)
         raise ToolError, "term must be a Banner term code or a label such as Spring 2027." if term_uid.nil?
       end
 

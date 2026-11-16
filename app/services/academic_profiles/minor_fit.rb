@@ -118,7 +118,7 @@ module AcademicProfiles
       return @major_end.slice(:term, :estimated) if unplaced.zero?
 
       uid = @major_end[:uid]
-      (unplaced / COURSES_PER_TERM.to_f).ceil.times { uid = NextTermCourses.default_term_uid(uid) }
+      (unplaced / COURSES_PER_TERM.to_f).ceil.times { uid = TermCode.next_regular_term(uid) }
       { term: TermCode.label(uid), estimated: true }
     end
 

@@ -89,7 +89,7 @@ module AcademicProfiles
             place_classes(uid)
           end
           note_reasons(uid)
-          uid = Rules.next_term(uid)
+          uid = TermCode.next_term(uid)
         end
       end
 
@@ -319,24 +319,24 @@ module AcademicProfiles
 
       # A fall or spring term takes classes. A summer term takes classes only
       # where the plan has a class row in that summer.
-      def class_term?(uid) = !Rules.summer?(uid) || plan_loads.key?(uid)
+      def class_term?(uid) = !TermCode.summer?(uid) || plan_loads.key?(uid)
 
       # A co-op can go in a fall or spring term, or in a summer term where
       # the plan has a semester.
-      def co_op_usable?(uid) = !Rules.summer?(uid) || plan_summers.include?(uid)
+      def co_op_usable?(uid) = !TermCode.summer?(uid) || plan_summers.include?(uid)
 
       def plan_summers
-        @plan_summers ||= plan_rows.map { |index| @rows[index][:planned_term_uid] }.select { |uid| Rules.summer?(uid) }.to_set
+        @plan_summers ||= plan_rows.map { |index| @rows[index][:planned_term_uid] }.select { |uid| TermCode.summer?(uid) }.to_set
       end
 
       def first_term
-        @first_term ||= Rules.next_term(@current)
+        @first_term ||= TermCode.next_term(@current)
       end
 
       def last_term
         @last_term ||= begin
           plan_end = plan_rows.map { |index| @rows[index][:planned_term_uid] }.max || @current
-          Rules::EXTRA_TERMS.times.reduce([ plan_end, @current ].max) { |uid, _| Rules.next_term(uid) }
+          Rules::EXTRA_TERMS.times.reduce([ plan_end, @current ].max) { |uid, _| TermCode.next_term(uid) }
         end
       end
     end

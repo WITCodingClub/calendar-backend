@@ -50,7 +50,7 @@ We do not store letter grades, GPA, or W numbers. The extension converts each le
 
 ## Terms
 
-LeopardWeb shows a term as a label, for example "Fall 2025". `AcademicProfiles::TermCode` converts a label to a Banner term code (Fall 2025 is `202610`). The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
+LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` converts a label to a Banner term code (Fall 2025 is `202610`). The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
 
 ## Profile sync
 
