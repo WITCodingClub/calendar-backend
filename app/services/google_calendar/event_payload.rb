@@ -9,7 +9,6 @@ module GoogleCalendar
   # eventLabelId only when the request asks for label version 1, so pass
   # request_options(event) to insert_event and update_event.
   class EventPayload
-    TIME_ZONE        = "America/New_York"
     REMINDER_METHODS = %w[email popup notification].freeze
 
     def self.build(event_data, labels = nil)
@@ -75,11 +74,11 @@ module GoogleCalendar
         google_event.start = { date: data[:start_time].to_date.to_s }
         google_event.end   = { date: (data[:end_time].to_date + 1.day).to_s }
       else
-        start_time_et = data[:start_time].in_time_zone(TIME_ZONE)
-        end_time_et   = data[:end_time].in_time_zone(TIME_ZONE)
+        start_time_et = data[:start_time].in_time_zone(SchoolTimeZone::NAME)
+        end_time_et   = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
 
-        google_event.start = { date_time: start_time_et.iso8601, time_zone: TIME_ZONE }
-        google_event.end   = { date_time: end_time_et.iso8601,   time_zone: TIME_ZONE }
+        google_event.start = { date_time: start_time_et.iso8601, time_zone: SchoolTimeZone::NAME }
+        google_event.end   = { date_time: end_time_et.iso8601,   time_zone: SchoolTimeZone::NAME }
       end
     end
 

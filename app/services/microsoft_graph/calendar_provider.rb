@@ -12,7 +12,6 @@ module MicrosoftGraph
   class CalendarProvider
     include CalendarEventPreparation
 
-    LOCAL_TIME_ZONE = "America/New_York"
 
     attr_reader :user
 
@@ -278,7 +277,7 @@ module MicrosoftGraph
       attributes = {
         external_calendar_id: remote.fetch("id"),
         summary:              remote["name"],
-        time_zone:            LOCAL_TIME_ZONE,
+        time_zone:            SchoolTimeZone::NAME,
         placement:            placement
       }
 
@@ -504,7 +503,7 @@ module MicrosoftGraph
     # once the series exists. Updating a series restores its occurrences, so this
     # runs after every create and update.
     def cancel_excluded_occurrences(event_id, data)
-      zone = Time.find_zone!(LOCAL_TIME_ZONE)
+      zone = SchoolTimeZone.zone
 
       MicrosoftGraph::EventPayload.excluded_dates(data[:recurrence]).each do |date|
         day_start = zone.local(date.year, date.month, date.day)

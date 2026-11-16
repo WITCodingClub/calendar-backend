@@ -46,7 +46,6 @@ class FriendMeeting < ApplicationRecord
 
   set_public_id_prefix :fmt, min_hash_length: 12
 
-  LOCAL_TIME_ZONE  = "America/New_York"
   MAX_DURATION     = 12.hours
   MAX_ATTENDEES    = 20
   TITLE_MAX_LENGTH = 200
@@ -145,7 +144,7 @@ class FriendMeeting < ApplicationRecord
         schedule = IceCube::Schedule.new(local_start, duration: duration)
         schedule.add_recurrence_rule(recurrence_rule.until(recurrence_until))
         schedule.occurrences_between(range_start, range_end, spans: true)
-                .uniq { |time| time.in_time_zone(LOCAL_TIME_ZONE).strftime("%F %T") }
+                .uniq { |time| time.in_time_zone(SchoolTimeZone::NAME).strftime("%F %T") }
       else
         [ local_start ]
       end
@@ -188,7 +187,7 @@ class FriendMeeting < ApplicationRecord
   end
 
   def local_start
-    start_time.in_time_zone(LOCAL_TIME_ZONE)
+    start_time.in_time_zone(SchoolTimeZone::NAME)
   end
 
   # The people that get an invitation: the friends, if the person asked for
@@ -217,7 +216,7 @@ class FriendMeeting < ApplicationRecord
   end
 
   def recurrence_until
-    Time.find_zone!(LOCAL_TIME_ZONE).local(repeat_until.year, repeat_until.month, repeat_until.day, 23, 59, 59)
+    SchoolTimeZone.zone.local(repeat_until.year, repeat_until.month, repeat_until.day, 23, 59, 59)
   end
 
   def end_time_after_start_time

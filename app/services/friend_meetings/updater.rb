@@ -58,7 +58,7 @@ module FriendMeetings
     def moved_days(days)
       return Array(days) unless @meeting.start_time_changed? && @meeting.start_time_was
 
-      old_day = @meeting.start_time_was.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE).strftime("%A").downcase
+      old_day = @meeting.start_time_was.in_time_zone(SchoolTimeZone::NAME).strftime("%A").downcase
       Array(days) - [ old_day ]
     end
 

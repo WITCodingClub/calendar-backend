@@ -15,8 +15,6 @@ module MicrosoftGraph
   # time for people who check the person's availability. An all-day event, for
   # example a holiday, shows as free, like Outlook's own default.
   class EventPayload
-    GRAPH_TIME_ZONE = "Eastern Standard Time"
-    LOCAL_TIME_ZONE = "America/New_York"
     TIME_FORMAT     = "%Y-%m-%dT%H:%M:%S"
 
     DAYS = {
@@ -82,7 +80,7 @@ module MicrosoftGraph
     end
 
     def local_start
-      data[:start_time].in_time_zone(LOCAL_TIME_ZONE)
+      data[:start_time].in_time_zone(SchoolTimeZone::NAME)
     end
 
     def start_value
@@ -92,12 +90,12 @@ module MicrosoftGraph
     # An all-day event ends at midnight on the day after, like Google's
     # exclusive end date.
     def end_value
-      local_end = data[:end_time].in_time_zone(LOCAL_TIME_ZONE)
+      local_end = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
       all_day? ? (local_end.to_date + 1.day).beginning_of_day.strftime(TIME_FORMAT) : local_end.strftime(TIME_FORMAT)
     end
 
     def time_payload(value)
-      { dateTime: value, timeZone: GRAPH_TIME_ZONE }
+      { dateTime: value, timeZone: MicrosoftGraph::TIME_ZONE }
     end
 
     def recurrence_payload
@@ -133,10 +131,10 @@ module MicrosoftGraph
     end
 
     def range_payload(until_value, start_date)
-      range = { startDate: start_date.iso8601, recurrenceTimeZone: GRAPH_TIME_ZONE }
+      range = { startDate: start_date.iso8601, recurrenceTimeZone: MicrosoftGraph::TIME_ZONE }
       return range.merge(type: "noEnd") if until_value.blank?
 
-      end_date = Time.parse(until_value).in_time_zone(LOCAL_TIME_ZONE).to_date
+      end_date = Time.parse(until_value).in_time_zone(SchoolTimeZone::NAME).to_date
       range.merge(type: "endDate", endDate: end_date.iso8601)
     end
 

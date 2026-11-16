@@ -12,7 +12,7 @@ module CourseCalendars
   #
   #   CourseCalendars::IcsFeed.new(user).to_ical
   class IcsFeed
-    TZID = "America/New_York"
+    TZID = SchoolTimeZone::NAME
 
     # How often a calendar app should fetch the feed again, as an iCalendar
     # duration. Apps that subscribe by URL, such as Cozi, Apple Calendar, and

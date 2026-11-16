@@ -26,6 +26,10 @@ module MicrosoftGraph
   # creates the Outlook categories that color events.
   SCOPES = %w[openid email profile offline_access Calendars.ReadWrite MailboxSettings.ReadWrite].freeze
 
+  # The Windows name of SchoolTimeZone. Graph takes Windows zone names in event
+  # times, recurrence ranges and the outlook.timezone header.
+  TIME_ZONE = "Eastern Standard Time"
+
   module_function
 
   def config

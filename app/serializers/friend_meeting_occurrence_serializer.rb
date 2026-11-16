@@ -18,8 +18,8 @@ class FriendMeetingOccurrenceSerializer
     {
       id:         self.class.occurrence_id(@meeting, @starts_at),
       meeting_id: @meeting.public_id,
-      start_time: @starts_at.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE).iso8601,
-      end_time:   @ends_at.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE).iso8601
+      start_time: @starts_at.in_time_zone(SchoolTimeZone::NAME).iso8601,
+      end_time:   @ends_at.in_time_zone(SchoolTimeZone::NAME).iso8601
     }
   end
 end

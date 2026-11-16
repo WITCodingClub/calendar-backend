@@ -12,7 +12,6 @@ module GoogleCalendar
   class CalendarManager
     CALENDAR_NAME      = "WIT Courses"
     CALENDAR_COLOR_ID  = "7"
-    TIME_ZONE          = "America/New_York"
     ENV_PREFIXES       = { "test" => "[TEST] ", "development" => "[DEV] ", "stage" => "[STAGE] " }.freeze
     LIST_RETRIES       = 3
     LIST_RETRY_SECONDS = 10
@@ -31,7 +30,7 @@ module GoogleCalendar
       calendar = Google::Apis::CalendarV3::Calendar.new(
         summary:     "#{env_prefix}#{CALENDAR_NAME}",
         description: "#{env_prefix}Course schedule for #{user.email}.\nCreated and Updated by WIT Course Calendar App.",
-        time_zone:   TIME_ZONE
+        time_zone:   SchoolTimeZone::NAME
       )
 
       rate_limiter.with_rate_limit_handling { service.insert_calendar(calendar) }

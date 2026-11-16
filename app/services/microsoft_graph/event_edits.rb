@@ -12,7 +12,6 @@ module MicrosoftGraph
   class EventEdits
     # The fields a GET must ask for.
     SELECT          = "id,subject,location,start,end,isAllDay,recurrence,categories"
-    LOCAL_TIME_ZONE = "America/New_York"
     UTC_ZONES       = %w[UTC Etc/GMT GMT].freeze
 
     def initialize(row, remote)
@@ -75,13 +74,13 @@ module MicrosoftGraph
     def parse_time(value)
       return nil if value.blank? || value["dateTime"].blank?
 
-      zone = UTC_ZONES.include?(value["timeZone"]) ? Time.find_zone!("UTC") : Time.find_zone!(LOCAL_TIME_ZONE)
-      zone.parse(value["dateTime"])&.in_time_zone(LOCAL_TIME_ZONE)
+      zone = UTC_ZONES.include?(value["timeZone"]) ? Time.find_zone!("UTC") : SchoolTimeZone.zone
+      zone.parse(value["dateTime"])&.in_time_zone(SchoolTimeZone::NAME)
     end
 
     def time_changed?(remote_time, row_time, all_day:)
       return remote_time != row_time if remote_time.nil? || row_time.nil?
-      return remote_time.to_date != row_time.in_time_zone(LOCAL_TIME_ZONE).to_date if all_day
+      return remote_time.to_date != row_time.in_time_zone(SchoolTimeZone::NAME).to_date if all_day
 
       remote_time.to_i != row_time.to_i
     end

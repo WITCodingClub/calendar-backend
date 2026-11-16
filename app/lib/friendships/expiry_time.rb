@@ -5,7 +5,7 @@ module Friendships
   # dashboard. All of them use this one rule:
   #
   # - A date with no time ("2026-12-01") means the end of that day in
-  #   America/New_York, the school's time zone.
+  #   the school time zone (SchoolTimeZone).
   # - A date and time follows Friendships::OffsetTime: it must carry a UTC
   #   offset.
   #
@@ -15,7 +15,6 @@ module Friendships
   # Friendships::ExpiryTime.parse("2026-12-01") # => 2026-12-01 23:59:59 EST
   # Friendships::ExpiryTime.parse("2026-12-01T12:00:00") # => nil
   module ExpiryTime
-    ZONE      = "America/New_York"
     DATE_ONLY  = /\A\d{4}-\d{2}-\d{2}\z/
 
     module_function
@@ -27,7 +26,7 @@ module Friendships
 
       return OffsetTime.parse(value) unless value.match?(DATE_ONLY)
 
-      Date.iso8601(value).in_time_zone(ActiveSupport::TimeZone[ZONE]).end_of_day.change(usec: 0).in_time_zone
+      Date.iso8601(value).in_time_zone(SchoolTimeZone.zone).end_of_day.change(usec: 0).in_time_zone
     rescue Date::Error
       nil
     end

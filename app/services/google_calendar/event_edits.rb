@@ -10,16 +10,14 @@ module GoogleCalendar
   # does not store it, so the rule would freeze every description.
   # MicrosoftGraph::EventEdits follows the same rules.
   class EventEdits
-    TIME_ZONE = "America/New_York"
-
-    # A Google EventDateTime as a time in TIME_ZONE, or nil.
+    # A Google EventDateTime as a time in SchoolTimeZone::NAME, or nil.
     def self.parse_time(time_obj)
       return nil unless time_obj
 
       value = time_obj.date_time || time_obj.date
       return nil unless value
 
-      value.is_a?(String) ? Time.zone.parse(value).in_time_zone(TIME_ZONE) : value.in_time_zone(TIME_ZONE)
+      value.is_a?(String) ? Time.zone.parse(value).in_time_zone(SchoolTimeZone::NAME) : value.in_time_zone(SchoolTimeZone::NAME)
     end
 
     def self.normalize_recurrence(recurrence)
@@ -100,7 +98,7 @@ module GoogleCalendar
 
     def time_changed?(remote_time, row_time)
       return remote_time != row_time if remote_time.nil? || row_time.nil?
-      return remote_time.to_date != row_time.in_time_zone(TIME_ZONE).to_date if all_day?
+      return remote_time.to_date != row_time.in_time_zone(SchoolTimeZone::NAME).to_date if all_day?
 
       remote_time.to_i != row_time.to_i
     end

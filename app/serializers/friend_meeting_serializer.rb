@@ -56,7 +56,7 @@ class FriendMeetingSerializer
       location:        @meeting.location,
       start_time:      local(@meeting.start_time),
       end_time:        local(@meeting.end_time),
-      time_zone:       FriendMeeting::LOCAL_TIME_ZONE,
+      time_zone:       SchoolTimeZone::NAME,
       frequency:       @meeting.frequency,
       recurrence:      @meeting.recurrence&.first,
       repeat_interval: @meeting.repeat_interval,
@@ -96,5 +96,5 @@ class FriendMeetingSerializer
 
   def person(user) = { id: user.public_id, name: user.full_name }
 
-  def local(time) = time.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE).iso8601
+  def local(time) = time.in_time_zone(SchoolTimeZone::NAME).iso8601
 end
