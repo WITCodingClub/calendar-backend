@@ -30,7 +30,7 @@ module Catalog
 
       json.merge(
         description:         @course.description,
-        prerequisites:       enrich(@course.prerequisites),
+        prerequisites:       PrerequisiteTree.new(@course.prerequisites).map_courses { |node| enrich(node) },
         corequisites:        @course.corequisites.map { |ref| enrich(ref.merge("type" => "course")) },
         restrictions:        @course.restrictions,
         mutual_exclusions:   @course.mutual_exclusions.map { |ref| enrich(ref.merge("type" => "course")) },
@@ -55,14 +55,11 @@ module Catalog
 
     def summary(course) = self.class.summary(course)
 
+    # A course node with its title and whether WIT Calendar knows the course.
     def enrich(node)
-      return nil if node.nil?
-      return node.merge("operands" => node["operands"].map { |operand| enrich(operand) }) if node["operands"]
-      return node unless node["type"] == "course"
-
       known = known_courses[[ node["subject_code"], node["course_number"].to_i ]]
       node.merge(
-        "code"   => "#{node['subject_code']} #{node['course_number']}",
+        "code"   => CourseCode.format(node["subject_code"], node["course_number"]),
         "title"  => known&.title,
         "linked" => known.present?
       )
@@ -72,26 +69,16 @@ module Catalog
     # in one query.
     def known_courses
       @known_courses ||= begin
-        refs = course_refs(@course.prerequisites) + @course.corequisites + @course.mutual_exclusions
-        pairs = refs.map { |ref| [ ref["subject_code"], ref["course_number"].to_i ] }.uniq
-        if pairs.empty?
-          {}
-        else
-          conditions = pairs.map { "(subject_code = ? AND course_number = ?)" }.join(" OR ")
-          CatalogCourse.where(conditions, *pairs.flatten).index_by { |c| [ c.subject_code, c.course_number ] }
-        end
+        refs = PrerequisiteTree.new(@course.prerequisites).courses + @course.corequisites + @course.mutual_exclusions
+        CatalogCourse.by_codes(refs.map { |ref| [ ref["subject_code"], ref["course_number"].to_i ] })
+                     .index_by { |c| [ c.subject_code, c.course_number ] }
       end
     end
 
-    def course_refs(node)
-      return [] if node.nil?
-      return [ node ] if node["type"] == "course"
-
-      Array(node["operands"]).flat_map { |operand| course_refs(operand) }
-    end
-
     def sections
-      relation = SectionQuery.with_associations(@course.sections_in(@term))
+      relation = SectionQuery.with_associations(
+        SectionQuery.new.call(term_uid: @term.uid, subject: [ @course.subject_code ], course_number: [ @course.course_number ])
+      )
       relation.map { |section| SectionSerializer.new(section, catalog_courses: {}).as_json.except(:course) }
     end
   end

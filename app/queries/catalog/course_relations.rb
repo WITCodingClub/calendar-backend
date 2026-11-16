@@ -64,29 +64,24 @@ module Catalog
         if pairs.empty?
           {}
         else
-          clauses = pairs.map { "((courses.subject = ? OR courses.subject ILIKE ?) AND courses.course_number = ?)" }.join(" OR ")
-          binds   = pairs.flat_map { |code, number| [ code, "%(#{code})", number ] }
+          conditions = pairs.map do |code, number|
+            Course.sanitize_sql_array(CourseCode.subject_condition("courses.subject", [ code ])) +
+              Course.sanitize_sql_array([ " AND courses.course_number = ?", number ])
+          end
           same_term = ActiveRecord::Base.sanitize_sql_array([ "courses.term_id = ? DESC", course.term_id ])
 
           Course.joins(:term)
-                .where(clauses, *binds)
+                .where(conditions.map { |condition| "(#{condition})" }.join(" OR "))
                 .order(Arel.sql(same_term), Arel.sql("terms.start_date DESC NULLS LAST"), "terms.year DESC", :section_number)
-                .each_with_object({}) { |section, map| map[[ section.prefix.upcase, section.course_number ]] ||= section }
+                .each_with_object({}) { |section, map| map[[ section.prefix, section.course_number ]] ||= section }
         end
       end
     end
 
     def codes
-      refs = course_refs(prerequisites) + corequisites + mutual_exclusions
+      refs = PrerequisiteTree.new(prerequisites).courses + corequisites + mutual_exclusions
       refs.map { |ref| [ ref["subject_code"].to_s.upcase, ref["course_number"].to_i ] } +
         unlocks.map { |unlocked| [ unlocked.subject_code, unlocked.course_number ] }
-    end
-
-    def course_refs(node)
-      return [] if node.nil?
-      return [ node ] if node["type"] == "course"
-
-      Array(node["operands"]).flat_map { |operand| course_refs(operand) }
     end
   end
 end

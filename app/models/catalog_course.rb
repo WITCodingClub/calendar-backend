@@ -51,8 +51,6 @@
 class CatalogCourse < ApplicationRecord
   include Embeddable
 
-  CODE_PATTERN = /\A\s*([A-Za-z]{2,5})\s*-?\s*(\d{3,4})\s*\z/
-
   # Learning objectives can run to several pages. The vector keeps the start,
   # so the objectives add meaning without drowning out the title.
   OBJECTIVES_LIMIT = 1_000
@@ -75,18 +73,25 @@ class CatalogCourse < ApplicationRecord
 
   before_validation { self.subject_code = subject_code&.strip&.upcase }
 
-  # "COMP2350", "COMP 2350", or "comp-2350" to ["COMP", 2350], or nil.
-  def self.parse_code(code)
-    match = CODE_PATTERN.match(code.to_s)
-    match && [ match[1].upcase, match[2].to_i ]
-  end
+  # [subject_code, course_number] pairs, such as [["COMP", 2350]].
+  scope :by_codes, ->(pairs) { pairs.empty? ? none : where([ :subject_code, :course_number ] => pairs.uniq) }
+
+  # The degree code still calls this; new code calls CourseCode.parse.
+  def self.parse_code(code) = CourseCode.parse(code)
 
   def self.find_by_code(code)
-    subject_code, course_number = parse_code(code)
+    subject_code, course_number = CourseCode.parse(code)
     subject_code && find_by(subject_code: subject_code, course_number: course_number)
   end
 
-  def code = "#{subject_code} #{course_number}"
+  # The catalog courses of some sections, keyed by [subject_code,
+  # course_number], in one query.
+  def self.for_sections(sections)
+    by_codes(sections.map { |section| [ section.prefix, section.course_number ] })
+      .index_by { |course| [ course.subject_code, course.course_number ] }
+  end
+
+  def code = CourseCode.format(subject_code, course_number)
 
   # What the course teaches, in the words a student would search with. One
   # vector stands for every section of the course (docs/embeddings.md).
@@ -108,10 +113,5 @@ class CatalogCourse < ApplicationRecord
   # The entry from the newest catalog year that lists this course.
   def newest_catalog_entry
     catalog_year_courses.max_by { |entry| entry.catalog_year.start_year }
-  end
-
-  # The sections of this course in one term.
-  def sections_in(term)
-    Catalog::SectionQuery.new.call(term_uid: term.uid, subject: [ subject_code ], course_number: [ course_number ])
   end
 end

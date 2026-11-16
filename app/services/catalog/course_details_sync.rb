@@ -34,14 +34,14 @@ module Catalog
       # (Catalog::SubjectLabels), and the next seed makes the row.
       rows = sections.joins(:term).order("terms.uid": :desc, crn: :asc)
                      .pluck(:subject, :course_number, :title)
-                     .select { |subject, _, _| code?(prefix_of(subject)) }
-                     .uniq { |subject, number, _| [ prefix_of(subject), number ] }
+                     .select { |subject, _, _| code?(CourseCode.subject_of(subject)) }
+                     .uniq { |subject, number, _| [ CourseCode.subject_of(subject), number ] }
       return 0 if rows.empty?
 
       now = Time.current
       inserted = CatalogCourse.insert_all(
         rows.map do |subject, number, title|
-          { subject_code: prefix_of(subject), course_number: number, title: title, created_at: now, updated_at: now }
+          { subject_code: CourseCode.subject_of(subject), course_number: number, title: title, created_at: now, updated_at: now }
         end,
         unique_by: %i[subject_code course_number]
       )
@@ -52,12 +52,11 @@ module Catalog
     end
 
     def self.code?(prefix)
-      prefix.match?(SubjectLabels::BARE_CODE)
+      prefix.match?(CourseCode::BARE_SUBJECT)
     end
 
-    def self.prefix_of(subject)
-      Course.prefix_of(subject).upcase
-    end
+    # DegreeRequirements::CourseComparison still calls this.
+    def self.prefix_of(subject) = CourseCode.subject_of(subject)
 
     # The degree requirements and the term elective lists name courses by
     # code. A course that Banner lists for the first time gets its links here
@@ -79,8 +78,7 @@ module Catalog
     def self.refresh_titles(rows, now)
       return 0 if rows.empty?
 
-      codes = rows.map { |subject, number, _| [ prefix_of(subject), number.to_i ] }.uniq
-      catalog_ids = CatalogCourse.where([ :subject_code, :course_number ] => codes).select(:id)
+      catalog_ids = CatalogCourse.by_codes(rows.map { |subject, number, _| [ CourseCode.subject_of(subject), number.to_i ] }).select(:id)
 
       newest = Course.joins(:term).joins_catalog_course
                      .where(catalog_courses: { id: catalog_ids })
@@ -130,7 +128,7 @@ module Catalog
     # [subject_code, course_number, crn] with the lowest CRN of each course.
     def one_section_per_course
       @term.courses.order(:crn).pluck(:subject, :course_number, :crn)
-           .map { |subject, number, crn| [ self.class.prefix_of(subject), number, crn ] }
+           .map { |subject, number, crn| [ CourseCode.subject_of(subject), number, crn ] }
            .select { |code, _, _| self.class.code?(code) }
            .uniq { |code, number, _| [ code, number ] }
     end
@@ -181,7 +179,7 @@ module Catalog
 
     def replace_prerequisite_links(catalog_course, tree)
       catalog_course.course_prerequisites.delete_all
-      leaves = course_leaves(tree).uniq { |leaf| [ leaf["subject_code"], leaf["course_number"] ] }
+      leaves = PrerequisiteTree.new(tree).courses.uniq { |leaf| [ leaf["subject_code"], leaf["course_number"] ] }
       return if leaves.empty?
 
       ids = CatalogCourse.where(subject_code: leaves.map { |leaf| leaf["subject_code"] }.uniq)
@@ -201,13 +199,6 @@ module Catalog
           }
         end
       )
-    end
-
-    def course_leaves(node)
-      return [] if node.nil?
-      return [ node ] if node["type"] == "course"
-
-      Array(node["operands"]).flat_map { |operand| course_leaves(operand) }
     end
   end
 end

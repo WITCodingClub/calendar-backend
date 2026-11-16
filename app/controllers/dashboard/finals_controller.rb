@@ -31,7 +31,7 @@ module Dashboard
                                       .page(page_param).per(50)
       # The catalog course of each section, so a row links to its page only
       # when the page exists.
-      @catalog_courses = Catalog::CourseQuery.for_sections(@exams.filter_map(&:course))
+      @catalog_courses = CatalogCourse.for_sections(@exams.filter_map(&:course))
     end
 
     private

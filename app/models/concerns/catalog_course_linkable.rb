@@ -10,6 +10,8 @@ module CatalogCourseLinkable
   included do
     belongs_to :catalog_course, optional: true
 
+    scope :by_codes, ->(pairs) { pairs.empty? ? none : where([ :subject_code, :course_number ] => pairs.uniq) }
+
     before_validation { self.subject_code = subject_code&.strip&.upcase.presence }
     # A new code makes the old link wrong. link_catalog_courses sets it again.
     before_save do
@@ -34,6 +36,6 @@ module CatalogCourseLinkable
   end
 
   def code
-    "#{subject_code} #{course_number}" if subject_code && course_number
+    CourseCode.format(subject_code, course_number) if subject_code && course_number
   end
 end

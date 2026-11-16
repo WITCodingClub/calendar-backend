@@ -116,15 +116,14 @@ module Catalog
         end
       end
 
-      # The same subject match as Catalog::SectionQuery: the bare code or a
-      # label that ends in "(CODE)". Course.prefix_of then checks each row.
+      # A wide match: the course numbers, and the subjects as the bare code or
+      # a label that ends in "(CODE)". code_of then checks each row.
       def code_clause
-        clauses = all_codes.map { "(courses.course_number = ? AND (courses.subject = ? OR courses.subject ILIKE ?))" }
-        binds   = all_codes.flat_map { |subject, number| [ number, subject, "%(#{subject})" ] }
-        [ clauses.join(" OR "), *binds ]
+        subject_sql, *binds = CourseCode.subject_condition("courses.subject", all_codes.map(&:first).uniq)
+        [ "courses.course_number IN (?) AND (#{subject_sql})", all_codes.map(&:last).uniq, *binds ]
       end
 
-      def code_of(course) = [ Course.prefix_of(course.subject).upcase, course.course_number ]
+      def code_of(course) = [ course.prefix, course.course_number ]
 
       # The loaded sections by id, so a partner reached through a link is the
       # same object as the section loaded for its own code.

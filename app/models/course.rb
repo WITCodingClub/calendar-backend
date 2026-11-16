@@ -50,18 +50,12 @@ class Course < ApplicationRecord
   include CourseChangeTrackable
   include EncodedIds::HashidIdentifiable
 
-  # Joins each section to its CatalogCourse, the way
-  # Catalog::CourseDetailsSync.prefix_of reads the code out of the subject:
-  # "Computer Science (COMP)" to "COMP".
-  # The subject code at the end of a label: "Computer Science (COMP)".
-  # "(optional)" is not a code (Catalog::SubjectLabels).
-  SUBJECT_CODE_SUFFIX = /\(([A-Z0-9]{2,6})\)\s*\z/
+  tracks_calendar_changes "title", "start_date", "end_date", "subject", "course_number", "section_number", course_id: :id, on: :update
 
-  # Course.prefix_of in SQL.
-  SUBJECT_CODE_SQL = <<~'SQL'.squish
-    UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([A-Z0-9]{2,6})\)\s*$'), courses.subject)))
-  SQL
+  # The subject code of each section (CourseCode.subject_of), in SQL.
+  SUBJECT_CODE_SQL = CourseCode.subject_sql("courses.subject")
 
+  # Joins each section to its CatalogCourse by the subject code and number.
   CATALOG_COURSE_JOIN = <<~SQL.squish
     INNER JOIN catalog_courses
       ON catalog_courses.course_number = courses.course_number
@@ -109,15 +103,11 @@ class Course < ApplicationRecord
   end
 
   def prefix
-    self.class.prefix_of(subject)
+    CourseCode.subject_of(subject)
   end
 
-  # "Computer Science (COMP)" => "COMP". A subject stored as the bare code,
-  # "COMP", is the code.
-  def self.prefix_of(subject)
-    subject = subject.to_s.strip
-    subject[SUBJECT_CODE_SUFFIX, 1] || subject
-  end
+  # The degree code still calls this (AcademicProfiles::DegreeProgress).
+  def self.prefix_of(subject) = CourseCode.subject_of(subject)
 
   # Banner writes linked sections as <slot><key>. The slot says what the section
   # is for within the pairing, and the key says which pairing it belongs to. In
@@ -223,7 +213,7 @@ class Course < ApplicationRecord
   # The CatalogCourse of this section. Catalog::CourseDetailsSync.seed makes
   # one for every course that has a section.
   def catalog_course
-    CatalogCourse.find_by(subject_code: Catalog::CourseDetailsSync.prefix_of(subject), course_number: course_number)
+    CatalogCourse.find_by(subject_code: prefix, course_number: course_number)
   end
 
   # Sections that teach something close to this one, nearest first.

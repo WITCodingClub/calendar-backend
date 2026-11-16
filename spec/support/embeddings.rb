@@ -62,7 +62,7 @@ module EmbeddingHelpers
 
   def catalog_course_for(section)
     section.catalog_course ||
-      create(:catalog_course, subject_code: Catalog::CourseDetailsSync.prefix_of(section.subject),
+      create(:catalog_course, subject_code: section.prefix,
                               course_number: section.course_number, title: section.title)
   end
 end

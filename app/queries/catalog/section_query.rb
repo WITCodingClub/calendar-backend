@@ -75,12 +75,10 @@ module Catalog
     def apply_subject(relation, subject)
       return relation if subject.blank?
 
-      values = Array(subject).map { |s| s.to_s.strip }.reject(&:empty?)
+      values = Array(subject).map { |s| s.to_s.strip }.compact_blank
       return relation if values.empty?
 
-      clauses = values.map { "courses.subject = ? OR courses.subject ILIKE ?" }.join(" OR ")
-      binds   = values.flat_map { |value| [ value, "%(#{value})" ] }
-      relation.where(clauses, *binds)
+      relation.where(*CourseCode.subject_condition("courses.subject", values))
     end
 
     def apply_course_number(relation, course_number)

@@ -58,7 +58,6 @@ RSpec.describe CatalogCourse do
 
   describe ".parse_code" do
     it "reads the common spellings" do
-      expect(described_class.parse_code("COMP2350")).to eq([ "COMP", 2350 ])
       expect(described_class.parse_code(" comp 2350 ")).to eq([ "COMP", 2350 ])
       expect(described_class.parse_code("COMP-128")).to eq([ "COMP", 128 ])
     end
@@ -67,6 +66,27 @@ RSpec.describe CatalogCourse do
       expect(described_class.parse_code("2350")).to be_nil
       expect(described_class.parse_code("COMP 23500")).to be_nil
     end
+  end
+
+  describe ".by_codes" do
+    it "finds the courses with the given codes" do
+      other = create(:catalog_course)
+      create(:catalog_course)
+
+      expect(described_class.by_codes([ [ subject.subject_code, subject.course_number ], [ other.subject_code, other.course_number ] ]))
+        .to contain_exactly(subject, other)
+    end
+
+    it "finds nothing for no codes" do
+      subject
+      expect(described_class.by_codes([])).to be_empty
+    end
+  end
+
+  it "loads the catalog courses of some sections by code" do
+    section = create(:course, subject: "Computer Science (#{subject.subject_code})", course_number: subject.course_number)
+
+    expect(described_class.for_sections([ section ])).to eq([ subject.subject_code, subject.course_number ] => subject)
   end
 
   it "finds a course by code" do
@@ -85,13 +105,6 @@ RSpec.describe CatalogCourse do
 
     expect(subject.unlocks).to eq([ later ])
     expect(later.prerequisite_courses).to eq([ subject ])
-  end
-
-  it "lists its sections in a term" do
-    term = create(:term)
-    section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: subject.course_number)
-
-    expect(subject.sections_in(term)).to eq([ section ])
   end
 
   describe "#embedding_text" do

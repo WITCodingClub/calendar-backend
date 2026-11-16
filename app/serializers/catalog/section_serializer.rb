@@ -6,12 +6,12 @@ module Catalog
     # A list of sections, with their catalog courses loaded in one query.
     def self.collection(sections)
       sections = sections.to_a
-      catalog_courses = CourseQuery.for_sections(sections)
+      catalog_courses = CatalogCourse.for_sections(sections)
       sections.map { |section| new(section, catalog_courses: catalog_courses).as_json }
     end
 
     # catalog_courses: the CatalogCourse rows of a list of sections, from
-    # CourseQuery.for_sections. Without it, the serializer looks the one
+    # CatalogCourse.for_sections. Without it, the serializer looks the one
     # course up.
     def initialize(course, catalog_courses: nil)
       @course = course
@@ -52,7 +52,7 @@ module Catalog
     end
 
     def self.course_code_for(course)
-      "#{course.prefix} #{course.course_number}-#{course.section_number}"
+      "#{CourseCode.format(course.prefix, course.course_number)}-#{course.section_number}"
     end
 
     # Sections of other courses that meet with this one, such as an
@@ -82,7 +82,7 @@ module Catalog
         if @catalog_courses
           @catalog_courses[[ @course.prefix, @course.course_number ]]
         else
-          CatalogCourse.find_by(subject_code: @course.prefix, course_number: @course.course_number)
+          @course.catalog_course
         end
       return nil if catalog_course.nil?
 
