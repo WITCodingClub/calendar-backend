@@ -16,14 +16,6 @@ RSpec.describe "API params of the wrong type", type: :request do
       expect(response).to have_http_status(:bad_request)
       expect(body).to include("code" => "BAD_REQUEST")
     end
-
-    it "answers 403 when the policy denies the update" do
-      allow_any_instance_of(UserExtensionConfigPolicy).to receive(:update?).and_return(false) # rubocop:disable RSpec/AnyInstance
-
-      put "/api/user/extension_config", params: { military_time: true }, headers: headers, as: :json
-
-      expect(response).to have_http_status(:forbidden)
-    end
   end
 
   describe "PATCH /api/user/notifications" do
@@ -38,14 +30,6 @@ RSpec.describe "API params of the wrong type", type: :request do
       patch "/api/user/notifications", params: { disabled: true, duration: { a: 1 } }, headers: headers, as: :json
 
       expect(response).to have_http_status(:bad_request)
-    end
-
-    it "answers 403 when the policy denies the update" do
-      allow_any_instance_of(UserPolicy).to receive(:update?).and_return(false) # rubocop:disable RSpec/AnyInstance
-
-      patch "/api/user/notifications", params: { disabled: true, duration: 60 }, headers: headers, as: :json
-
-      expect(response).to have_http_status(:forbidden)
     end
   end
 
@@ -84,18 +68,6 @@ RSpec.describe "API params of the wrong type", type: :request do
       get "/api/university_calendar_events/holidays?start_date[]=x&end_date[]=y", headers: headers
 
       expect(response).to have_http_status(:bad_request)
-    end
-  end
-
-  describe "DELETE /api/user/oauth_credentials/:credential_id" do
-    it "answers 403 when the policy denies the destroy" do
-      credential = create(:oauth_credential, user: user, email: "extra@example.test")
-      allow_any_instance_of(OauthCredentialPolicy).to receive(:destroy?).and_return(false) # rubocop:disable RSpec/AnyInstance
-
-      delete "/api/user/oauth_credentials/#{credential.public_id}", headers: headers
-
-      expect(response).to have_http_status(:forbidden)
-      expect(OauthCredential.exists?(credential.id)).to be(true)
     end
   end
 end

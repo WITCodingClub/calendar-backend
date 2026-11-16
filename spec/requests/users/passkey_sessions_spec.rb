@@ -101,8 +101,11 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
     stranger = WebAuthn::FakeClient.new("http://localhost:3000")
     stranger.create(challenge: SecureRandom.urlsafe_base64(32))
 
-    post "/users/passkey/callback",
-         params: { handle: handle, credential: stranger.get(challenge: challenge) }, as: :json
+    # A passkey only opens an account that already exists.
+    expect {
+      post "/users/passkey/callback",
+           params: { handle: handle, credential: stranger.get(challenge: challenge) }, as: :json
+    }.not_to change(User, :count)
 
     expect(response).to have_http_status(:unauthorized)
   end
@@ -122,19 +125,6 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
          as:     :json
 
     expect(response).to have_http_status(:unauthorized)
-  end
-
-  it "creates no account — a passkey only opens one that already exists" do
-    post "/users/passkey/options"
-    handle    = json["handle"]
-    challenge = json.dig("options", "challenge")
-    unknown = WebAuthn::FakeClient.new("http://localhost:3000")
-    unknown.create(challenge: SecureRandom.urlsafe_base64(32))
-
-    expect {
-      post "/users/passkey/callback",
-           params: { handle: handle, credential: unknown.get(challenge: challenge) }, as: :json
-    }.not_to change(User, :count)
   end
 
   describe "malformed credentials" do

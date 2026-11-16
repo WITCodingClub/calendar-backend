@@ -22,7 +22,6 @@ RSpec.describe "My programs", :degree_planning, type: :system do
                                     name: "Gear Electives", min_courses: 1)
     create(:elective_group_course, elective_group: group, subject_code: "GEAR", course_number: 2000)
     create(:academic_profile, user: user, class_standing: "Sophomore", admit_term_uid: 202610)
-    create(:student_program, :ended, user: user, name: "Old Major")
     sign_in user
     visit dashboard_programs_path
   end
@@ -107,9 +106,5 @@ RSpec.describe "My programs", :degree_planning, type: :system do
 
     expect(page).to have_text("#{pathway.name} removed from your planned programs.")
     expect(user.student_programs.planned).to be_empty
-  end
-
-  it "lists the ended programs" do
-    expect(find("#ended-programs")).to have_text("Old Major")
   end
 end

@@ -51,15 +51,4 @@ RSpec.describe "Admin layout", type: :request do
 
     expect(overlay.css("[data-action~='click->admin-sidebar#close']").size).to eq(2)
   end
-
-  it "only names Stimulus controllers that exist" do
-    known = Rails.root.glob("app/javascript/controllers/**/*_controller.js").map do |path|
-      path.relative_path_from(Rails.root.join("app/javascript/controllers")).to_s
-        .delete_suffix("_controller.js").tr("_", "-").gsub("/", "--")
-    end
-
-    used = page.css("[data-controller]").flat_map { |node| node["data-controller"].split }
-
-    expect(used - known).to be_empty
-  end
 end

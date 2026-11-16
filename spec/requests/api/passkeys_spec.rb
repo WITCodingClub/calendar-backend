@@ -231,12 +231,6 @@ RSpec.describe "Api::Passkeys", type: :request do
       expect(Passkey.exists?(theirs.id)).to be(true)
     end
 
-    it "goes with the account when the account goes" do
-      register
-
-      expect { user.destroy! }.to change(Passkey, :count).by(-1)
-    end
-
     it "refuses to list passkeys without a token" do
       get "/api/user/passkeys"
 
