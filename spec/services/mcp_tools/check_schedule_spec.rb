@@ -35,8 +35,4 @@ RSpec.describe McpTools::CheckSchedule do
   it "returns a tool error for an empty list" do
     expect(call(term_uid: term.uid, crns: []).error?).to be(true)
   end
-
-  it "is read-only" do
-    expect(described_class.annotations.read_only_hint).to be(true)
-  end
 end

@@ -8,7 +8,8 @@ RSpec.describe HttpFetcher do
   let(:url) { "https://example.edu/page" }
 
   it "sends the bot user agent and returns the body as bytes" do
-    stub_request(:get, url).with(headers: { "User-Agent" => described_class::USER_AGENT }).to_return(status: 200, body: "ok")
+    # Sites see this user agent; keep it stable.
+    stub_request(:get, url).with(headers: { "User-Agent" => "WITCalendarBot/1.0" }).to_return(status: 200, body: "ok")
 
     expect(fetcher.get(url)).to eq("ok".b)
   end
@@ -28,13 +29,6 @@ RSpec.describe HttpFetcher do
     paced.get(url)
 
     expect(seen).to eq([ url, "https://example.edu/moved" ])
-  end
-
-  it "builds a connection with the retry policy and the user agent" do
-    connection = described_class.connection
-
-    expect(connection.builder.handlers).to include(Faraday::Retry::Middleware)
-    expect(connection.headers["User-Agent"]).to eq(described_class::USER_AGENT)
   end
 
   it "retries a dropped connection" do

@@ -87,12 +87,15 @@ RSpec.describe Catalog::Freshness do
     expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
   end
 
-  # The schedule text comes from config/recurring.yml, so it changes with the jobs.
-  it "words the schedules of the recurring syncs" do
-    expect(described_class.schedule(:course_data_sync)).to eq("every day at 4am Eastern")
-    expect(described_class.schedule(:university_calendar_sync)).to eq("every Saturday at 2am Eastern")
-    expect(described_class.interval(:catalog_seat_refresh)).to eq("30 minutes")
-    expect(described_class::SOURCES[:sections][:schedule]).to start_with("Every day at 4am Eastern, for the current")
+  it "words the schedule of a recurring task from config/recurring.yml" do
+    stub_const("#{described_class}::RECURRING", {
+      "weekly"   => { "schedule" => "every saturday at 2am" },
+      "interval" => { "schedule" => "every 30 minutes" }
+    })
+
+    expect(described_class.schedule(:weekly)).to eq("every Saturday at 2am Eastern")
+    expect(described_class.schedule(:interval)).to eq("every 30 minutes")
+    expect(described_class.interval(:interval)).to eq("30 minutes")
   end
 
   it "gives the time of the newest catalog import" do

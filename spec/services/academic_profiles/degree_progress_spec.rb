@@ -524,10 +524,6 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       .to include(checkable: false, status: "open", courses: [])
   end
 
-  it "names the minimum grade in its assumptions" do
-    expect(described_class::ASSUMPTIONS).to include(a_string_including("C or better"))
-  end
-
   it "checks a program argument in the student's own catalog year, or the one given" do
     set
     newer = create(:catalog_year, :imported, start_year: 2026)

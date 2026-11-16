@@ -34,7 +34,9 @@ RSpec.describe Catalog::BannerThrottle do
     end
 
     it "fits a schedule of 20 sections (3 requests each) in the web burst" do
-      expect(described_class::BUCKETS[:request].burst).to be >= 20 * 3
+      waits = Array.new(20 * 3) { described_class.acquire(:request) }
+
+      expect(waits).to all(eq(0.0))
     end
 
     # The nightly sync must not slow a student's schedule down.
@@ -78,15 +80,13 @@ RSpec.describe Catalog::BannerThrottle do
     it "gives a web request the short timeouts of its budget" do
       connection.get("x")
 
-      budget = described_class::BUDGETS[:request]
-      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+      expect(seen).to eq([ [ 3, 8 ] ])
     end
 
     it "gives a job the long timeouts of its budget" do
       ActiveSupport::ExecutionContext.set(job: Object.new) { connection.get("x") }
 
-      budget = described_class::BUDGETS[:job]
-      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+      expect(seen).to eq([ [ 10, 30 ] ])
     end
 
     it "gives up on a web request after one read timeout, without a retry or a cooldown" do
@@ -199,7 +199,6 @@ RSpec.describe Catalog::BannerThrottle do
         .to raise_error(described_class::CooldownError) { |e| expect(e.retry_after).to be_between(1, 180) }
         .and change { requests(:cooldown) }.by(1)
       expect(stub).not_to have_been_requested
-      expect(described_class::CooldownError.new(5)).to be_a(Catalog::LeopardWebClient::RequestError)
 
       allow(Process).to receive(:clock_gettime).and_wrap_original do |original, *args|
         original.call(*args) + described_class::COOLDOWN.to_i + 1

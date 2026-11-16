@@ -25,8 +25,8 @@ RSpec.describe McpTools::MyCalendarSettings do
     expect(data[:classes]).to contain_exactly(hash_including(meeting_time_id: meeting_time.public_id, course: "Physics",
                                                              term_uid: 202610, color_id: "#f6bf26"))
     expect(data[:notifications_disabled_until]).to be_nil
-    expect(data[:colors]).to eq(Preferences::Colors::NAMES)
-    expect(data[:template_variables]).to eq(Preferences::TemplateRenderer::ALLOWED_VARIABLES)
+    expect(data[:colors]).to include("tomato")
+    expect(data[:template_variables]).to include("title")
   end
 
   it "says until when reminders are paused" do

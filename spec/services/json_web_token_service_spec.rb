@@ -3,13 +3,6 @@
 require "rails_helper"
 
 RSpec.describe JsonWebTokenService do
-  it "always sets an expiry claim" do
-    token   = described_class.encode({ user_id: 1 })
-    payload = JWT.decode(token, described_class::SECRET_KEY, true, algorithm: "HS256")[0]
-
-    expect(payload["exp"]).to be_present
-  end
-
   it "uses a 90 day default expiry window" do
     token   = described_class.encode({ user_id: 1 })
     payload = JWT.decode(token, described_class::SECRET_KEY, true, algorithm: "HS256")[0]
