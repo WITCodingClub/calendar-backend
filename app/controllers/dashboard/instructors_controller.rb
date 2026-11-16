@@ -11,7 +11,7 @@ module Dashboard
       authorize Faculty
 
       @query = params[:q].to_s.strip
-      @term  = selected_term(default: nil)
+      @term  = selected_term
       @terms = term_options
       people = Catalog::InstructorQuery.new.call(term_uid: @term&.uid, q: @query.presence)
                                        .page(page_param).per(CatalogPages::PER_PAGE)
@@ -20,14 +20,11 @@ module Dashboard
     end
 
     def show
-      faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:id]) # rubocop:disable Rails/DynamicFindBy
-      raise ActiveRecord::RecordNotFound, "No instructor #{params[:id]}" if faculty.nil?
-
+      faculty = Catalog::InstructorQuery.find!(params[:id])
       authorize faculty
 
-      @offered_terms = Term.where(id: faculty.courses.active.select(:term_id)).reverse_chronological.to_a
-      current        = Term.current
-      @term          = selected_term(default: @offered_terms.include?(current) ? current : @offered_terms.first)
+      @offered_terms = offered_terms(faculty.courses.active)
+      @term          = selected_term(@offered_terms)
       @instructor    = Catalog::InstructorDetailSerializer.new(faculty, term: @term).as_json
       @rmp_url       = "https://www.ratemyprofessors.com/professor/#{faculty.rmp_numeric_id}" if faculty.rmp_id.present?
     end

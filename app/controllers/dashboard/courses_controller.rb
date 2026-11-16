@@ -10,7 +10,7 @@ module Dashboard
       authorize CatalogCourse
 
       @query   = params[:q].to_s.strip
-      @term    = selected_term(default: nil)
+      @term    = selected_term
       @terms   = term_options
       @courses = Catalog::CourseQuery.new.call(q: @query.presence, term_uid: @term&.uid)
                                      .page(page_param).per(CatalogPages::PER_PAGE)
@@ -22,25 +22,12 @@ module Dashboard
 
       authorize catalog_course
 
-      @offered_terms = offered_terms(catalog_course)
-      @term   = selected_term(default: default_term(@offered_terms))
+      @offered_terms = offered_terms(
+        Catalog::SectionQuery.new.call(subject: [ catalog_course.subject_code ], course_number: [ catalog_course.course_number ])
+      )
+      @term   = selected_term(@offered_terms)
       @course = Catalog::CourseSerializer.new(catalog_course, term: @term).as_json
       @prerequisite_graph = Catalog::PrerequisiteGraph.new(catalog_course)
-    end
-
-    private
-
-    # The terms with a section of the course, newest first.
-    def offered_terms(catalog_course)
-      sections = Catalog::SectionQuery.new.call(subject: [ catalog_course.subject_code ], course_number: [ catalog_course.course_number ])
-      Term.where(id: sections.reorder(nil).select(:term_id)).reverse_chronological.to_a
-    end
-
-    # The current term when the course has a section in it, otherwise the
-    # newest term with a section. Nil when no term has one.
-    def default_term(offered)
-      current = Term.current
-      offered.include?(current) ? current : offered.first
     end
   end
 end
