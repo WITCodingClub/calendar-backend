@@ -31,9 +31,8 @@ module Catalog
     # list does not have the label, it is kept as it is.
     #
     # A stored label with the same name is kept, so the nightly sync does not
-    # correct a stored wrong code ("Facilities Management (CPCE)").
-    # catalog:repair_subject_labels does. codes is the term's subject list,
-    # when the caller has it already.
+    # correct a stored wrong code ("Facilities Management (CPCE)"). codes is
+    # the term's subject list, when the caller has it already.
     def self.for_term(description, term_uid, stored: nil, codes: nil)
       description = description.to_s.strip
       return description unless needs_codes?(description)
