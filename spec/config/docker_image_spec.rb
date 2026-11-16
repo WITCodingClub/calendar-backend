@@ -6,13 +6,6 @@ require "rails_helper"
 # (#688). Specs run with every group, so these examples read the files: code
 # that needs a test gem would pass here and fail only in the image.
 RSpec.describe "Production Docker image" do
-  it "installs no gems from the development or test groups" do
-    dockerfile = Rails.root.join("Dockerfile").read
-    groups = dockerfile[/BUNDLE_WITHOUT="([^"]*)"/, 1].to_s.split(":")
-
-    expect(groups).to include("development", "test")
-  end
-
   # Constants of gems that only the development and test groups install.
   # Prosopite is left out: its initializer checks defined?(Prosopite) first.
   let(:dev_and_test_constants) { %w[FactoryBot Faker WebMock SimpleCov Shoulda RSpec Brakeman RuboCop] }

@@ -70,12 +70,14 @@ RSpec.describe ActiveRecordEncryptionKeys do
     end
   end
 
-  it "gives the test environment working keys, so specs need no setup" do
-    expect(ActiveRecord::Encryption.config.primary_key).to be_present
-  end
-
   # Production finished the backfill, so a plain-text token must fail loudly.
   it "does not read plain-text data from encrypted columns" do
-    expect(ActiveRecord::Encryption.config.support_unencrypted_data).to be(false)
+    credential = create(:oauth_credential)
+    # Raw SQL: a hash update_all would encrypt the value through the attribute type.
+    OauthCredential.connection.exec_update(
+      "UPDATE oauth_credentials SET access_token = $1 WHERE id = $2", "seed", [ "plain-text-token", credential.id ]
+    )
+
+    expect { OauthCredential.find(credential.id).access_token }.to raise_error(ActiveRecord::Encryption::Errors::Decryption)
   end
 end

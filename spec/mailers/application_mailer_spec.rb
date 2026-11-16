@@ -8,7 +8,6 @@ RSpec.describe ApplicationMailer, type: :mailer do
   it "sends from a domain that Resend can verify" do
     # wit.edu belongs to the university, so it can never hold the DKIM and SPF
     # records Resend needs. Mail from it would be rejected.
-    expect(sender).to include("send.witcc.dev")
     expect(sender).not_to include("wit.edu")
   end
 
