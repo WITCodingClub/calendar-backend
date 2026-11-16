@@ -66,8 +66,8 @@ RSpec.describe Risc::EventHandler do
   end
 
   it "records a handler failure that a retry cannot fix, reports it, and returns success false" do
-    # A verification ping has no subject, and the event row requires one.
-    data = event_data.merge(event_type: SecurityEvent::VERIFICATION, google_subject: nil)
+    # The event row requires a jti.
+    data = event_data.merge(jti: nil)
     allow(Rails.error).to receive(:report)
 
     result = described_class.new(data).process
@@ -222,7 +222,7 @@ RSpec.describe Risc::EventHandler do
       expect(named.reload).to have_attributes(refresh_token: revoked_token, token_revoked?: false)
       expect(other.reload.refresh_token).to eq(kept_token)
       expect(SecurityEvent.last).to have_attributes(processed: true, processing_error: nil, user: nil,
-                                                    google_subject: described_class::UNKNOWN_SUBJECT)
+                                                    google_subject: SecurityEvent::UNKNOWN_SUBJECT)
     end
 
     it "ignores a token type or identifier that Google does not document" do

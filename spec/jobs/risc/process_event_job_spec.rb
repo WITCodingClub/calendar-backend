@@ -62,24 +62,53 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
     expect(event.event_type).to eq(SecurityEvent::VERIFICATION)
   end
 
-  # Bug: SecurityEvent requires google_subject to be present, but a real RISC
-  # verification ping (a health check with no affected account) has no
-  # "subject" object at all. Risc::EventHandler#create_security_event
-  # always passes event_data[:google_subject] through, so SecurityEvent.create!
-  # raises ActiveRecord::RecordInvalid; Risc::EventHandler#process rescues
-  # it and returns success: false, and Risc::ProcessEventJob never inspects that
-  # return value, so the job "succeeds" without ever recording the event or
-  # raising. Not fixed here because it changes model validation or event
-  # handling; documented as current behavior.
-  it "silently drops a verification event that has no subject, as real RISC pings do" do
+  # A real RISC verification ping is a health check with no affected account,
+  # so it has no "subject" object at all.
+  it "records and processes a verification event that has no subject, as real RISC pings do" do
     stub_google_risc_endpoints
     token = build_token(
       event_type: "https://schemas.openid.net/secevent/risc/event-type/verification",
       jti: "verify-no-subject-jti", state: "opaque-state"
     )
 
-    expect { described_class.perform_now(token) }.not_to raise_error
-    expect(SecurityEvent.find_by(jti: "verify-no-subject-jti")).to be_nil
+    described_class.perform_now(token)
+
+    expect(SecurityEvent.find_by(jti: "verify-no-subject-jti"))
+      .to have_attributes(processed: true, processing_error: nil, google_subject: SecurityEvent::UNKNOWN_SUBJECT)
+  end
+
+  it "records an event of another type that has no subject as unmatched" do
+    stub_google_risc_endpoints
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, jti: "no-subject-jti")
+
+    described_class.perform_now(token)
+
+    expect(SecurityEvent.find_by(jti: "no-subject-jti"))
+      .to have_attributes(processed: true, processing_error: "User not found", google_subject: SecurityEvent::UNKNOWN_SUBJECT)
+  end
+
+  it "retries when the handler fails and records no event" do
+    stub_google_risc_endpoints
+    token = build_token(event_type: SecurityEvent::ACCOUNT_ENABLED, subject: "some-subject", jti: "not-recorded-jti")
+    allow(Risc::EventHandler).to receive(:new).and_return(instance_double(Risc::EventHandler, process: { success: false, error: "synthetic" }))
+
+    expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
+  end
+
+  it "does not retry a handler failure that the handler recorded and reported" do
+    stub_google_risc_endpoints
+    token = build_token(event_type: SecurityEvent::ACCOUNT_ENABLED, subject: "some-subject", jti: "recorded-failure-jti")
+    # Stands in for the handler: it records the failure on the row, then
+    # returns success false.
+    handler = instance_double(Risc::EventHandler)
+    allow(handler).to receive(:process) do
+      create(:security_event, :processed, jti: "recorded-failure-jti", processing_error: "synthetic")
+      { success: false, error: "synthetic" }
+    end
+    allow(Risc::EventHandler).to receive(:new).and_return(handler)
+
+    expect { described_class.perform_now(token) }.not_to have_enqueued_job(described_class)
+    expect(handler).to have_received(:process)
   end
 
   it "revokes a user's google oauth credentials for a sessions-revoked event" do

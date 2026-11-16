@@ -30,9 +30,6 @@ module Risc
     # Google sends token-revoked events for refresh tokens only.
     REFRESH_TOKEN = "refresh_token"
     TOKEN_REVOKED_REASON = "risc token-revoked"
-    # The event row needs a subject. A token-revoked event can come without
-    # one, and then only a matching credential gives it.
-    UNKNOWN_SUBJECT = "unknown"
 
     attr_reader :event_data, :security_event
 
@@ -48,7 +45,7 @@ module Risc
         return { success: true, **result }
       end
 
-      user = find_user_by_google_subject(event_data[:google_subject])
+      user = event_data[:google_subject].present? ? find_user_by_google_subject(event_data[:google_subject]) : nil
       @security_event = create_security_event(user)
 
       if event_data[:event_type] == SecurityEvent::VERIFICATION
@@ -89,7 +86,7 @@ module Risc
 
     # A retry finds the row that the failed attempt left, instead of failing on
     # the unique jti.
-    def create_security_event(user, oauth_credential: nil, google_subject: event_data[:google_subject])
+    def create_security_event(user, oauth_credential: nil, google_subject: event_data[:google_subject].presence || SecurityEvent::UNKNOWN_SUBJECT)
       oauth_credential ||= user&.oauth_credentials&.find_by(provider: "google", uid: event_data[:google_subject])
 
       SecurityEvent.find_or_initialize_by(jti: event_data[:jti]).tap do |event|
@@ -140,7 +137,7 @@ module Risc
     def handle_token_revoked
       identifier = event_data[:token_identifier] || {}
       subject    = event_data[:google_subject]
-      @security_event = create_security_event(find_user_by_google_subject(subject), google_subject: subject || UNKNOWN_SUBJECT)
+      @security_event = create_security_event(find_user_by_google_subject(subject))
 
       unless identifier[:token_type] == REFRESH_TOKEN && TokenMatcher.supported?(identifier[:algorithm])
         Rails.logger.warn("RISC: token_revoked with unsupported token type #{identifier[:token_type].inspect} " \
