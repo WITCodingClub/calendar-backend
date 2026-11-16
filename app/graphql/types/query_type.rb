@@ -8,7 +8,7 @@ module Types
     # sets the length of edges and nodes. No page is ever longer than the
     # list's maximum page size (Catalog::Page), so that is the assumed size
     # when a query gives neither.
-    CONNECTION_LIST_SIZE = ::Catalog::Page::SIZES.to_h do |list, sizes|
+    CONNECTION_LIST_SIZE = ::Catalog::Page::GRAPHQL_SIZES.to_h do |list, sizes|
       [ list, { slicing_arguments: %w[first last], sized_fields: %w[edges nodes],
                 assumed_size: sizes[:max], require_one_slicing_argument: false }.freeze ]
     end.freeze
@@ -34,7 +34,7 @@ module Types
       argument :term_uid, Integer, required: false
     end
 
-    field :sections, SectionType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:sections),
+    field :sections, SectionType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:sections, surface: :graphql),
           description: "Course sections matching the given filters" do
       argument :filter, SectionFilterInput, required: false
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:sections]
@@ -51,7 +51,7 @@ module Types
       argument :code, String, required: true
     end
 
-    field :courses, CourseType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:courses),
+    field :courses, CourseType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:courses, surface: :graphql),
           description: "Courses (not sections) by code or title words" do
       argument :q, String, required: false
       argument :subject, [ String ], required: false, description: "Subject codes, e.g. [\"COMP\"]"
@@ -59,7 +59,7 @@ module Types
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:courses]
     end
 
-    field :instructors, InstructorType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:instructors),
+    field :instructors, InstructorType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:instructors, surface: :graphql),
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
       argument :q, String, required: false, description: "Each word must match the first, last, or display name"
@@ -69,7 +69,7 @@ module Types
       directive Directives::ListSize, **CONNECTION_LIST_SIZE[:instructors]
     end
 
-    field :reviews, ReviewType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:reviews),
+    field :reviews, ReviewType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:reviews, surface: :graphql),
           description: "Rate My Professors reviews of WIT instructors" do
       argument :instructor, String, required: false, description: "An instructor public id"
       argument :q, String, required: false, description: "Free text over the comment and the course"

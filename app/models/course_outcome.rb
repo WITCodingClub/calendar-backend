@@ -28,8 +28,7 @@
 # and a D still passes and gives credit.
 #
 # A row names its course by term code and CRN, not by course id, so it stays
-# when Courses::Reprocessor or `rake catalog:refresh` makes the course or the
-# enrollment again.
+# when Courses::Reprocessor makes the enrollment again.
 class CourseOutcome < ApplicationRecord
   OUTCOMES = {
     c_or_better:    "c_or_better",

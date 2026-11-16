@@ -27,6 +27,8 @@ flowchart TD
   B --> E
 ```
 
+`Catalog::StaleSections` queues each section at most once in 6 hours, for this refresh and for the MCP tools' refresh, so many uploads of one schedule do not send the same section to Banner again and again. The `refresh=` count in the log line is the number of sections it queued.
+
 Each request logs one line: `[Courses::Processor] user=… sections=… from_catalog=… from_banner=… refresh=… banner_ms=… total_ms=…`.
 
 The Banner calls of a web request run inside a Puma thread, so these limits keep that thread short (#683):

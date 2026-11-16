@@ -52,14 +52,14 @@ RSpec.describe CatalogSchema do
       end
     end
 
-    it "sizes each connection by first or last, and by the largest page of its list without them" do
-      { "sections" => :sections, "courses" => :courses, "instructors" => :instructors, "reviews" => :reviews }.each do |name, list|
+    it "sizes each connection by first or last, and by the largest page without them" do
+      %w[sections courses instructors reviews].each do |name|
         field = described_class.query.fields.fetch(name)
-        expect(field.max_page_size).to eq(Catalog::Page.max_size(list))
+        expect(field.max_page_size).to eq(described_class.default_max_page_size)
         expect(applied(field, Directives::ListSize)).to eq(
           slicing_arguments:            %w[first last],
           sized_fields:                 %w[edges nodes],
-          assumed_size:                 Catalog::Page.max_size(list),
+          assumed_size:                 described_class.default_max_page_size,
           require_one_slicing_argument: false
         )
       end

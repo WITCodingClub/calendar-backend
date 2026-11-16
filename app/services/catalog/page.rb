@@ -2,7 +2,7 @@
 
 module Catalog
   # One page of a catalog list. Every surface reads its page sizes here.
-  # SIZES are the sizes of the REST API and the GraphQL schema
+  # SIZES are the sizes of the REST API, GRAPHQL_SIZES of the GraphQL schema
   # (docs/public-catalog-api.md gives the same numbers). MCP_SIZES are
   # smaller on purpose: a tool result goes into a model's context, so each
   # row costs tokens (docs/mcp.md).
@@ -21,7 +21,11 @@ module Catalog
       reviews:     { default: 25, max: 50 }
     }.freeze
 
-    SURFACES = { api: SIZES, mcp: MCP_SIZES }.freeze
+    # Every GraphQL connection allows 200, and a page is 50 without first or
+    # last (CatalogSchema). Third-party clients rely on this public limit.
+    GRAPHQL_SIZES = SIZES.transform_values { { default: 50, max: 200 } }.freeze
+
+    SURFACES = { api: SIZES, graphql: GRAPHQL_SIZES, mcp: MCP_SIZES }.freeze
 
     def self.default_size(list, surface: :api) = SURFACES.fetch(surface).fetch(list)[:default]
     def self.max_size(list, surface: :api)     = SURFACES.fetch(surface).fetch(list)[:max]
