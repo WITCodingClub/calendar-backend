@@ -60,12 +60,10 @@ class BusyBlocks
       (starts_at.to_date..ends_at.to_date).filter_map do |date|
         next unless date.between?(@range_start.to_date, (@range_end - 1).to_date)
 
-        begin_time = date == starts_at.to_date ? hhmm(starts_at) : 0
-        end_time   = date == ends_at.to_date ? hhmm(ends_at) : END_OF_DAY
+        begin_time = date == starts_at.to_date ? Hhmm.from_time(starts_at) : 0
+        end_time   = date == ends_at.to_date ? Hhmm.from_time(ends_at) : END_OF_DAY
         Interval.new(date: date, begin_time: begin_time, end_time: end_time) if end_time > begin_time
       end
     end
-
-    def hhmm(time) = (time.hour * 100) + time.min
   end
 end

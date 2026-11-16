@@ -35,15 +35,5 @@ module Preferences
     # The value of a field that no preference row sets. config is the
     # person's UserExtensionConfig, or nil.
     def default(field, _config) = self.class::DEFAULTS[field]
-
-    private
-
-    def time_with_ampm(time_integer)
-      return "" if time_integer.nil?
-
-      hours   = time_integer / 100
-      display = hours % 12
-      format("%d:%02d %s", display.zero? ? 12 : display, time_integer % 100, hours >= 12 ? "PM" : "AM")
-    end
   end
 end

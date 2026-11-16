@@ -232,9 +232,7 @@ module FinalsSchedules
 
     def clock_times(match)
       [ match.values_at(1, 2, 3), match.values_at(4, 5, 6) ].map do |hour, minute, meridian|
-        hour = hour.to_i % 12
-        hour += 12 if meridian.upcase == "PM"
-        (hour * 100) + minute.to_i
+        Hhmm.parse("#{hour}:#{minute || '00'} #{meridian}")
       end
     end
 

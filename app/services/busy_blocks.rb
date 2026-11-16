@@ -53,8 +53,7 @@ class BusyBlocks
   end
 
   def initialize(user, from:, to:)
-    raise ArgumentError, "to must not be before from" if to < from
-    raise ArgumentError, "the range must be #{MAX_DAYS} days or fewer" if (to - from).to_i + 1 > MAX_DAYS
+    DateRange.check!(from, to)
 
     @user = user
     @from = from
@@ -71,7 +70,7 @@ class BusyBlocks
     (@from..@to).flat_map do |date|
       ranges = by_date.fetch(date, []).map { |interval| [ interval.begin_time, interval.end_time ] }
       merge(ranges).map do |begin_time, end_time|
-        Block.new(date: date, start: hhmm(begin_time), end: hhmm(end_time))
+        Block.new(date: date, start: Hhmm.format(begin_time), end: Hhmm.format(end_time))
       end
     end
   end
@@ -87,6 +86,4 @@ class BusyBlocks
       end
     end
   end
-
-  def hhmm(time) = format("%02d:%02d", time / 100, time % 100)
 end
