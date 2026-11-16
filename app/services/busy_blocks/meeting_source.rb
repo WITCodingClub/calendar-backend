@@ -2,8 +2,9 @@
 
 class BusyBlocks
   # Class meetings of a user. A meeting does not happen on a day with no classes
-  # (a holiday, a study day, or the finals period). The same rule removes
-  # those days from the calendar events of the user.
+  # (a holiday, a study day, or the finals period), as in the calendar events.
+  # It does not cut the meetings off at the course's own final exam, as
+  # CourseCalendars::RecurrenceBuilder#effective_end_date does for the events.
   class MeetingSource
     Row = Data.define(:user_id, :day_of_week, :begin_time, :end_time, :start_date, :end_date) do
       def covers?(date) = date.between?(start_date, end_date)

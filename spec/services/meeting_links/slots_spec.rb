@@ -52,12 +52,27 @@ RSpec.describe MeetingLinks::Slots do
     expect(starts_on(thursday + 1).first).to eq("08:00")
   end
 
-  it "leaves out a friend meeting that the owner was added to, on each week it repeats" do
-    meeting = create(:friend_meeting, :weekly, start_time: zone.local(2026, 10, 1, 8), end_time: zone.local(2026, 10, 1, 9),
-                                               repeat_until: Date.new(2026, 12, 1))
+  it "leaves out a friend meeting that invited the owner, on each week it repeats" do
+    meeting = create(:friend_meeting, :weekly, invite_friends: true, start_time: zone.local(2026, 10, 1, 8),
+                                               end_time: zone.local(2026, 10, 1, 9), repeat_until: Date.new(2026, 12, 1))
     create(:friend_meeting_attendee, friend_meeting: meeting, user: owner)
 
     expect(starts_on(thursday).first).to eq("09:00")
+  end
+
+  # BusyBlocks::FriendMeetingSource: the owner was listed but not invited, so
+  # the meeting is not in the owner's meetings (GET /api/friends/meetings).
+  it "offers the time of a meeting that listed the owner without an invitation" do
+    meeting = create(:friend_meeting, invite_friends: false, start_time: zone.local(2026, 10, 9, 8), end_time: zone.local(2026, 10, 9, 9))
+    create(:friend_meeting_attendee, friend_meeting: meeting, user: owner)
+
+    expect(starts_on(thursday + 1).first).to eq("08:00")
+  end
+
+  it "leaves out the rest of a day with a meeting that goes on past midnight" do
+    create(:friend_meeting, user: owner, start_time: zone.local(2026, 10, 9, 19), end_time: zone.local(2026, 10, 10, 1))
+
+    expect(starts_on(thursday + 1).last).to eq("18:00")
   end
 
   it "leaves out a daily friend meeting of the owner on each day it repeats" do
