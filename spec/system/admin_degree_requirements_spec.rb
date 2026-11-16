@@ -7,6 +7,10 @@ require "rails_helper"
 RSpec.describe "Admin degree requirements", type: :system do
   let(:catalog_year) { create(:catalog_year, :imported, start_year: 2024) }
 
+  # The confirm dialog and the Turbo visit after it took more than the default
+  # 2 seconds on a loaded CI runner. Each wait still ends when the page is ready.
+  around { |example| using_wait_time(10) { example.run } }
+
   before do
     stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
       .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)

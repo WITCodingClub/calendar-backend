@@ -178,9 +178,10 @@ RSpec.describe "Dashboard::Friends", type: :request do
       end
 
       it "says when the date did not change" do
-        friendship.update!(expires_at: 5.days.from_now.to_date.in_time_zone.end_of_day.change(usec: 0))
+        same_date = 5.days.from_now.to_date
+        friendship.update!(expires_at: same_date.in_time_zone.end_of_day.change(usec: 0))
 
-        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: 5.days.from_now.to_date.iso8601 }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: same_date.iso8601 }
 
         expect(flash[:notice]).to eq("The end date did not change.")
       end
