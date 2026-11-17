@@ -101,7 +101,7 @@ module CourseCalendars
         end
 
         # Study Day is a WIT no-class day before finals week, so classes also
-        # end the day before the term's first finals-period event.
+        # end the day before the term's end-of-term finals block.
         study_day = earliest_finals_period_event_for_term(course.term_id)
         if study_day && (study_day - 1.day) < recurrence_end
           recurrence_end = study_day - 1.day
@@ -136,10 +136,10 @@ module CourseCalendars
       @term_finals_start_dates ||= {}
       @term_finals_period_dates ||= {}
       starts  = ::FinalExam.finals_week_starts(term_ids)
-      periods = ::UniversityCalendarEvent.finals_periods.where(term_id: term_ids).group(:term_id).minimum(:start_time)
+      periods = ::UniversityCalendarEvent.end_of_term_finals_starts(term_ids)
       term_ids.each do |id|
         @term_finals_start_dates[id]  = starts[id]
-        @term_finals_period_dates[id] = periods[id]&.to_date
+        @term_finals_period_dates[id] = periods[id]
       end
     end
 
@@ -163,8 +163,7 @@ module CourseCalendars
       @term_finals_period_dates ||= {}
       return @term_finals_period_dates[term_id] if @term_finals_period_dates.key?(term_id)
 
-      @term_finals_period_dates[term_id] = ::UniversityCalendarEvent.finals_periods.where(term_id: term_id)
-                                                                    .minimum(:start_time)&.to_date
+      @term_finals_period_dates[term_id] = ::UniversityCalendarEvent.end_of_term_finals_starts([ term_id ])[term_id]
     end
 
     # The dates on this meeting time's day that a no-class event in its date

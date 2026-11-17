@@ -84,6 +84,10 @@ RSpec.describe UniversityCalendar::Category do
     expect(described_class.infer("Finals Week", nil)).to eq("finals")
   end
 
+  it "keeps a midterm exam period out of finals, because classes meet" do
+    expect(described_class.infer("Midterm Exam Period", nil)).not_to eq("finals")
+  end
+
   it "leaves a schedule announcement that is not about finals to the other rules" do
     expect(described_class.infer("Fall 2027 Course Schedule Available to Students", "Calendar Announcement")).to eq("academic")
     expect(described_class.infer("Fall 2027 Course Schedule Available to Students", nil)).to eq("campus_event")

@@ -66,14 +66,46 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
 
     it "stops the day before Study Day" do
-      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+      create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
 
       expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261208T045959Z")
     end
 
+    [ "Final Exams (15-week & 2 nd 7-week classes)", "Finals Week", "Final Exam Period (15-week & 2 nd 7-week classes)" ].each do |summary|
+      it "stops the day before the finals period #{summary.inspect}" do
+        create(:university_calendar_event, term: term, category: "finals", summary: summary,
+                                           start_time: Time.zone.local(2026, 12, 10, 9, 0), end_time: Time.zone.local(2026, 12, 10, 17, 0))
+
+        expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261210T045959Z")
+      end
+    end
+
+    it "keeps 15-week classes past the finals of the first 7-week classes" do
+      create(:university_calendar_event, term: term, category: "finals", summary: "Final Exams (1st 7-week classes)",
+                                         start_time: Time.zone.local(2026, 10, 20, 9, 0), end_time: Time.zone.local(2026, 10, 21, 17, 0))
+      create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
+                                         start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
+      create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Period (15-week & 2nd 7-week classes)",
+                                         start_time: Time.zone.local(2026, 12, 9, 0, 0), end_time: Time.zone.local(2026, 12, 15, 23, 59))
+
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261208T045959Z")
+      expect(described_class.preloaded(user, [ course ]).effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 7))
+    end
+
+    it "keeps the end date for an announcement stored as finals once the recategorize task has run" do
+      allow(UniversityCalendar::SyncJob).to receive(:resync_users)
+      create(:university_calendar_event, term: term, category: "finals", summary: "Spring 2027 Final Exam Schedule Available to Students",
+                                         start_time: Time.zone.local(2026, 11, 2, 9, 0), end_time: Time.zone.local(2026, 11, 2, 10, 0))
+
+      UniversityCalendar::Recategorize.call(apply: true)
+
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261216T045959Z")
+    end
+
     it "ignores a finals announcement that is not a no-class day" do
-      create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Schedule Online",
+      summary = "Final Exam Schedule Online"
+      create(:university_calendar_event, term: term, category: UniversityCalendar::Category.infer(summary, nil), summary: summary,
                                          start_time: Time.zone.local(2026, 11, 1, 9, 0), end_time: Time.zone.local(2026, 11, 1, 10, 0))
 
       expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261216T045959Z")
@@ -98,7 +130,7 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
 
     it "returns the day before Study Day and keeps the stored end date" do
-      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+      create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
 
       expect(builder.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 7))
@@ -126,7 +158,7 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
 
     it "leaves out finals days after the effective end date" do
-      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+      create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
       create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Period",
                                          start_time: Time.zone.local(2026, 12, 9, 0, 0), end_time: Time.zone.local(2026, 12, 15, 23, 59))
@@ -156,7 +188,7 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       meeting_time
       holiday(Time.zone.local(2026, 10, 12, 0, 0))
       create(:final_exam, term: term, exam_date: Date.new(2026, 12, 12))
-      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+      create(:university_calendar_event, term: term, category: "study_day", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
 
       preloaded = described_class.preloaded(user, [ course ])
@@ -178,7 +210,7 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       holiday(Time.zone.local(2027, 2, 15, 0, 0))
       create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
       create(:final_exam, term: spring, exam_date: Date.new(2027, 4, 26))
-      create(:university_calendar_event, term: spring, category: "finals", summary: "Study Day",
+      create(:university_calendar_event, term: spring, category: "study_day", summary: "Study Day",
                                          start_time: Time.zone.local(2027, 4, 23, 0, 0), end_time: Time.zone.local(2027, 4, 23, 23, 59))
 
       preloaded = described_class.preloaded(user, [ course, spring_course ])
