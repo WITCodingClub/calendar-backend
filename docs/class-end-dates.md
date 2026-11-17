@@ -19,6 +19,8 @@ The finals cutoffs come from the whole term. A section that starts after the ter
 
 `CourseCalendars::RecurrenceBuilder` gives both values. Calendar sync and the ICS feed use the same methods for the `UNTIL` and `EXDATE` lines, so the extension, the synced calendar, and the feed agree. `UniversityCalendarEvent.finals_periods` picks the events in the `study_day` and `finals` categories, whatever their title ("Final Exam Period", "Final Exams", "Finals Week"). `UniversityCalendar::Category` puts a finals schedule announcement, such as "Final Exam Schedule Available to Students", in `academic`, so it does not end classes.
 
+Classes end the day before the term's end-of-term finals block (`UniversityCalendarEvent.end_of_term_finals_starts`). The block is the earliest finals period that starts no more than 14 days before the term's last one. A finals period for the first 7-week classes, weeks earlier, cancels classes on its own dates only and does not end the 15-week classes.
+
 ```mermaid
 flowchart TD
   A[meeting_time.end_date] --> B{Course has a final<br>before end_date?}
@@ -26,10 +28,10 @@ flowchart TD
   B -- no --> D{Term has a finals week<br>before end_date?}
   D -- yes --> E[day before finals week starts]
   D -- no --> F[end_date]
-  C --> G{study_day or finals<br>event before that?}
+  C --> G{end-of-term study_day<br>or finals block before that?}
   E --> G
   F --> G
-  G -- yes --> H[day before that event]
+  G -- yes --> H[day before the block]
   G -- no --> I[keep the date]
   H --> J[effective_end_date]
   I --> J
@@ -41,7 +43,7 @@ The values do not depend on today's date. A request after finals have passed get
 
 A university calendar event in the `holiday`, `study_day` or `finals` category cancels classes on its dates (`UniversityCalendarEvent::NO_CLASS_CATEGORIES`). The feed has no category field, so `UniversityCalendar::Category` reads the title.
 
-`finals` is an allowlist (`Category.finals_period?`). A title gets `finals` only when it names the exam period: "Final Exam Period", "Final Exams" followed by "(", a space or the end of the title, "Finals Week", "Exam Period", "Examination Period" or "Final Examinations". "Final Exam Schedule ..." and "Final Exam Conflict ..." never count. Any other title with a finals word goes to `deadline` or `academic`:
+`finals` is an allowlist (`Category.finals_period?`). A title gets `finals` only when it names the exam period: "Final Exam Period", "Final Exams" followed by "(", a space or the end of the title, "Finals Week", "Exam Period", "Examination Period" or "Final Examinations". "Final Exam Schedule ..." and "Final Exam Conflict ..." never count, and a title with "Midterm" never counts. Any other title with a finals word goes to `deadline` or `academic`:
 
 | Title | Category |
 | --- | --- |
@@ -49,7 +51,7 @@ A university calendar event in the `holiday`, `study_day` or `finals` category c
 | A deadline or request: a `deadline` word, "due", "submit" or "request", such as "Final Exam Conflict Requests Due" | `deadline` |
 | Any other title, such as "Spring 2027 Final Exam Schedule Available to Students", "Final Exam Schedule Is Live", or a title the feed cuts short ("Schedule Availabl") | `academic` |
 
-`UniversityCalendar::TermDates` reads the same rule when it finds the end of a term.
+`UniversityCalendar::TermDates` takes the latest `finals` event of a term as the end of the term.
 
 The weekly import infers the category again for every event that the feed still lists. A row that the feed no longer lists keeps its old category. After a change to `UniversityCalendar::Category`, run the recategorize task once after the deploy:
 

@@ -59,9 +59,10 @@ module UniversityCalendar
     end
 
     # True when the title names a final exam period, the only finals title
-    # that cancels classes. TermDates reads the same rule.
+    # that cancels classes. A midterm exam period is not one: classes meet.
     def finals_period?(summary)
-      summary.to_s.downcase.match?(FINALS_PERIOD_PATTERN)
+      summary = summary.to_s.downcase
+      summary.match?(FINALS_PERIOD_PATTERN) && !summary.include?("midterm")
     end
 
     # The category of a title with a finals word: finals for an exam period,

@@ -76,6 +76,10 @@ class UniversityCalendarEvent < ApplicationRecord
   # The categories of the events that end a term's classes (finals_periods).
   FINALS_PERIOD_CATEGORIES = %w[study_day finals].freeze
 
+  # A finals period that starts more than this before the term's last one
+  # belongs to a shorter session, such as the first 7-week classes.
+  END_OF_TERM_FINALS_WINDOW = 14.days
+
   # The feed gives some holidays and study days as timed events. They cover
   # whole days.
   ALL_DAY_CATEGORIES = %w[holiday study_day].freeze
@@ -122,6 +126,20 @@ class UniversityCalendarEvent < ApplicationRecord
   # Events that overlap the range. A break is one event of several days, so an
   # event that starts before the range still counts when it runs into it.
   scope :in_date_range, ->(s, e) { where(end_time: s.beginning_of_day.., start_time: ..e.end_of_day) }
+
+  # The first day of each term's end-of-term finals block: the earliest
+  # finals period that starts within END_OF_TERM_FINALS_WINDOW of the term's
+  # last one. Classes end the day before it. A term with finals for its first
+  # 7-week classes in October keeps its 15-week classes until December.
+  # @return [Hash{Integer => Date}] term id to date, for terms with a finals period
+  def self.end_of_term_finals_starts(term_ids)
+    finals_periods.where(term_id: term_ids).pluck(:term_id, :start_time)
+                  .group_by(&:first).transform_values do |rows|
+      starts = rows.map(&:last)
+      last = starts.max
+      starts.select { |start| start >= last - END_OF_TERM_FINALS_WINDOW }.min.to_date
+    end
+  end
 
   # The categories a person's calendar gets: every person gets the holidays,
   # and the other categories only when they sync university events.

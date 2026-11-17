@@ -239,12 +239,25 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
 
     it ".finals_periods returns every study day and finals event, whatever its title" do
-      periods = [ "Study Day", "Final Exams (15-week & 2 nd 7-week classes)", "Finals Week" ].map do |summary|
-        create(:university_calendar_event, category: UniversityCalendar::Category.infer(summary, nil), summary: summary)
+      periods = { "Study Day" => "study_day", "Final Exams (15-week & 2 nd 7-week classes)" => "finals", "Finals Week" => "finals" }.map do |summary, category|
+        create(:university_calendar_event, category: category, summary: summary)
       end
       create(:university_calendar_event, category: "academic", summary: "Spring 2027 Final Exam Schedule Available to Students")
 
       expect(described_class.finals_periods).to match_array(periods)
+    end
+
+    it ".end_of_term_finals_starts skips a finals period weeks before the term's last one" do
+      term = create(:term)
+      other = create(:term)
+      finals = ->(t, day) { create(:university_calendar_event, term: t, category: "finals", start_time: day, end_time: day + 8.hours) }
+      finals.call(term, Time.zone.local(2026, 10, 20, 9))
+      finals.call(term, Time.zone.local(2026, 12, 9, 9))
+      create(:university_calendar_event, term: term, category: "study_day", start_time: Time.zone.local(2026, 12, 8), end_time: Time.zone.local(2026, 12, 8, 23, 59))
+      finals.call(other, Time.zone.local(2027, 4, 26, 9))
+
+      expect(described_class.end_of_term_finals_starts([ term.id, other.id, 0 ]))
+        .to eq(term.id => Date.new(2026, 12, 8), other.id => Date.new(2027, 4, 26))
     end
   end
 
