@@ -13,8 +13,9 @@ RSpec.describe "/api/user/backfills", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body).to eq(
-        "past_terms"    => { "completed" => false, "completed_at" => nil },
-        "academic_data" => { "completed" => false, "completed_at" => nil }
+        "past_terms"       => { "completed" => false, "completed_at" => nil },
+        "academic_data"    => { "completed" => false, "completed_at" => nil },
+        "transfer_credits" => { "completed" => false, "completed_at" => nil }
       )
     end
 
@@ -45,10 +46,19 @@ RSpec.describe "/api/user/backfills", type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body).to eq(
-          "past_terms"    => { "completed" => true, "completed_at" => Time.current.iso8601 },
-          "academic_data" => { "completed" => false, "completed_at" => nil }
+          "past_terms"       => { "completed" => true, "completed_at" => Time.current.iso8601 },
+          "academic_data"    => { "completed" => false, "completed_at" => nil },
+          "transfer_credits" => { "completed" => false, "completed_at" => nil }
         )
       end
+    end
+
+    it "records that the student confirmed the transcript transfer credit" do
+      put "/api/user/backfills/transfer_credits", headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("transfer_credits", "completed")).to be(true)
+      expect(user.user_backfills.sole.name).to eq("transfer_credits")
     end
 
     it "keeps one row when the extension marks the same backfill twice" do
@@ -62,7 +72,7 @@ RSpec.describe "/api/user/backfills", type: :request do
       put "/api/user/backfills/grades", headers: auth_headers_for(user), as: :json
 
       expect(response).to have_http_status(:not_found)
-      expect(response.parsed_body["error"]).to include("past_terms, academic_data")
+      expect(response.parsed_body["error"]).to include("past_terms, academic_data, transfer_credits")
       expect(user.user_backfills).to be_empty
     end
   end

@@ -27,9 +27,10 @@
 class UserBackfill < ApplicationRecord
   NAMES = {
     # Every past LeopardWeb term, processed for a student who upgraded to v6.
-    past_terms:    "past_terms",
+    past_terms:       "past_terms",
     # The academic profile and the course outcomes from LeopardWeb (#529).
-    academic_data: "academic_data"
+    academic_data:    "academic_data",
+    transfer_credits: "transfer_credits"
   }.freeze
 
   enum :name, NAMES, validate: true

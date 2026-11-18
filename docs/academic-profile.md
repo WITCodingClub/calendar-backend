@@ -283,10 +283,12 @@ Some students processed their current term before the extension read past terms 
 |---|---|
 | `past_terms` | Process every past LeopardWeb term |
 | `academic_data` | Send the academic profile and the course outcomes |
+| `transfer_credits` | The student confirmed the transfer credit that the extension read from the Academic Transcript |
 
 - `GET /api/user/backfills` returns each name with `completed` and `completed_at`.
 - `PUT /api/user/backfills/:name` marks the run done and returns the same body. Call it only after the run finishes, so a failed run starts again on the next panel load.
 - The backend does not know if a run was ever needed. A new student starts with every run not completed, so the extension marks each run done after its first full sync too.
+- `transfer_credits` is not a catch-up run. The extension reads the transcript, shows the credit to the student, and sends `PUT /api/user/transfer_credits` when the student confirms. It marks `transfer_credits` done after that, so it does not ask a student who already confirmed again on another device.
 - An unknown name answers 404. Add a new run to `UserBackfill::NAMES`. To run a finished backfill again for every student, add a new name (for example `past_terms_v2`).
 
 ```mermaid
