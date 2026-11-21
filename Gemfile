@@ -129,7 +129,7 @@ group :development do
   gem "web-console", "~> 4.3"
   gem "letter_opener", "~> 1.10"
   gem "letter_opener_web", "~> 3.0"
-  gem "annotaterb", "~> 4.25"
+  gem "annotaterb", "~> 4.26"
 end
 
 group :test do
