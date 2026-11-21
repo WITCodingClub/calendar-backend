@@ -114,7 +114,7 @@ group :development, :test do
   # No version cap: CI runs Brakeman with --ensure-latest, so it must stay current.
   gem "brakeman", require: false
   gem "rubocop-rails-omakase", "~> 1.1", require: false
-  gem "rspec-rails", "~> 8.0"
+  gem "rspec-rails", "~> 8.1"
   gem "factory_bot_rails", "~> 6.5"
   gem "faker", "~> 3.8"
   gem "dotenv-rails", "~> 3.2"
